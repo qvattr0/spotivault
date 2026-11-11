@@ -15,3 +15,9 @@ backups/
 Thumbs.db
 .vscode/
 .idea/
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# Python
+__pycache__/
