@@ -12,9 +12,11 @@ The screens are drawn in Pencil, in `docs/ui-design/spotibackup.pen`. This docum
 
 - **Model:** the current Spotify desktop client's design language: dark surfaces, one green accent, dense rows, rounded cards and a left sidebar. It's a reference, not a copy.
 - **Our own work:** no Spotify font, icon, logo or image is copied. Components are rebuilt in Pencil from the client's styling: colour, spacing, radius, type scale and component anatomy.
+- **Logo:** the vinyl vault, a record drawn as a safe dial with a keyhole in its green label. Files, sizes and rules are in [brand/README.md](brand/README.md). The sidebar and the setup wizard header show `Logo/Mark 32` next to the wordmark. The favicon is `logo-32.svg`, with `logo-16.svg` for 16 px.
 - **Icons:** [Lucide](https://lucide.dev).
 - **Font:** Figtree for now (free, close to the client's geometric sans). It can change once it's been seen in the screens.
 - **Component set** in the `.pen` file:
+  - brand: the logo at 140, 64, 32 and 16 px, and on a light tile;
   - tokens: colour, type, spacing, radius;
   - controls: primary, secondary, icon and split buttons, text input, search input, toggle, checkbox row, filter chip, week-grid cell (active, inactive, hover);
   - navigation: sidebar nav, stepper;

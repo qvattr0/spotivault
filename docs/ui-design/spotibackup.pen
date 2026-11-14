@@ -44,6 +44,561 @@
         },
         {
           "type": "frame",
+          "id": "MpMbq",
+          "name": "Section · BRAND",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 24,
+          "children": [
+            {
+              "type": "text",
+              "id": "iBCZx",
+              "name": "BRAND",
+              "fill": "$text-sub",
+              "content": "BRAND",
+              "fontFamily": "$font",
+              "fontSize": 13,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "B7gkz",
+              "name": "Logo sizes",
+              "gap": 40,
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "IKhQ4",
+                  "name": "Item Logo/Mark",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "pHRlj",
+                      "name": "Logo/Mark",
+                      "reusable": true,
+                      "width": 140,
+                      "height": 140,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "id": "tbESX",
+                          "name": "Tile",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "cornerRadius": 28.0,
+                          "fill": "#121212"
+                        },
+                        {
+                          "type": "path",
+                          "id": "TQ1Mk",
+                          "name": "Record",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-0.75 -51.995L-0.75 -47.75A0.75 0.75 0 0 0 0.75 -47.75L0.75 -51.995A52 52 0 0 1 25.348 -45.404L23.225 -41.728A0.75 0.75 0 0 0 24.525 -40.978L26.647 -44.654A52 52 0 0 1 44.654 -26.647L40.978 -24.525A0.75 0.75 0 0 0 41.728 -23.225L45.404 -25.348A52 52 0 0 1 51.995 -0.75L47.75 -0.75A0.75 0.75 0 0 0 47.75 0.75L51.995 0.75A52 52 0 0 1 45.404 25.348L41.728 23.225A0.75 0.75 0 0 0 40.978 24.525L44.654 26.647A52 52 0 0 1 26.647 44.654L24.525 40.978A0.75 0.75 0 0 0 23.225 41.728L25.348 45.404A52 52 0 0 1 0.75 51.995L0.75 47.75A0.75 0.75 0 0 0 -0.75 47.75L-0.75 51.995A52 52 0 0 1 -25.348 45.404L-23.225 41.728A0.75 0.75 0 0 0 -24.525 40.978L-26.647 44.654A52 52 0 0 1 -44.654 26.647L-40.978 24.525A0.75 0.75 0 0 0 -41.728 23.225L-45.404 25.348A52 52 0 0 1 -51.995 0.75L-47.75 0.75A0.75 0.75 0 0 0 -47.75 -0.75L-51.995 -0.75A52 52 0 0 1 -45.404 -25.348L-41.728 -23.225A0.75 0.75 0 0 0 -40.978 -24.525L-44.654 -26.647A52 52 0 0 1 -26.647 -44.654L-24.525 -40.978A0.75 0.75 0 0 0 -23.225 -41.728L-25.348 -45.404A52 52 0 0 1 -0.75 -51.995Z",
+                          "fill": "#2A2A2A"
+                        },
+                        {
+                          "type": "path",
+                          "id": "wlSSX",
+                          "name": "Grooves",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-40.75 0A40.75 40.75 0 1 0 40.75 0A40.75 40.75 0 1 0 -40.75 0ZM-39.25 0A39.25 39.25 0 1 0 39.25 0A39.25 39.25 0 1 0 -39.25 0ZM-32.75 0A32.75 32.75 0 1 0 32.75 0A32.75 32.75 0 1 0 -32.75 0ZM-31.25 0A31.25 31.25 0 1 0 31.25 0A31.25 31.25 0 1 0 -31.25 0Z",
+                          "fill": "#3A3A3A",
+                          "fillRule": "evenodd"
+                        },
+                        {
+                          "type": "path",
+                          "id": "ZCOm6",
+                          "name": "Label",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-20 0A20 20 0 1 0 20 0A20 20 0 1 0 -20 0Z",
+                          "fill": "#34D399"
+                        },
+                        {
+                          "type": "path",
+                          "id": "8Vg4c",
+                          "name": "Keyhole",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M3.241 0.444A5.5 5.5 0 1 0 -3.241 0.444L-5 11L5 11Z",
+                          "fill": "#121212"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "79Y6T",
+                      "name": "Logo/Mark · 140 · master",
+                      "fill": "$text-sub",
+                      "content": "Logo/Mark · 140 · master",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "LyMh0",
+                  "name": "Item Logo/Mark Light",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "NBax7",
+                      "name": "Logo/Mark Light",
+                      "reusable": true,
+                      "width": 140,
+                      "height": 140,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "id": "fI6Fk",
+                          "name": "Tile",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "cornerRadius": 28.0,
+                          "fill": "#F2F2F2"
+                        },
+                        {
+                          "type": "path",
+                          "id": "3G0XT",
+                          "name": "Record",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-0.75 -51.995L-0.75 -47.75A0.75 0.75 0 0 0 0.75 -47.75L0.75 -51.995A52 52 0 0 1 25.348 -45.404L23.225 -41.728A0.75 0.75 0 0 0 24.525 -40.978L26.647 -44.654A52 52 0 0 1 44.654 -26.647L40.978 -24.525A0.75 0.75 0 0 0 41.728 -23.225L45.404 -25.348A52 52 0 0 1 51.995 -0.75L47.75 -0.75A0.75 0.75 0 0 0 47.75 0.75L51.995 0.75A52 52 0 0 1 45.404 25.348L41.728 23.225A0.75 0.75 0 0 0 40.978 24.525L44.654 26.647A52 52 0 0 1 26.647 44.654L24.525 40.978A0.75 0.75 0 0 0 23.225 41.728L25.348 45.404A52 52 0 0 1 0.75 51.995L0.75 47.75A0.75 0.75 0 0 0 -0.75 47.75L-0.75 51.995A52 52 0 0 1 -25.348 45.404L-23.225 41.728A0.75 0.75 0 0 0 -24.525 40.978L-26.647 44.654A52 52 0 0 1 -44.654 26.647L-40.978 24.525A0.75 0.75 0 0 0 -41.728 23.225L-45.404 25.348A52 52 0 0 1 -51.995 0.75L-47.75 0.75A0.75 0.75 0 0 0 -47.75 -0.75L-51.995 -0.75A52 52 0 0 1 -45.404 -25.348L-41.728 -23.225A0.75 0.75 0 0 0 -40.978 -24.525L-44.654 -26.647A52 52 0 0 1 -26.647 -44.654L-24.525 -40.978A0.75 0.75 0 0 0 -23.225 -41.728L-25.348 -45.404A52 52 0 0 1 -0.75 -51.995Z",
+                          "fill": "#121212"
+                        },
+                        {
+                          "type": "path",
+                          "id": "Tvv27",
+                          "name": "Grooves",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-40.75 0A40.75 40.75 0 1 0 40.75 0A40.75 40.75 0 1 0 -40.75 0ZM-39.25 0A39.25 39.25 0 1 0 39.25 0A39.25 39.25 0 1 0 -39.25 0ZM-32.75 0A32.75 32.75 0 1 0 32.75 0A32.75 32.75 0 1 0 -32.75 0ZM-31.25 0A31.25 31.25 0 1 0 31.25 0A31.25 31.25 0 1 0 -31.25 0Z",
+                          "fill": "#2E2E2E",
+                          "fillRule": "evenodd"
+                        },
+                        {
+                          "type": "path",
+                          "id": "XixDx",
+                          "name": "Label",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-20 0A20 20 0 1 0 20 0A20 20 0 1 0 -20 0Z",
+                          "fill": "#34D399"
+                        },
+                        {
+                          "type": "path",
+                          "id": "8OlIc",
+                          "name": "Keyhole",
+                          "x": 0,
+                          "y": 0,
+                          "width": 140,
+                          "height": 140,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M3.241 0.444A5.5 5.5 0 1 0 -3.241 0.444L-5 11L5 11Z",
+                          "fill": "#121212"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "dAClj",
+                      "name": "Logo/Mark Light · on lig",
+                      "fill": "$text-sub",
+                      "content": "Logo/Mark Light · on light surfaces",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "nmJ2Y",
+                  "name": "Item Logo/Mark 64",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "9C9wV",
+                      "name": "Logo/Mark 64",
+                      "reusable": true,
+                      "width": 64,
+                      "height": 64,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "id": "JtXWu",
+                          "name": "Tile",
+                          "x": 0,
+                          "y": 0,
+                          "width": 64,
+                          "height": 64,
+                          "cornerRadius": 12.8,
+                          "fill": "#121212"
+                        },
+                        {
+                          "type": "path",
+                          "id": "5Mwy8",
+                          "name": "Record",
+                          "x": 0,
+                          "y": 0,
+                          "width": 64,
+                          "height": 64,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-1.5 -51.978L-1.5 -46.5A1.5 1.5 0 0 0 1.5 -46.5L1.5 -51.978A52 52 0 0 1 35.694 -37.815L31.82 -33.941A1.5 1.5 0 0 0 33.941 -31.82L37.815 -35.694A52 52 0 0 1 51.978 -1.5L46.5 -1.5A1.5 1.5 0 0 0 46.5 1.5L51.978 1.5A52 52 0 0 1 37.815 35.694L33.941 31.82A1.5 1.5 0 0 0 31.82 33.941L35.694 37.815A52 52 0 0 1 1.5 51.978L1.5 46.5A1.5 1.5 0 0 0 -1.5 46.5L-1.5 51.978A52 52 0 0 1 -35.694 37.815L-31.82 33.941A1.5 1.5 0 0 0 -33.941 31.82L-37.815 35.694A52 52 0 0 1 -51.978 1.5L-46.5 1.5A1.5 1.5 0 0 0 -46.5 -1.5L-51.978 -1.5A52 52 0 0 1 -37.815 -35.694L-33.941 -31.82A1.5 1.5 0 0 0 -31.82 -33.941L-35.694 -37.815A52 52 0 0 1 -1.5 -51.978Z",
+                          "fill": "#2A2A2A"
+                        },
+                        {
+                          "type": "path",
+                          "id": "6ZufV",
+                          "name": "Grooves",
+                          "x": 0,
+                          "y": 0,
+                          "width": 64,
+                          "height": 64,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-37.25 0A37.25 37.25 0 1 0 37.25 0A37.25 37.25 0 1 0 -37.25 0ZM-34.75 0A34.75 34.75 0 1 0 34.75 0A34.75 34.75 0 1 0 -34.75 0Z",
+                          "fill": "#3A3A3A",
+                          "fillRule": "evenodd"
+                        },
+                        {
+                          "type": "path",
+                          "id": "n0Xgc",
+                          "name": "Label",
+                          "x": 0,
+                          "y": 0,
+                          "width": 64,
+                          "height": 64,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-20 0A20 20 0 1 0 20 0A20 20 0 1 0 -20 0Z",
+                          "fill": "#34D399"
+                        },
+                        {
+                          "type": "path",
+                          "id": "AOgCO",
+                          "name": "Keyhole",
+                          "x": 0,
+                          "y": 0,
+                          "width": 64,
+                          "height": 64,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M3.241 0.444A5.5 5.5 0 1 0 -3.241 0.444L-5 11L5 11Z",
+                          "fill": "#121212"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "YqWA4",
+                      "name": "Logo/Mark 64 · 8 notches",
+                      "fill": "$text-sub",
+                      "content": "Logo/Mark 64 · 8 notches",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "bB8hr",
+                  "name": "Item Logo/Mark 32",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "5Rs1O",
+                      "name": "Logo/Mark 32",
+                      "reusable": true,
+                      "width": 32,
+                      "height": 32,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "id": "I2hp4",
+                          "name": "Tile",
+                          "x": 0,
+                          "y": 0,
+                          "width": 32,
+                          "height": 32,
+                          "cornerRadius": 6.4,
+                          "fill": "#121212"
+                        },
+                        {
+                          "type": "path",
+                          "id": "hht6N",
+                          "name": "Record",
+                          "x": 0,
+                          "y": 0,
+                          "width": 32,
+                          "height": 32,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-52 0A52 52 0 1 0 52 0A52 52 0 1 0 -52 0Z",
+                          "fill": "#2A2A2A"
+                        },
+                        {
+                          "type": "path",
+                          "id": "qZNwP",
+                          "name": "Label",
+                          "x": 0,
+                          "y": 0,
+                          "width": 32,
+                          "height": 32,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-20 0A20 20 0 1 0 20 0A20 20 0 1 0 -20 0Z",
+                          "fill": "#34D399"
+                        },
+                        {
+                          "type": "path",
+                          "id": "abqit",
+                          "name": "Keyhole",
+                          "x": 0,
+                          "y": 0,
+                          "width": 32,
+                          "height": 32,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M3.241 0.444A5.5 5.5 0 1 0 -3.241 0.444L-5 11L5 11Z",
+                          "fill": "#121212"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "5mWzb",
+                      "name": "Logo/Mark 32 · UI, favic",
+                      "fill": "$text-sub",
+                      "content": "Logo/Mark 32 · UI, favicon",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "TR2gJ",
+                  "name": "Item Logo/Mark 16",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "DxM2s",
+                      "name": "Logo/Mark 16",
+                      "reusable": true,
+                      "width": 16,
+                      "height": 16,
+                      "layout": "none",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "id": "7jLPS",
+                          "name": "Tile",
+                          "x": 0,
+                          "y": 0,
+                          "width": 16,
+                          "height": 16,
+                          "cornerRadius": 3.2,
+                          "fill": "#121212"
+                        },
+                        {
+                          "type": "path",
+                          "id": "jujOY",
+                          "name": "Record",
+                          "x": 0,
+                          "y": 0,
+                          "width": 16,
+                          "height": 16,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-56 0A56 56 0 1 0 56 0A56 56 0 1 0 -56 0Z",
+                          "fill": "#2A2A2A"
+                        },
+                        {
+                          "type": "path",
+                          "id": "IIkvH",
+                          "name": "Label",
+                          "x": 0,
+                          "y": 0,
+                          "width": 16,
+                          "height": 16,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M-26 0A26 26 0 1 0 26 0A26 26 0 1 0 -26 0Z",
+                          "fill": "#34D399"
+                        },
+                        {
+                          "type": "path",
+                          "id": "xhG08",
+                          "name": "Keyhole",
+                          "x": 0,
+                          "y": 0,
+                          "width": 16,
+                          "height": 16,
+                          "viewBox": [
+                            -70,
+                            -70,
+                            140,
+                            140
+                          ],
+                          "geometry": "M4.52 1.601A8 8 0 1 0 -4.52 1.601L-7 14L7 14Z",
+                          "fill": "#121212"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "eJn73",
+                      "name": "Logo/Mark 16 · favicon",
+                      "fill": "$text-sub",
+                      "content": "Logo/Mark 16 · favicon",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "NFbvp",
+              "name": "Vinyl vault: a record as",
+              "fill": "$text-muted",
+              "content": "Vinyl vault: a record as a safe dial, keyhole in the label, 12 notches cut into the rim. Fixed colours, not tokens: tile #121212, record #2A2A2A, grooves #3A3A3A, label #34D399, keyhole #121212. Notches are see-through. Smaller sizes drop detail; never scale the 140 master below 64. SVG source: docs/brand/.",
+              "fontFamily": "$font",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "textGrowth": "fixed-width",
+              "width": 900
+            }
+          ]
+        },
+        {
+          "type": "frame",
           "id": "QLSnE",
           "name": "Section · TOKENS",
           "width": "fill_container",
@@ -1958,27 +2513,10 @@
                           "alignItems": "center",
                           "children": [
                             {
-                              "type": "frame",
                               "id": "EAAl1",
-                              "name": "Mark",
-                              "width": 30,
-                              "height": 30,
-                              "fill": "$accent",
-                              "cornerRadius": 999,
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "Hgdde",
-                                  "name": "Mark icon",
-                                  "width": 16,
-                                  "height": 16,
-                                  "icon": "archive",
-                                  "library": "lucide",
-                                  "fill": "$on-accent"
-                                }
-                              ]
+                              "type": "ref",
+                              "ref": "5Rs1O",
+                              "name": "Logo"
                             },
                             {
                               "type": "text",
@@ -4351,27 +4889,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "qLksq",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "pdIEl",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -4845,27 +5366,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "xKKld",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "X0YsJy",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -5377,27 +5881,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "V85Opb",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "w290B",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -5858,27 +6345,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "Q7HxPd",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "lB2Hk",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -6634,27 +7104,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "n0qxV",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "Q1NdQI",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -8214,27 +8667,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "d6qqE",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "SiXwX",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -9143,27 +9579,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "Oit5z",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "okVwT",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -9926,27 +10345,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "b2mYS",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "UEQBr",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
@@ -10608,27 +11010,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "ucD6K",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "AVbfT",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
