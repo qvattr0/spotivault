@@ -152,11 +152,11 @@ Spotify's own upload endpoint takes a JPEG of at most 256 KB, so a sharper origi
 **Which cover is saved:**
 1. **Your custom cover**, if you've set one. It's saved byte for byte: never re-encoded or resized.
 2. **Otherwise, Spotify's cover**, at the largest size the CDN has, while "Save Spotify's covers" is on in Settings.
-3. **Liked Songs** has no Spotify cover, and spotibackup doesn't copy Spotify's heart image. It gets a file only if you upload one.
+3. **Liked Songs never has a cover file,** and you can't set a custom cover for it. The UI shows the Liked Songs tile everywhere instead: the client's gradient heart, drawn in our own style ([web-ui.md § Design language](web-ui.md#design-language)).
 
 **Spotify's cover:**
 - **Source:** the `images` URL from `GET /me/playlists`, which the catalog refresh already fetches (`images(url)` is added to its `fields`). For a linked playlist, it comes from `GET /playlists/{id}`.
-- **Largest size:** the controller rewrites the URL before downloading. `ab67706c0000<size><id>` becomes `ab67706c0000bebb<id>`, and `mosaic.scdn.co/<size>/` becomes `mosaic.scdn.co/1280/`. This naming isn't documented, so on a 404 the controller downloads the URL as returned.
+- **Largest size:** the controller rewrites the URL before downloading, following [Spotify's image CDN](#spotifys-image-cdn) below. If the rewritten URL fails, it downloads the URL as returned.
 - **When:** at step 6 of the run flow, only when the image ID (the part after the size) has changed since the last download. A playlist with a new grid of covers gets a new ID, so it's downloaded again.
 - **No stored URLs:** Spotify documents that playlist image URLs expire in less than a day, so a URL is used straight away and never kept as the cover.
 - **Load:** one CDN request per changed cover. These go to `i.scdn.co` or `mosaic.scdn.co`, not the Web API, so they're not in the Web API request count.
@@ -166,7 +166,7 @@ Spotify's own upload endpoint takes a JPEG of at most 256 KB, so a sharper origi
 - **Dropped in by hand:** an image you put in `Music/Playlists/` yourself, through the NAS share, with the playlist's base name also counts as a custom cover. The controller stores a hash of every cover file it writes, and never overwrites or deletes a file whose hash doesn't match.
 - **Checks:** a cover that isn't square, or is under 640 px, is accepted with a warning. Players usually crop a non-square cover to the centre.
 - **Never sent to Spotify:** uploading would need the extra `ugc-image-upload` scope, and Spotify would shrink it to a 256 KB JPEG anyway.
-- **Removing it** goes back to Spotify's cover, or to no file for Liked Songs.
+- **Removing it** goes back to Spotify's cover.
 
 **Files:**
 - **One cover file per playlist.** Switching between JPEG and PNG, or between Spotify's and yours, replaces the old file.
@@ -174,6 +174,44 @@ Spotify's own upload endpoint takes a JPEG of at most 256 KB, so a sharper origi
 - **Written either way:** covers are saved whether or not "Write .m3u playlists" is on, so an upload is never lost.
 - **SQLite** keeps, per playlist: the source (`custom`, `spotify` or none), the file name, its hash, its pixel size, and the Spotify image ID.
 - **Thumbnails:** the UI never loads a full-size file. The controller keeps a 300 px thumbnail of each cover in `/config/cache/covers/`.
+
+### Spotify's image CDN
+
+The Web API returns one image URL per playlist and doesn't say which other sizes exist. The controller gets the largest size by rewriting that URL. **Spotify doesn't document this naming.** It was worked out by testing on 2026-11-15, and it can change without notice.
+
+**An uploaded cover:** `https://i.scdn.co/image/ab67706c0000<size><id>`. The API may also return it on `image-cdn-ak.spotifycdn.com` or `image-cdn-fa.spotifycdn.com`, with the same path.
+
+For example, `ab67706c0000bebbd17e192d4a08b8d87b6baa18` splits into:
+
+| Part | Here | Meaning |
+|---|---|---|
+| Kind | `ab67706c` | A cover uploaded to a user's playlist. Other prefixes are other kinds of image: `ab67616d` is album art, and `ab67706f` is a playlist made by Spotify. |
+| Padding | `0000` | Always `0000` so far. |
+| Size | `bebb` | Four hex digits that pick the size. |
+| Image ID | `d17e192d4a08b8d87b6baa18` | 24 hex digits that identify the image. It's the same across sizes, so it's what the controller compares to know whether a cover has changed. |
+
+| Size code | Pixels | Notes |
+|---|---|---|
+| `bebb` | 640 × 640 | The largest. The controller always asks for this one. |
+| `da84` | 300 × 300 | |
+| `d72c` | 300 × 300 | A smaller, more compressed file than `da84`. |
+
+Every other code tried returned 404, including `82c1`, the code that gives album art above 640 px. So 640 px is the largest copy of an uploaded cover.
+
+**A grid of four album covers:** `https://mosaic.scdn.co/<size>/<ids>`. Spotify builds it from the first albums in the playlist, and `<ids>` is those four album image IDs joined together.
+- `<size>` is the edge in pixels. 60, 300, 640 and 1280 exist, and 1000 and 2000 return 404.
+- 1280 is a true 1280 px image: each quarter is a full 640 px album cover.
+- The image ID the controller compares is the whole `<ids>` part. When the playlist's first albums change, it changes too.
+
+**Rewriting:**
+1. Uploaded cover: replace the four `<size>` digits with `bebb`.
+2. Grid: replace `<size>` with `1280`.
+3. Any other URL shape is downloaded as returned.
+
+**When it stops working:**
+- **Fallback:** if the rewritten URL returns 404 or isn't a JPEG, the controller downloads the URL as the API returned it. That's always a working image, at whatever size Spotify chose.
+- **Logged:** each fallback writes a Controller warning, for example "Cover for Late Night Drive: larger size not found, saved as returned (300 × 300)". The catalog refresh's summary line counts them: "Covers: 4 saved · 1 at the size returned".
+- **Re-checking by hand:** take a cover URL from a playlist, swap in each size code with `curl -o`, and read the pixel size of what comes back. If `bebb` or `/1280/` stops returning the largest image, update the tables above and the rewrite rules.
 
 ## Distribution
 
@@ -208,6 +246,7 @@ Still to validate:
 - **Saved albums:** Spotify's February 2026 changelog lists `/me/albums` and `/albums/{id}/tracks` as still available. Needs a live test.
 - **Followed playlists:** Spotify documents the 403 on `/items`. Whether they still play by `context_uri` needs a live test.
 - **Field names:** Spotify's reference pages still show some fields the changelog removed, so the fields the controller reads need checking against a live response.
+- **Cover sizes on the CDN:** the size rewrites in [Spotify's image CDN](#spotifys-image-cdn) rely on undocumented naming. Tested on public playlists on 2026-11-15; re-check before release, and whenever the fallback warning starts showing up.
 
 ## Component Rules
 

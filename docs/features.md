@@ -23,7 +23,7 @@ Open questions are numbered as in [web-ui.md § Open questions](web-ui.md#open-q
 
 ## Known gaps in the docs
 
-- **The docs are ahead of the `.pen` file** in two places: playlist covers (the detail view's cover upload and the Settings row) and the backup-length line on wizard step 9 aren't drawn yet.
+- **The docs are ahead of the `.pen` file** in one place: the backup-length line on wizard step 9 isn't drawn yet.
 - **`prototype/FINDINGS.md`**, which design.md cites for the settled risks, is on another branch and isn't in this checkout.
 - **README.md** is out of date: it calls this a Docker Compose project and links to `jwallet/spy-spotify`, where design.md uses [Spytify 2.0](https://github.com/spytify/spytify).
 
@@ -103,4 +103,4 @@ These are decided, so don't build them:
 - ARM hosts, and more than one Spotify account ([design.md § Goals and non-goals](design.md#goals-and-non-goals)).
 - Playlists made by Spotify, such as Discover Weekly and Daily Mixes ([web-ui.md § What's in it](web-ui.md#whats-in-it)).
 - Logging in as Spotify's own client to reach internal endpoints ([design.md § Web API usage](design.md#web-api-usage), "Not used").
-- Uploading covers to Spotify ([design.md § Playlist covers](design.md#playlist-covers)).
+- Uploading covers to Spotify, and cover files or custom covers for Liked Songs ([design.md § Playlist covers](design.md#playlist-covers)).
