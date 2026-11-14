@@ -1,0 +1,15 @@
+# Local feasibility run (Docker Desktop via WSL). Not the production compose file.
+services:
+  spotivault:
+    build: .
+    image: spotivault-prototype
+    container_name: spotivault-prototype
+    shm_size: 1g
+    environment:
+      DEVICE_NAME: LorneNAS   # name of the Spotify Connect device (what "Playing on ..." shows)
+    ports:
+      - "127.0.0.1:6080:6080"   # noVNC: http://localhost:6080/vnc.html
+    volumes:
+      - ./data/config:/config
+      - ./data/music:/music
+    restart: unless-stopped
