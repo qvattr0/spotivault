@@ -23,9 +23,9 @@
             {
               "type": "text",
               "id": "RCg0D",
-              "name": "spotibackup · Components",
+              "name": "spotivault · Components",
               "fill": "$text",
-              "content": "spotibackup · Components",
+              "content": "spotivault · Components",
               "fontFamily": "$font",
               "fontSize": 40,
               "fontWeight": "800"
@@ -2558,7 +2558,7 @@
                               "id": "KHSPW",
                               "name": "Wordmark",
                               "fill": "$text",
-                              "content": "spotibackup",
+                              "content": "spotivault",
                               "fontFamily": "$font",
                               "fontSize": 19,
                               "fontWeight": "800"
@@ -4932,9 +4932,9 @@
                 {
                   "type": "text",
                   "id": "oyKU3",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -5227,11 +5227,11 @@
             {
               "type": "text",
               "id": "d2UrP",
-              "name": "spotibackup plays your p",
+              "name": "spotivault plays your p",
               "fill": "$text-sub",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "spotibackup plays your playlists and albums on a Spotify client inside this container and records them as tagged music files on your NAS. It runs on a schedule you choose.",
+              "content": "spotivault plays your playlists and albums on a Spotify client inside this container and records them as tagged music files on your NAS. It runs on a schedule you choose.",
               "fontFamily": "$font",
               "fontSize": 15,
               "fontWeight": "normal"
@@ -5297,7 +5297,7 @@
                   "fill": "$text-sub",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "• Consider using a separate Premium account for spotibackup.",
+                  "content": "• Consider using a separate Premium account for spotivault.",
                   "fontFamily": "$font",
                   "fontSize": 14,
                   "fontWeight": "normal"
@@ -5439,9 +5439,9 @@
                 {
                   "type": "text",
                   "id": "D8ivZ",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -5984,9 +5984,9 @@
                 {
                   "type": "text",
                   "id": "bMhKr",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -6478,9 +6478,9 @@
                 {
                   "type": "text",
                   "id": "qRSFr",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -7267,9 +7267,9 @@
                 {
                   "type": "text",
                   "id": "Y8zRz",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -7835,7 +7835,7 @@
                           "id": "Gkavv",
                           "name": "Auto · read by spotiback",
                           "fill": "$text-muted",
-                          "content": "Auto · read by spotibackup",
+                          "content": "Auto · read by spotivault",
                           "fontFamily": "$font",
                           "fontSize": 12,
                           "fontWeight": "500"
@@ -8860,9 +8860,9 @@
                 {
                   "type": "text",
                   "id": "P1oQT9",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -9155,11 +9155,11 @@
             {
               "type": "text",
               "id": "p7FQHH",
-              "name": "spotibackup uses the Web",
+              "name": "spotivault uses the Web",
               "fill": "$text-sub",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "spotibackup uses the Web API to list your playlists and albums and to start playback on the container's client. It needs a Spotify developer app that you own (Premium required).",
+              "content": "spotivault uses the Web API to list your playlists and albums and to start playback on the container's client. It needs a Spotify developer app that you own (Premium required).",
               "fontFamily": "$font",
               "fontSize": 15,
               "fontWeight": "normal"
@@ -9802,9 +9802,9 @@
                 {
                   "type": "text",
                   "id": "itFdw",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -10598,9 +10598,9 @@
                 {
                   "type": "text",
                   "id": "F0JuSk",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -10881,11 +10881,11 @@
             {
               "type": "text",
               "id": "mSF8g",
-              "name": "What should spotibackup ",
+              "name": "What should spotivault ",
               "fill": "$text",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "What should spotibackup back up?",
+              "content": "What should spotivault back up?",
               "fontFamily": "$font",
               "fontSize": 28,
               "fontWeight": "800"
@@ -11293,9 +11293,9 @@
                 {
                   "type": "text",
                   "id": "FF9zB",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -32133,9 +32133,9 @@
                             {
                               "type": "text",
                               "id": "Ax8he",
-                              "name": "Missed: spotibackup was ",
+                              "name": "Missed: spotivault was ",
                               "fill": "$text-muted",
-                              "content": "Missed: spotibackup was not running",
+                              "content": "Missed: spotivault was not running",
                               "fontFamily": "$font",
                               "fontSize": 13,
                               "fontWeight": "500"
@@ -38574,7 +38574,7 @@
                                   "fill": "$text-sub",
                                   "textGrowth": "fixed-width",
                                   "width": "fill_container",
-                                  "content": "Delivered while any spotibackup tab is open.",
+                                  "content": "Delivered while any spotivault tab is open.",
                                   "fontFamily": "$font",
                                   "fontSize": 13,
                                   "fontWeight": "normal"
@@ -38606,7 +38606,7 @@
                                       "fill": "$text",
                                       "textGrowth": "fixed-width",
                                       "width": "fill_container",
-                                      "content": "Browsers only allow notifications on HTTPS pages. You opened spotibackup over plain http://nas:8080. Reach it over HTTPS, for example through the UGOS reverse proxy.",
+                                      "content": "Browsers only allow notifications on HTTPS pages. You opened spotivault over plain http://nas:8080. Reach it over HTTPS, for example through the UGOS reverse proxy.",
                                       "fontFamily": "$font",
                                       "fontSize": 12,
                                       "fontWeight": "500"
@@ -38716,7 +38716,7 @@
                                       "width": "fill_container",
                                       "descendants": {
                                         "SjfJn": {
-                                          "content": "https://ntfy.sh/lorne-spotibackup",
+                                          "content": "https://ntfy.sh/lorne-spotivault",
                                           "fill": "$text"
                                         }
                                       }
@@ -40616,7 +40616,7 @@
                                   "id": "a4SQ9",
                                   "name": "Mono",
                                   "fill": "$text-sub",
-                                  "content": "spotibackup",
+                                  "content": "spotivault",
                                   "fontFamily": "$font-mono",
                                   "fontSize": 13,
                                   "fontWeight": "normal"
@@ -40931,11 +40931,11 @@
                                 {
                                   "type": "text",
                                   "id": "lKCyq",
-                                  "name": "spotibackup 0.1.0",
+                                  "name": "spotivault 0.1.0",
                                   "fill": "$text-sub",
                                   "textGrowth": "fixed-width",
                                   "width": "fill_container",
-                                  "content": "spotibackup 0.1.0",
+                                  "content": "spotivault 0.1.0",
                                   "fontFamily": "$font",
                                   "fontSize": 13,
                                   "fontWeight": "normal"
@@ -44322,7 +44322,7 @@
                                   "fill": "$text-sub",
                                   "textGrowth": "fixed-width",
                                   "width": "fill_container",
-                                  "content": "Delivered while any spotibackup tab is open.",
+                                  "content": "Delivered while any spotivault tab is open.",
                                   "fontFamily": "$font",
                                   "fontSize": 13,
                                   "fontWeight": "normal"
@@ -44354,7 +44354,7 @@
                                       "fill": "$text",
                                       "textGrowth": "fixed-width",
                                       "width": "fill_container",
-                                      "content": "Browsers only allow notifications on HTTPS pages. You opened spotibackup over plain http://nas:8080. Reach it over HTTPS, for example through the UGOS reverse proxy.",
+                                      "content": "Browsers only allow notifications on HTTPS pages. You opened spotivault over plain http://nas:8080. Reach it over HTTPS, for example through the UGOS reverse proxy.",
                                       "fontFamily": "$font",
                                       "fontSize": 12,
                                       "fontWeight": "500"
@@ -44464,7 +44464,7 @@
                                       "width": "fill_container",
                                       "descendants": {
                                         "SjfJn": {
-                                          "content": "https://ntfy.sh/lorne-spotibackup",
+                                          "content": "https://ntfy.sh/lorne-spotivault",
                                           "fill": "$text"
                                         }
                                       }
@@ -46364,7 +46364,7 @@
                                   "id": "eSOuR",
                                   "name": "Mono",
                                   "fill": "$text-sub",
-                                  "content": "spotibackup",
+                                  "content": "spotivault",
                                   "fontFamily": "$font-mono",
                                   "fontSize": 13,
                                   "fontWeight": "normal"
@@ -46679,11 +46679,11 @@
                                 {
                                   "type": "text",
                                   "id": "xpYXU",
-                                  "name": "spotibackup 0.1.0",
+                                  "name": "spotivault 0.1.0",
                                   "fill": "$text-sub",
                                   "textGrowth": "fixed-width",
                                   "width": "fill_container",
-                                  "content": "spotibackup 0.1.0",
+                                  "content": "spotivault 0.1.0",
                                   "fontFamily": "$font",
                                   "fontSize": 13,
                                   "fontWeight": "normal"
@@ -47662,7 +47662,7 @@
                           "content": "Renaming files yourself makes them record again"
                         },
                         "S7bM1S": {
-                          "content": "Changing the layout here never re-records anything. But if you rename or move files outside spotibackup, it can't find them, so those tracks are recorded again on the next run."
+                          "content": "Changing the layout here never re-records anything. But if you rename or move files outside spotivault, it can't find them, so those tracks are recorded again on the next run."
                         }
                       }
                     }
@@ -47754,9 +47754,9 @@
                 {
                   "type": "text",
                   "id": "lEQi0",
-                  "name": "spotibackup setup",
+                  "name": "spotivault setup",
                   "fill": "$text",
-                  "content": "spotibackup setup",
+                  "content": "spotivault setup",
                   "fontFamily": "$font",
                   "fontSize": 18,
                   "fontWeight": "800"
@@ -48037,11 +48037,11 @@
             {
               "type": "text",
               "id": "h4uKgt",
-              "name": "What should spotibackup ",
+              "name": "What should spotivault ",
               "fill": "$text",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "Which albums should spotibackup back up?",
+              "content": "Which albums should spotivault back up?",
               "fontFamily": "$font",
               "fontSize": 28,
               "fontWeight": "800"

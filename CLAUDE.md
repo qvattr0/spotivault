@@ -1,4 +1,4 @@
-# spotibackup
+# spotivault
 
 A single Docker image for a UGREEN NAS that backs up Spotify playlists, Liked Songs and saved albums by recording them with Spytify, with a web UI to control it. So far the repository holds only the design: there's no application code yet.
 
@@ -9,7 +9,7 @@ Read [docs/features.md](docs/features.md) first. It lists every feature, links t
 The specs it points to:
 - [docs/design.md](docs/design.md): architecture, the container, the run flow, Web API rules and playlist covers.
 - [docs/web-ui.md](docs/web-ui.md): every page and its states, the REST and WebSocket endpoints, user flows and open questions.
-- `docs/ui-design/spotibackup.pen`: the screens. It's encrypted, so read it only through the Pencil MCP tools, never with Read or Grep.
+- `docs/ui-design/spotivault.pen`: the screens. It's encrypted, so read it only through the Pencil MCP tools, never with Read or Grep.
 
 ## Which source wins
 

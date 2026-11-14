@@ -1,6 +1,6 @@
-# spotibackup logo
+# spotivault logo
 
-<img src="logo.svg" width="96" alt="spotibackup logo"> <img src="logo-light.svg" width="96" alt="spotibackup logo, light tile">
+<img src="logo.svg" width="96" alt="spotivault logo"> <img src="logo-light.svg" width="96" alt="spotivault logo, light tile">
 
 The logo is the **vinyl vault**: a record drawn as a safe dial. A keyhole sits in the green label, and 12 short notches are cut into the rim like the ticks on a combination dial. It says "your music, locked away safely".
 
@@ -21,7 +21,7 @@ python3 docs/brand/make_logo.py
 | [`logo-16.svg`](logo-16.svg) | 16 px favicon. | Larger label and keyhole so they survive |
 | [`mark.svg`](mark.svg) | The record alone, with no tile, to place on a surface. The notches are see-through. | Same as the master |
 
-In Pencil, the same sizes are reusable components in [`ui-design/spotibackup.pen`](../ui-design/spotibackup.pen), under **Components → BRAND**: `Logo/Mark`, `Logo/Mark Light`, `Logo/Mark 64`, `Logo/Mark 32` and `Logo/Mark 16`. The sidebar and the setup wizard header use `Logo/Mark 32`. [`add_logo_to_pen.py`](add_logo_to_pen.py) adds these components to a `.pen` file and swaps out the old placeholder marks. Close the file in Pencil before you run it.
+In Pencil, the same sizes are reusable components in [`ui-design/spotivault.pen`](../ui-design/spotivault.pen), under **Components → BRAND**: `Logo/Mark`, `Logo/Mark Light`, `Logo/Mark 64`, `Logo/Mark 32` and `Logo/Mark 16`. The sidebar and the setup wizard header use `Logo/Mark 32`. [`add_logo_to_pen.py`](add_logo_to_pen.py) adds these components to a `.pen` file and swaps out the old placeholder marks. Close the file in Pencil before you run it.
 
 ## Construction
 
@@ -43,5 +43,5 @@ Light tile: tile `#F2F2F2`, record `#121212`, grooves `#2E2E2E`. The label and k
 - **Fixed colours.** The logo's colours aren't tied to the UI tokens. The label green `#34D399` is deliberately not the UI's `accent` token, so the logo stays our own and doesn't change if the accent does.
 - **Pick the variant by size.** Don't scale the master below 64 px or a small variant up: smaller sizes drop detail on purpose.
 - **Don't** recolour it, add the green to the notches, put the dial ticks outside the record, rotate it, or add effects.
-- **Wordmark.** Next to the mark, "spotibackup" is set in Figtree 800, lowercase, as in the sidebar.
+- **Wordmark.** Next to the mark, "spotivault" is set in Figtree 800, lowercase, as in the sidebar.
 - **Not Spotify's.** No Spotify asset or shape is used. Keep it that way: no three-curve "sound" lines, no Spotify green `#1ED760` in the logo.

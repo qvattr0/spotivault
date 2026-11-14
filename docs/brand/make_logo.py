@@ -1,8 +1,8 @@
-"""Generate the spotibackup logo SVGs ("vinyl vault").
+"""Generate the spotivault logo SVGs ("vinyl vault").
 
 Run from anywhere:  python3 docs/brand/make_logo.py
 Writes the SVG files next to this script. The geometry helpers are also used
-to build the logo components in docs/ui-design/spotibackup.pen.
+to build the logo components in docs/ui-design/spotivault.pen.
 
 All shapes are fills (no strokes), drawn in a 140 x 140 box centred on 0,0,
 so they scale cleanly and map 1:1 onto Pencil path nodes.
@@ -157,8 +157,8 @@ def svg(v: Variant) -> str:
     vb = " ".join(f(n) for n in v.view)
     out = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}" width="{v.size}" height="{v.size}" '
-        f'role="img" aria-label="spotibackup">',
-        "<title>spotibackup</title>",
+        f'role="img" aria-label="spotivault">',
+        "<title>spotivault</title>",
     ]
     if v.tile:
         h = TILE / 2

@@ -1,12 +1,12 @@
-# spotibackup web UI
+# spotivault web UI
 
 The controller serves this UI on port 8080. It's how you set up, choose, schedule and watch backups. Architecture is in [design.md](design.md).
 
-The screens are drawn in Pencil, in `docs/ui-design/spotibackup.pen`. This document is the source those screens are drawn from. Where they differ, this document wins until it's updated.
+The screens are drawn in Pencil, in `docs/ui-design/spotivault.pen`. This document is the source those screens are drawn from. Where they differ, this document wins until it's updated.
 
 **Status:** Phase 1 draft, awaiting review.
 - **Shaped with the user:** every page: Setup wizard, Library, Albums, Dashboard, Schedule, History, Settings and Player.
-- **Drawn:** every page, in `docs/ui-design/spotibackup.pen`. Not drawn yet: the backup-length line on wizard step 9.
+- **Drawn:** every page, in `docs/ui-design/spotivault.pen`. Not drawn yet: the backup-length line on wizard step 9.
 - **Not reviewed yet:** the Dashboard's Full backup card, the backup-length line in wizard step 9, and playlist covers (detail view and Settings › Files).
 
 ## Design language
@@ -53,7 +53,7 @@ A linear stepper, styled like the client's onboarding: dark background, a centre
 
 ### 1. Welcome and Terms notice
 - **Content:**
-  - What spotibackup does, in two lines.
+  - What spotivault does, in two lines.
   - The notice: recording breaks Spotify's terms of use, and accounts using recording software have been suspended before. It suggests using a separate Premium account. Whether private copies are legal depends on the country.
 - **Action:** a checkbox, "I understand", then Continue.
 - **After acknowledging:** the acknowledgement is stored with a timestamp, and this screen never shows again. A later "Run setup again" starts at step 2.
@@ -110,7 +110,7 @@ Rows are grouped as they are in the client's Settings. Each row shows the requir
 - **After setup:** the same checklist appears in Settings → Spotify client. Before each run, the run engine re-checks the Auto rows. A row that has drifted fails the run with a clear message (see the Failure flow).
 
 ### 5. Connect the Spotify Web API
-spotibackup uses the Web API to list your playlists and albums and to start playback on the container's client. This needs a Spotify developer app that you own, which requires Premium.
+spotivault uses the Web API to list your playlists and albums and to start playback on the container's client. This needs a Spotify developer app that you own, which requires Premium.
 
 1. **Instructions:** open the Spotify developer dashboard and create an app. It shows the redirect URI to paste into the app, `http://127.0.0.1:8888/callback`, with a copy button.
 2. **Client ID:** paste it into a field.
@@ -165,7 +165,7 @@ The choice sets the **"Automatically track playlists I create"** setting. You ca
 Followed and other people's playlists are never tracked automatically. They are added with the Library's **+** button.
 
 ### 8. Albums
-"Which albums should spotibackup back up?", with two large choice cards, as in step 7:
+"Which albums should spotivault back up?", with two large choice cards, as in step 7:
 - **"Back up all my saved albums":**
   - Every album in your Spotify Library is added to the Albums page as Queued, and recorded once. After a complete recording, scheduled runs skip it.
   - It shows how many there are now ("You have 42 saved albums").
@@ -564,7 +564,7 @@ A large modal in the client's dialog style. Its main element is a grid of square
   - The cut-off item keeps what it recorded. It's marked **Carried over** and runs in the next window at its place in the run order (first by default), where its recorded tracks are skipped as duplicates within seconds.
   - The rest of the queue waits for the next window.
   - The run ends as **Window ended** in History, with its counts.
-- **Start-up (missed runs):** if the container starts during an active hour, for example after the NAS was off, the run starts straight away and stops at the window's end as usual. A window that passed while the container was off is recorded in History as "Missed: spotibackup was not running".
+- **Start-up (missed runs):** if the container starts during an active hour, for example after the NAS was off, the run starts straight away and stops at the window's end as usual. A window that passed while the container was off is recorded in History as "Missed: spotivault was not running".
 - **Run now ignores the grid.** A forced run goes until it's done or you stop it. If a window opens while one is running, no second run starts; the forced run already covers it.
 - **Editing during a run:** if you turn off the current hour, the run stops after the current track.
 
@@ -624,7 +624,7 @@ A table, newest first, loading more as you scroll.
 | Size | Space added: "+612 MB" |
 
 - **Rows with no run:** greyed, single-line rows record runs that didn't happen, with no counts:
-  - "Missed: spotibackup was not running";
+  - "Missed: spotivault was not running";
   - "Skipped: the previous run was paused";
   - "Held: Spotify connection expired".
 - **Filter chips:** All · With issues · Scheduled · Run now.
@@ -658,7 +658,7 @@ Duplicate skips are cheap. In the prototype, a re-run of an already-recorded alb
   - **Retry all failed** in the header: does the same for every such item.
 
 ### Tracks tab
-Every track spotibackup has ever handled, one row each.
+Every track spotivault has ever handled, one row each.
 - **Search:** by title, artist or album.
 - **Filter chips:** All · Recorded · Failed (not recorded yet). The Failed filter is the to-do list.
 - **Columns:**
@@ -734,7 +734,7 @@ One scrolling page, like the client's Settings: section headings, with rows of l
     - **Prefix**, added before the file name and followed by " - ": None (default) · Counter (001) · Album track number.
     - **Underscores instead of spaces:** a toggle, off by default.
     - **Remove accents from file names:** a toggle, off by default.
-  - **Warning:** "Renaming files yourself makes them record again. Changing the layout here never re-records anything. But if you rename or move files outside spotibackup, it can't find them, so those tracks are recorded again on the next run."
+  - **Warning:** "Renaming files yourself makes them record again. Changing the layout here never re-records anything. But if you rename or move files outside spotivault, it can't find them, so those tracks are recorded again on the next run."
   - **Cancel** and **Apply.** Apply only changes the layout in the unsaved settings; the page's Save bar saves it.
 - **Playlist files:** a toggle, "Write .m3u playlists", on by default.
   - Each tracked playlist, and Liked Songs, gets `Music/Playlists/<name>.m3u`, in Spotify's order, with paths relative to the music folder.
@@ -761,11 +761,11 @@ Two channels share one event table.
 
 **Browser notifications:**
 - An **Enable** button asks the browser for permission. The row then shows the state: Enabled, Blocked by the browser (with how to unblock), or Unavailable (see below).
-- They are delivered while any spotibackup tab is open, even in the background, from the live event stream.
-- **Plain HTTP:** browsers only allow notifications on secure pages (HTTPS, or localhost). Opened over plain `http://<nas>:8080`, the row shows **Unavailable** and explains how to reach spotibackup over HTTPS, for example through the UGOS reverse proxy. See the open questions.
+- They are delivered while any spotivault tab is open, even in the background, from the live event stream.
+- **Plain HTTP:** browsers only allow notifications on secure pages (HTTPS, or localhost). Opened over plain `http://<nas>:8080`, the row shows **Unavailable** and explains how to reach spotivault over HTTPS, for example through the UGOS reverse proxy. See the open questions.
 
 **Webhook:**
-- **URL field**, plus an optional secret. The secret is sent as an `X-Spotibackup-Secret` header.
+- **URL field**, plus an optional secret. The secret is sent as an `X-Spotivault-Secret` header.
 - **Send test** posts a sample event.
 - **Payload:** `POST` JSON: `{event, at, title, message, run_id?, url}`. `url` deep-links into the UI.
 - **Uses:** Home Assistant, n8n, ntfy (which accepts a JSON POST) and the like.
@@ -790,7 +790,7 @@ Two channels share one event table.
 
 ### Container
 Read-only, with the note "Change these in the UGOS Docker app":
-- **Device name** (`DEVICE_NAME`, default `spotibackup`), with the warning "Changing it may log the Spotify client out; you'd scan the QR code again".
+- **Device name** (`DEVICE_NAME`, default `spotivault`), with the warning "Changing it may log the Spotify client out; you'd scan the QR code again".
 - **Time zone** (`TZ`).
 - **Music mapping** (`/music`).
 - **`UMASK`.**
@@ -894,7 +894,7 @@ The feasibility prototype (`prototype/`, on a parallel branch) settles these. Th
 2. **Detecting login:** MPRIS works in the container, but which signal reliably means "logged in"? Candidates: MPRIS metadata appearing, the client's user folder in `/config`, or the Web API device list.
 3. **Reading client settings:** Spytify's `core.info` reports crossfade and gapless. Can the controller also read autoplay and streaming quality from the client's prefs file in `/config`? If not, those two rows are manual checkboxes.
 4. ~~**OAuth redirect:**~~ **Resolved:** PKCE with `http://127.0.0.1:8888/callback`. You paste the error page's address back. Refresh tokens expire 6 months after you authorize, so there's a Reconnect flow.
-5. ~~**Container client as a device:**~~ **Resolved:** yes. It's a Connect "Computer" named after the container's hostname, set by the `DEVICE_NAME` env var (default `spotibackup`).
+5. ~~**Container client as a device:**~~ **Resolved:** yes. It's a Connect "Computer" named after the container's hostname, set by the `DEVICE_NAME` env var (default `spotivault`).
 6. ~~**Lossless:**~~ **Resolved:** not available. The client tops out at Ogg Vorbis 320, so FLAC and WAV are marked "no benefit".
 7. ~~**Playlists made by Spotify:**~~ **Decided:** not supported. There is no link input.
 8. ~~**Client login surviving a recreate:**~~ **Resolved:** the login survives. The prototype recreated the container with `--force-recreate`, and the device kept its name and ID. This needs a stable `/config/machine-id` and an unchanged `DEVICE_NAME`; the container's real hostname doesn't matter. Image updates don't need a new QR scan. Changing `DEVICE_NAME` is untested, so Settings keeps its warning. A "client logged out" Dashboard state is still useful as a fallback.

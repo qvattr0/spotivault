@@ -1,6 +1,6 @@
-# spotibackup design
+# spotivault design
 
-spotibackup is a single Docker image for a UGREEN NASync DXP4800+ (x86_64, UGOS Pro). It backs up your Spotify playlists, and optionally your saved albums, by recording them with [Spytify 2.0](https://github.com/spytify/spytify). A built-in web UI ([web-ui.md](web-ui.md)) controls it.
+spotivault is a single Docker image for a UGREEN NASync DXP4800+ (x86_64, UGOS Pro). It backs up your Spotify playlists, and optionally your saved albums, by recording them with [Spytify 2.0](https://github.com/spytify/spytify). A built-in web UI ([web-ui.md](web-ui.md)) controls it.
 
 ## Goals and non-goals
 
@@ -56,7 +56,7 @@ One container, with s6-overlay supervising:
   - `TZ`
   - `UMASK=000`
   - `UI_PASSWORD` (optional): requires a password for the web UI. It can also be set in Settings.
-  - `DEVICE_NAME` (default `spotibackup`): the name of the Spotify Connect device ("Playing on …"). A small preloaded library sets it, because the client takes its name from `gethostname()`. Recreating the container (for example, for an image update) keeps the login: tested with `--force-recreate`. That relies on a stable `/config/machine-id` and an unchanged `DEVICE_NAME`. Changing `DEVICE_NAME` is untested.
+  - `DEVICE_NAME` (default `spotivault`): the name of the Spotify Connect device ("Playing on …"). A small preloaded library sets it, because the client takes its name from `gethostname()`. Recreating the container (for example, for an image update) keeps the login: tested with `--force-recreate`. That relies on a stable `/config/machine-id` and an unchanged `DEVICE_NAME`. Changing `DEVICE_NAME` is untested.
 - A `docker-compose.yml` for the Docker app's Project feature.
 - Avoids host ports 9999 and 9443, which UGOS uses.
 
@@ -81,7 +81,7 @@ The scheduler queues items. An item forced from the UI goes right after the curr
 
 ## Web API usage
 
-Spotify narrowed the Web API for Development Mode apps in February 2026: new apps from 11 February, existing apps from 9 March. spotibackup only uses endpoints that are still available ([migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide)).
+Spotify narrowed the Web API for Development Mode apps in February 2026: new apps from 11 February, existing apps from 9 March. spotivault only uses endpoints that are still available ([migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide)).
 
 | Endpoint | Used for | Page size |
 |---|---|---|
@@ -98,7 +98,7 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 - **Item access:** `/items` returns tracks only for playlists you own or collaborate on. Any other playlist returns 403, and `/me/playlists` leaves out its `items` total. So followed and linked playlists have no track list or total until they're recorded. A followed playlist you collaborate on has access and behaves like your own.
 - **Renamed fields:** a playlist's contents moved from `tracks` to `items`, and each entry's track from `track` to `item`. The controller reads only the new names.
 - **No batch lookups:** `GET /tracks?ids=` and `GET /albums?ids=` are gone. Everything the controller needs, `duration_ms` included, comes with the listings above, so it's stored when it's fetched.
-- **Removed fields:** among others, `popularity` and `linked_from` on tracks, and `label` on albums. spotibackup uses none of them.
+- **Removed fields:** among others, `popularity` and `linked_from` on tracks, and `label` on albums. spotivault uses none of them.
 - **Rate limits:** Spotify publishes no Development Mode numbers. Limits apply over a rolling 30 s window, plus quota buckets shared by every app on the developer account. A `429` carries `Retry-After`; see Requests below for how the controller handles it.
 
 **Load:**
@@ -116,7 +116,7 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
   - A `401` refreshes the token once, then retries. A `403` or `404` is not retried: it's an answer (no item access, or the item is gone).
 - **Counting:** the controller counts requests per catalog refresh and per run, with retries and `429`s counted separately. Each refresh and each run ends with one Controller log line, for example "Web API: 112 requests · 2 retried · 0 rate-limited". A rising rate-limited count is the early sign of a quota problem.
 
-**Not used:** some tools, such as [zotify](https://github.com/Googolplexed0/zotify), log in as Spotify's own desktop client and call Spotify's internal endpoints. That gets around every Development Mode limit, followed playlists included. spotibackup doesn't do this:
+**Not used:** some tools, such as [zotify](https://github.com/Googolplexed0/zotify), log in as Spotify's own desktop client and call Spotify's internal endpoints. That gets around every Development Mode limit, followed playlists included. spotivault doesn't do this:
 - it passes the controller off as Spotify's own client, which breaks the developer terms more directly than recording does;
 - it raises the risk to an account that's used every night;
 - the internal endpoints are undocumented and change without notice;
@@ -250,7 +250,7 @@ Still to validate:
 
 ## Component Rules
 
-Rules for the components in `ui-design/spotibackup.pen`. Follow them when editing the design file.
+Rules for the components in `ui-design/spotivault.pen`. Follow them when editing the design file.
 
 ### Logo (`Logo/Mark` components)
 

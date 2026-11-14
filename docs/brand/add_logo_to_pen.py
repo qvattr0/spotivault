@@ -1,7 +1,7 @@
 """Add the logo components to a Pencil file and swap the placeholder marks.
 
 Usage:  python3 docs/brand/add_logo_to_pen.py [path/to/file.pen]
-Default file: docs/ui-design/spotibackup.pen. Close the file in Pencil first,
+Default file: docs/ui-design/spotivault.pen. Close the file in Pencil first,
 or Pencil may overwrite the change. Safe to run once; it refuses to run twice.
 
 Adds "Section · BRAND" (Logo/Mark, Logo/Mark Light, Logo/Mark 64, 32, 16) under
@@ -13,7 +13,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("make_logo", HERE / "make_logo.py")
 ml = importlib.util.module_from_spec(spec); sys.modules["make_logo"] = ml; spec.loader.exec_module(ml)
-pen_path = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / "ui-design" / "spotibackup.pen"
+pen_path = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / "ui-design" / "spotivault.pen"
 raw = open(pen_path).read()
 d = json.loads(raw)
 

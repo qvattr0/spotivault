@@ -1,11 +1,11 @@
-# spotibackup features
+# spotivault features
 
-The index of everything spotibackup has to do: each feature, where its spec is, its status, what it waits on, and the order to build it in.
+The index of everything spotivault has to do: each feature, where its spec is, its status, what it waits on, and the order to build it in.
 
 This file only points. The specs are:
 - [design.md](design.md): architecture, the run flow, Web API rules, and component rules for the design file.
 - [web-ui.md](web-ui.md): every page, its states, the REST and WebSocket endpoints, user flows and open questions.
-- `ui-design/spotibackup.pen`: the screens, in Pencil.
+- `ui-design/spotivault.pen`: the screens, in Pencil.
 
 Don't copy spec text into this file. When a spec changes, change it in its own document, then update the row here.
 
