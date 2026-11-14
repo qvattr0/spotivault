@@ -47405,27 +47405,10 @@
               "alignItems": "center",
               "children": [
                 {
-                  "type": "frame",
                   "id": "BR8Bq",
-                  "name": "Mark",
-                  "width": 30,
-                  "height": 30,
-                  "fill": "$accent",
-                  "cornerRadius": 999,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "B3Cum",
-                      "name": "Icon archive",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$on-accent"
-                    }
-                  ]
+                  "type": "ref",
+                  "ref": "5Rs1O",
+                  "name": "Logo"
                 },
                 {
                   "type": "text",
