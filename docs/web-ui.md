@@ -6,7 +6,7 @@ The screens are drawn in Pencil, in `docs/ui-design/spotibackup.pen`. This docum
 
 **Status:** Phase 1 draft, awaiting review.
 - **Shaped with the user:** every page: Setup wizard, Library, Albums, Dashboard, Schedule, History, Settings and Player.
-- **Drawn:** every page, in `docs/ui-design/spotibackup.pen`. Not drawn yet: playlist covers, and the backup-length line on wizard step 9.
+- **Drawn:** every page, in `docs/ui-design/spotibackup.pen`. Not drawn yet: the backup-length line on wizard step 9.
 - **Not reviewed yet:** the Dashboard's Full backup card, the backup-length line in wizard step 9, and playlist covers (detail view and Settings › Files).
 
 ## Design language
@@ -260,7 +260,7 @@ A Spotify-style table, one row per item:
 | Tracks | "84 / 120 recorded". For followed or linked playlists, whose totals the API won't give, it's "32 recorded" with an info tooltip. |
 | Last backup | Relative time ("2 days ago"), or "Never". |
 | Status | The pill. |
-| ⋯ | Row menu: Back up now · Change cover… · Open in Spotify · Show files path · Remove from Library (added items only). |
+| ⋯ | Row menu: Back up now · Change cover… (not for Liked Songs) · Open in Spotify · Show files path · Remove from Library (added items only). |
 
 Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button.
 
@@ -279,7 +279,8 @@ Clicking an item opens it in place, like a playlist page in the client.
 - **Header:** a large cover, the name, the owner, the track count and the total duration, then the tracking toggle and a large "Back up now" button.
 - **Cover:** you can replace it with your own, sharper image. Spotify keeps playlist covers at 640 px at most, so this is the only way to get a high-resolution one. Rules are in [design.md § Playlist covers](design.md#playlist-covers).
   - **Hover:** the cover dims and shows a pencil icon with "Change cover", like the client's own playlist editor. Clicking opens a file picker, and you can also drop an image onto the cover.
-  - **With a custom cover set,** clicking opens a menu instead: Change cover · Use Spotify's cover · Show file path. For Liked Songs, which has no Spotify cover, the second item is "Remove cover".
+  - **With a custom cover set,** clicking opens a menu instead: Change cover · Use Spotify's cover · Show file path.
+  - **Liked Songs** has no cover to change: its header always shows the Liked Songs tile, with no hover action and no "Change cover…" in its menu.
   - **Checks:** a file that isn't JPEG or PNG, or is over 20 MB, is refused with an inline error under the header. A cover that isn't square ("Not square: most players crop it to the centre") or is under 640 px ("Smaller than Spotify's own 640 px cover") is saved, with the warning shown in the same place.
   - **Saved:** a toast says "Cover saved · 3000 × 3000", and the new cover shows everywhere the playlist appears: the list, the grid, this header and the Dashboard.
   - **Row menu:** "Change cover…" in the List view's ⋯ menu opens the same file picker.
@@ -311,7 +312,7 @@ A modal in the client's dialog style.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover` (a thumbnail URL), `cover_source` (`custom`, `spotify` or `none`)<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
+| GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover` (a thumbnail URL, null for Liked Songs, which shows its tile), `cover_source` (`custom`, `spotify` or `none`)<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
 | PATCH | `/api/library/{id}` | `{tracked}` |
 | POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. |
 | DELETE | `/api/library/{id}` | Removes an added item. The files are kept. |
@@ -319,8 +320,8 @@ A modal in the client's dialog style.
 | POST | `/api/library/resolve` | `{url}` returns a preview without adding the playlist. |
 | GET | `/api/library/{id}/tracks` | The track list with per-track state. |
 | GET | `/api/library/{id}/cover?size=thumb` | The cover image: `thumb` (300 px, the default) or `full`. |
-| PUT | `/api/library/{id}/cover` | Multipart image upload. Returns the item, plus `width`, `height` and any `warnings` (`not_square`, `small`). It's refused with `unsupported_type` or `too_large`. |
-| DELETE | `/api/library/{id}/cover` | Removes the custom cover. The playlist goes back to Spotify's cover, or to none for Liked Songs. |
+| PUT | `/api/library/{id}/cover` | Multipart image upload. Returns the item, plus `width`, `height` and any `warnings` (`not_square`, `small`). It's refused with `unsupported_type` or `too_large`, and with `not_supported` for Liked Songs. |
+| DELETE | `/api/library/{id}/cover` | Removes the custom cover. The playlist goes back to Spotify's cover. |
 | POST | `/api/runs` | `{items: [id…]}` "Back up now". Queues the items in a forced run. Shared with the Dashboard. |
 | PUT | `/api/settings` | `auto_track_owned` |
 | WS | `/api/events` | `library.item` updates: status, counts and progress while recording. |
