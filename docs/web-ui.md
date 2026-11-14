@@ -6,8 +6,8 @@ The screens are drawn in Pencil, in `docs/ui-design/spotibackup.pen`. This docum
 
 **Status:** Phase 1 draft, awaiting review.
 - **Shaped with the user:** every page: Setup wizard, Library, Albums, Dashboard, Schedule, History, Settings and Player.
-- **Not drawn yet:** the Pencil screens.
-- **Not reviewed yet:** the Dashboard's Full backup card, and the backup-length line in wizard step 8.
+- **Drawn:** every page, in `docs/ui-design/spotibackup.pen`. Not drawn yet: playlist covers, and the backup-length line on wizard step 9.
+- **Not reviewed yet:** the Dashboard's Full backup card, the backup-length line in wizard step 9, and playlist covers (detail view and Settings › Files).
 
 ## Design language
 
@@ -146,7 +146,10 @@ Scopes requested:
     - AAC 320
     - MP3 320
   - **FLAC and WAV:** under a collapsed "More formats", each marked "No benefit: the source is lossy. Bigger files, same quality."
-- **Folder layout:** fixed, shown as information, not as a choice: each track is saved once under Artist / Album, and each playlist gets an `.m3u` file in `Music/Playlists/`. It shows a preview path, for example `Music/Radiohead/OK Computer/Radiohead - Airbag.m4a`. That is Spytify's default name, AAC with tags and a 640 px cover. Spytify's own duplicate index and working files live in `Music/.spytify/`.
+- **Folder layout:** shown as information, not as a choice: each track is saved once under Artist / Album, numbered by its track number, and each playlist gets an `.m3u` file and its cover in `Music/Playlists/`. "You can change the naming later in Settings" (see [Files](#files)).
+  - Example paths: `Music/Radiohead/OK Computer/01 - Airbag.m4a` and `Music/Playlists/Late Night Drive.m3u`.
+  - `Music/.spytify/` holds Spytify's own duplicate index and working files.
+  - Tracks are AAC with tags and a 640 px cover.
 - Everything here can be changed later in Settings.
 
 ### 7. What to back up
@@ -161,8 +164,24 @@ The choice sets the **"Automatically track playlists I create"** setting. You ca
 
 Followed and other people's playlists are never tracked automatically. They are added with the Library's **+** button.
 
-### 8. Done
-- **Content:** a summary of the account, format, folder and what is tracked ("23 playlists + Liked Songs").
+### 8. Albums
+"Which albums should spotibackup back up?", with two large choice cards, as in step 7:
+- **"Back up all my saved albums":**
+  - Every album in your Spotify Library is added to the Albums page as Queued, and recorded once. After a complete recording, scheduled runs skip it.
+  - It shows how many there are now ("You have 42 saved albums").
+- **"I'll choose in Albums":** nothing is queued yet. You add albums afterwards with the **+** button on the Albums page.
+
+A note under the cards: albums you downloaded in a Spotify app count as saved albums. Albums you save later aren't added on their own; add them from the Albums page.
+
+This is a one-off action, not a setting. Choosing "all" again after "Run setup again" adds the saved albums that aren't on the page yet.
+
+### 9. Done
+- **Content:** a summary:
+  - Account: "Lorne · expires 12 May 2027";
+  - Format: "AAC 256 · .m4a";
+  - Folder: "/music → /volume6/Music";
+  - Tracking: "23 playlists + Liked Songs · 42 albums";
+  - Schedule: "None yet · set it in Schedule".
 - **Backup length:** how long the first full backup takes, since recording is real time: "About 298 h of music to record". While the track lists load, it shows "Measuring…". Followed playlists add "+ 2 followed playlists (unknown length)". The figure comes from the [backlog estimate](design.md#backlog-estimate).
 - **Primary:** "Open Library".
 - **Secondary:** "Back up now". It starts a first run of everything tracked and opens the Dashboard.
@@ -185,9 +204,11 @@ Followed and other people's playlists are never tracked automatically. They are 
 | GET | `/api/spotify/devices` | 5 | Whether the container's client is a device. |
 | GET | `/api/spotify/connection` | 5, banner, Settings | Display name, `authorized_at`, `expires_at` and state (`ok`, `expiring`, `expired`). |
 | GET | `/api/storage` | 6 | Whether `/music` is mounted and writable, plus free bytes. |
-| GET/PUT | `/api/settings` | 6, 7, Settings | Format, bitrate, folder layout and `auto_track_owned`. |
-| GET | `/api/library/summary` | 7, 8 | Count of owned playlists, and whether Liked Songs is tracked. |
-| GET | `/api/backlog` | 8 | The backup length. Shared with the Dashboard. |
+| GET/PUT | `/api/settings` | 6, 7, Settings | Format, bitrate, file layout and `auto_track_owned`. |
+| GET | `/api/library/summary` | 7, 9 | Count of owned playlists, and whether Liked Songs is tracked. |
+| GET | `/api/albums/saved` | 8 | The saved-album count. Shared with the Albums + modal. |
+| POST | `/api/albums` | 8 | `{all: true}` adds every saved album as Queued. Shared with the Albums page. |
+| GET | `/api/backlog` | 9 | The backup length. Shared with the Dashboard. |
 | WS | `/api/events` | all | Live push. During setup it carries client-install progress and setup state changes. |
 
 ---
@@ -239,7 +260,7 @@ A Spotify-style table, one row per item:
 | Tracks | "84 / 120 recorded". For followed or linked playlists, whose totals the API won't give, it's "32 recorded" with an info tooltip. |
 | Last backup | Relative time ("2 days ago"), or "Never". |
 | Status | The pill. |
-| ⋯ | Row menu: Back up now · Open in Spotify · Show files path · Remove from Library (added items only). |
+| ⋯ | Row menu: Back up now · Change cover… · Open in Spotify · Show files path · Remove from Library (added items only). |
 
 Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button.
 
@@ -256,6 +277,12 @@ Albums are not in the Library. They have their own page (see [Albums](#albums)),
 ### Detail view
 Clicking an item opens it in place, like a playlist page in the client.
 - **Header:** a large cover, the name, the owner, the track count and the total duration, then the tracking toggle and a large "Back up now" button.
+- **Cover:** you can replace it with your own, sharper image. Spotify keeps playlist covers at 640 px at most, so this is the only way to get a high-resolution one. Rules are in [design.md § Playlist covers](design.md#playlist-covers).
+  - **Hover:** the cover dims and shows a pencil icon with "Change cover", like the client's own playlist editor. Clicking opens a file picker, and you can also drop an image onto the cover.
+  - **With a custom cover set,** clicking opens a menu instead: Change cover · Use Spotify's cover · Show file path. For Liked Songs, which has no Spotify cover, the second item is "Remove cover".
+  - **Checks:** a file that isn't JPEG or PNG, or is over 20 MB, is refused with an inline error under the header. A cover that isn't square ("Not square: most players crop it to the centre") or is under 640 px ("Smaller than Spotify's own 640 px cover") is saved, with the warning shown in the same place.
+  - **Saved:** a toast says "Cover saved · 3000 × 3000", and the new cover shows everywhere the playlist appears: the list, the grid, this header and the Dashboard.
+  - **Row menu:** "Change cover…" in the List view's ⋯ menu opens the same file picker.
 - **Track table:**
 
 | Column | Content |
@@ -284,13 +311,16 @@ A modal in the client's dialog style.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover`<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
+| GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover` (a thumbnail URL), `cover_source` (`custom`, `spotify` or `none`)<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
 | PATCH | `/api/library/{id}` | `{tracked}` |
 | POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. |
 | DELETE | `/api/library/{id}` | Removes an added item. The files are kept. |
 | GET | `/api/library/suggestions?q=` | Followed playlists not yet in the Library. |
 | POST | `/api/library/resolve` | `{url}` returns a preview without adding the playlist. |
 | GET | `/api/library/{id}/tracks` | The track list with per-track state. |
+| GET | `/api/library/{id}/cover?size=thumb` | The cover image: `thumb` (300 px, the default) or `full`. |
+| PUT | `/api/library/{id}/cover` | Multipart image upload. Returns the item, plus `width`, `height` and any `warnings` (`not_square`, `small`). It's refused with `unsupported_type` or `too_large`. |
+| DELETE | `/api/library/{id}/cover` | Removes the custom cover. The playlist goes back to Spotify's cover, or to none for Liked Songs. |
 | POST | `/api/runs` | `{items: [id…]}` "Back up now". Queues the items in a forced run. Shared with the Dashboard. |
 | PUT | `/api/settings` | `auto_track_owned` |
 | WS | `/api/events` | `library.item` updates: status, counts and progress while recording. |
@@ -308,7 +338,9 @@ A separate sidebar page, because albums almost never change once they're out.
 - **Where albums come from:** your **saved albums** (`GET /me/albums`).
   - Albums you downloaded in a Spotify app are also saved albums, so they're included.
   - The Web API doesn't report which albums are downloaded, so there's no separate "downloaded" marker.
-- **Nothing is added automatically:** you choose albums with the **+** button.
+- **How albums get here:**
+  - **Setup:** wizard step 8 can add every saved album at once.
+  - **Later:** you add albums with the **+** button. Albums you save in Spotify after setup aren't added on their own.
 
 ### Header
 - **Title:** "Albums", with a one-line summary: "42 albums · 39 recorded · 3 queued".
@@ -330,8 +362,8 @@ A separate sidebar page, because albums almost never change once they're out.
 
 ### Grid view
 - **Card:** a square cover, the album name, and the artist and year below it.
-- **Status:** a small pill on the card. A Recorded album gets a green check badge instead.
-- **Progress ring:** while the album is recording, a ring shows its progress.
+- **Status:** a pill in the top-right corner of the cover: Queued, Recording (with the dashed circle icon), Partial or Unavailable.
+- **Recorded albums** have no pill or badge, so a page of finished albums stays clean.
 
 ### List view
 
@@ -367,7 +399,7 @@ A modal in the same style as the Library's + modal.
 |---|---|---|
 | GET | `/api/albums` | The added albums, with these fields:<br>• `id`, `name`, `artist`, `year`, `cover`<br>• `total`, `recorded`, `status`, `completed_at`<br><br>It filters, searches and sorts on the server. |
 | GET | `/api/albums/saved` | Saved albums not yet added, for the modal. The UI does the filtering. |
-| POST | `/api/albums` | `{ids: [...]}` adds albums. They start Queued. |
+| POST | `/api/albums` | `{ids: [...]}` adds albums, or `{all: true}` (wizard step 8) adds every saved album not yet added. They start Queued. |
 | DELETE | `/api/albums/{id}` | Removes an album from the page. The files are kept. |
 | GET | `/api/albums/{id}/tracks` | The track list with per-track state. |
 | POST | `/api/runs` | `{items: [id…]}` "Record now" or "Record again". Shared with the Library and the Dashboard. |
@@ -442,7 +474,7 @@ One row per item, in run order. Row states:
 | Current | Expanded (see below). |
 | Finishing | "Finishing OK Computer… saving the last track", with an indeterminate bar. It covers the ~25–30 s between items. Spotify pauses at the end of the item, and the recorder waits 20 s, saves the last track and exits. |
 | Interrupted · will retry | Playback paused for more than 20 s in the middle of the item (a network stall, say), so the recorder ended it early. The controller puts the item back at the end of the queue, and the row moves there with this pill. Tracks already recorded are skipped as duplicates on the retry. If the same item is interrupted twice in one run, it ends as Partial. |
-| Carried over | Cut off when the last window ended. It runs first. |
+| Carried over | Cut off when the last window ended. It runs at its place in the [run order](#run-order), first by default. |
 | Up next | Cover, name and what to expect: "84 new", "11 tracks", or "checking" for followed playlists. Its ⋯ menu has **Remove from this run**. |
 
 **Current item, expanded inline**
@@ -474,7 +506,7 @@ Inline alerts sit between the strip and the queue.
 | GET | `/api/status` | `state` (`idle`, `running`, `paused`, `stopping` or `finishing`), the current run, item and track, and the counters. Read on first load; after that the WS keeps it current. |
 | GET | `/api/schedule/next` | `{at, playlists_to_check, albums_queued, held_reason}` |
 | GET | `/api/runs/last` | The last run's summary and its top issues. |
-| GET | `/api/backlog` | `{tracks_total, tracks_recorded, seconds_total, seconds_left, unknown_items, finish_at, as_of}`. `finish_at` is null with Manual only. Shared with wizard step 8 and the Schedule preview. |
+| GET | `/api/backlog` | `{tracks_total, tracks_recorded, seconds_total, seconds_left, unknown_items, finish_at, as_of}`. `finish_at` is null with Manual only. Shared with wizard step 9 and the Schedule preview. |
 | POST | `/api/runs` | Run now. Without `items` it runs everything due; with `{items: [...]}` it adds those items (from the Library or Albums). |
 | GET | `/api/runs/current` | The queue, with per-item state and the current item's track list. |
 | POST | `/api/runs/current/stop` | `{mode: "after_track" \| "now"}` |
@@ -528,7 +560,7 @@ A large modal in the client's dialog style. Its main element is a grid of square
 ### How runs follow the grid
 - **Start:** a scheduled run starts at the first hour of each window, if there's anything to do.
 - **End of a window:** the run **stops after the current track**, so nothing is half-recorded.
-  - The cut-off item keeps what it recorded. It's marked **Carried over** and goes first in the next window, where its recorded tracks are skipped as duplicates within seconds.
+  - The cut-off item keeps what it recorded. It's marked **Carried over** and runs in the next window at its place in the run order (first by default), where its recorded tracks are skipped as duplicates within seconds.
   - The rest of the queue waits for the next window.
   - The run ends as **Window ended** in History, with its counts.
 - **Start-up (missed runs):** if the container starts during an active hour, for example after the NAS was off, the run starts straight away and stops at the window's end as usual. A window that passed while the container was off is recorded in History as "Missed: spotibackup was not running".
@@ -536,13 +568,19 @@ A large modal in the client's dialog style. Its main element is a grid of square
 - **Editing during a run:** if you turn off the current hour, the run stops after the current track.
 
 ### Run order
-A fixed rule, shown on the page as a short list:
+A section on the page, titled "Run order", that sets which kind of item each run does first. It's a list of four groups, each with a drag handle. The default order:
 1. Carried-over items.
 2. Liked Songs.
 3. Tracked playlists with new tracks, most recently changed first.
 4. Queued and Partial albums, oldest added first.
 
-Followed playlists, which have no track totals, are checked along with the other playlists. Items that are up to date take seconds.
+- **Reorder:** drag a group by its handle. A "Drag to reorder" hint sits in the section header.
+- **Reset to default:** a button in the header puts the four groups back in the order above.
+- **Inside a group,** the order stays fixed: most recently changed first for playlists, oldest added first for albums.
+- **Saving:** a new order is saved when you drop the group, with no Save button, and applies from the next item of a run that's going.
+- **Note under the list:** "Runs follow this order. Liked Songs counts as a playlist. Followed playlists have no totals; they're checked along with the others. Items that are up to date take seconds."
+
+The order applies to every run, scheduled or forced. An item forced from the UI during a run still goes right after the current item.
 
 ### Preview
 Shown on the page and in the modal, where it updates as you paint:
@@ -557,7 +595,7 @@ Shown on the page and in the modal, where it updates as you paint:
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/schedule` | `{hours: {mon: [1,2,3,4,5,6], tue: […], …}, tz}`. Each list holds the active hours of that day (0–23). All lists empty means Manual only. |
+| GET | `/api/schedule` | `{hours: {mon: [1,2,3,4,5,6], tue: […], …}, tz, run_order}`. Each list holds the active hours of that day (0–23). All lists empty means Manual only. `run_order` lists the four groups in order: `carried_over`, `liked`, `playlists`, `albums`. |
 | PUT | `/api/schedule` | Saves. Same shape. |
 | POST | `/api/schedule/preview` | Body: `{hours}`, which may be unsaved. Returns `{windows_per_week, hours_per_week, next_windows: [...], backlog}`. `backlog` has the same shape as `GET /api/backlog`, with `finish_at` worked out for the posted hours. |
 | GET | `/api/schedule/next` | Shared with the Dashboard: `{at, window_end, playlists_to_check, albums_queued, held_reason}`. |
@@ -676,10 +714,33 @@ One scrolling page, like the client's Settings: section headings, with rows of l
   - A note under it: "Applies to new recordings. Tracks already recorded aren't recorded again."
 
 ### Files
-- **Layout:** fixed, with no setting. Each track is saved once, as `Music/<artist>/<album>/<artist> - <title>.m4a`. The row shows that path as an example.
+- **Layout:** how new recordings are named. The row shows the current layout, `Music/<artist>/<album>/<track> - <title>.m4a` by default, with an **Edit layout** button. Each track is still saved once.
+- **Edit layout modal:** "Choose how new recordings are named. Tracks already recorded aren't renamed or recorded again."
+  - **Example:** a live path that updates as you type, for example `Music/fakename/Elsewhere/05 - Last Hours.m4a`.
+  - **Layout field:** a monospace field between a fixed `Music/` and the format's extension (`.m4a`). The default is `{album_artist}/{album}/{track} - {title}`. A "Valid" check sits at its right.
+  - **Insert:** chips that type a placeholder at the cursor: `{album_artist}`, `{artists}`, `{title}`, `{album}`, `{track}`, `{year}`.
+  - **Validation, as you type:**
+    - only those six placeholders are accepted;
+    - the folder part must be none, `{album_artist}`, or `{album_artist}/{album}`;
+    - the file name, after the last `/`, can't be empty or contain `/`.
+
+    An error replaces the hint under the field, in red, and **Apply** stays disabled until the layout is valid.
+  - **Rules shown under the field:**
+    - `{album_artist}` is the album's main artist, so collaborations share one folder.
+    - `{track}` is two digits. A track with no number is saved as just `{title}`.
+    - `{year}` stays empty: Spotify on Linux doesn't provide one, so album folders have no year.
+  - **Options:**
+    - **Prefix**, added before the file name and followed by " - ": None (default) · Counter (001) · Album track number.
+    - **Underscores instead of spaces:** a toggle, off by default.
+    - **Remove accents from file names:** a toggle, off by default.
+  - **Warning:** "Renaming files yourself makes them record again. Changing the layout here never re-records anything. But if you rename or move files outside spotibackup, it can't find them, so those tracks are recorded again on the next run."
+  - **Cancel** and **Apply.** Apply only changes the layout in the unsaved settings; the page's Save bar saves it.
 - **Playlist files:** a toggle, "Write .m3u playlists", on by default.
   - Each tracked playlist, and Liked Songs, gets `Music/Playlists/<name>.m3u`, in Spotify's order, with paths relative to the music folder.
   - Plex, Jellyfin and Navidrome read these.
+- **Playlist covers:** a toggle, "Save Spotify's covers", on by default.
+  - Each playlist's cover is saved next to its `.m3u` as `Music/Playlists/<name>.jpg`, at the largest size Spotify has (640 px, or 1280 px for a grid of album covers).
+  - The description says: "Custom covers you upload in the Library are always saved, and replace Spotify's." Turning the toggle off doesn't delete covers already saved.
 - **Music folder:** read-only. It shows `/music → /volume6/Music`, the free space, and a "Check access" button that re-runs the wizard's step-6 check.
 
 ### Library
@@ -743,7 +804,7 @@ Read-only, with the note "Change these in the UGOS Docker app":
 
 | Method | Path | Notes |
 |---|---|---|
-| GET/PUT | `/api/settings` | Body:<br>• `format`, `bitrate`, `write_m3u`, `auto_track_owned`<br>• `notifications: {browser: [events], webhook: {url, secret, events}}` |
+| GET/PUT | `/api/settings` | Body:<br>• `format`, `bitrate`, `write_m3u`, `save_spotify_covers`, `auto_track_owned`<br>• `layout: {pattern, prefix, underscores, strip_accents}`. `prefix` is `none`, `counter` or `track_number`. An invalid `pattern` is refused with `invalid_layout`.<br>• `notifications: {browser: [events], webhook: {url, secret, events}}` |
 | POST | `/api/notifications/test` | `{channel: "webhook"}` |
 | GET | `/api/storage` | Shared with wizard step 6. |
 | GET | `/api/auth` | `{password_set, set_by_env}` |
@@ -799,7 +860,7 @@ View-only is set on the noVNC client, which is a guard against mistakes, not a s
 
 ## User flows
 
-1. **First-time setup:** the Setup wizard, steps 1–8, ending in the Library or a first run.
+1. **First-time setup:** the Setup wizard, steps 1–9, ending in the Library or a first run.
 2. **Picking playlists:**
    1. In the Library, turn tracking on or off per row, or by the grid badge.
    2. Press **+**, then add followed playlists from the suggestions, or paste a link.
@@ -841,3 +902,6 @@ The feasibility prototype (`prototype/`, on a parallel branch) settles these. Th
 11. **Saved albums access:** do the saved-album endpoints (`/me/albums`, and album tracks) work for a 2026 dev-mode app? The Albums page depends on them. **Documented, not tested:** the February 2026 changelog lists both as still available, and `/me/albums` still includes each album's tracks with `duration_ms`. Needs a live test.
 12. **Browser notifications over HTTP:** notifications need a secure context. Can the image serve HTTPS itself (for example, with a self-signed certificate on a second port)? Or should the docs point to the UGOS reverse proxy? With a self-signed certificate the browser shows a warning, and Chrome may still refuse notifications.
 13. **Client install timing:** is installing the client on first start (not baked into the image) fast and reliable enough to show as a wizard step?
+14. **Covers in media servers:** do Plex, Jellyfin and Navidrome show `<name>.jpg` as the cover of `<name>.m3u` when they import it? If one of them doesn't, is there a name it does read, such as `<name>.m3u.jpg`?
+15. **Cover changes:** when you change a playlist's cover in Spotify, does the image ID in the `images` URL change? The controller relies on that to know when to download it again. Does the `images` field also come back on `/me/playlists` under the 2026 rules?
+16. **File layout in Spytify:** can Spytify name files from the Settings layout itself (its placeholders, prefix, underscores and accent options), or does the controller have to move each file after `track.finished`? Either way, the per-track records must keep the final path, so a layout change never makes a recorded track look missing.

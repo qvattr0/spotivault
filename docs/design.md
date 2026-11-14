@@ -64,7 +64,7 @@ One container, with s6-overlay supervising:
 - `privacy.bug_tracker=off`
 - `recorder.duplicates=skip`
 - `recorder.skip_duplicates_forward=on`
-- `output.group_by=artist/album`
+- File naming from Settings › Files › Layout, passed in with the other recorder settings. The default is `{album_artist}/{album}/{track} - {title}`. How Spytify takes it is [open question 16](web-ui.md#open-questions).
 
 ## Run flow, per playlist or album
 
@@ -75,7 +75,7 @@ One container, with s6-overlay supervising:
 5. Follow Spytify's events. Spotify pauses at the end of an album or playlist. After 20 s of silence, `spytifyd` saves the last track and exits (`--idle-exit 20s`), about 25–30 s after the pause.
    - **No client restart is needed.**
    - **A pause of more than 20 s in the middle of an item** ends it early. This happens when another device takes over or the network stalls. The controller re-queues the item, and the tracks already recorded are skipped as duplicates.
-6. Write a `.m3u` for the playlist, in the Web API's track order. For a playlist without item access, use the order the tracks were recorded in.
+6. Write a `.m3u` for the playlist, in the Web API's track order. For a playlist without item access, use the order the tracks were recorded in. Save its cover next to it (see [Playlist covers](#playlist-covers)).
 
 The scheduler queues items. An item forced from the UI goes right after the current item. One item records at a time.
 
@@ -124,7 +124,7 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 
 ## Backlog estimate
 
-Recording happens in real time, so a backup takes about as long as the music still to record. The Dashboard's Full backup card, wizard step 8 and the Schedule preview all show this estimate, from one calculation (`GET /api/backlog`).
+Recording happens in real time, so a backup takes about as long as the music still to record. The Dashboard's Full backup card, wizard step 9 and the Schedule preview all show this estimate, from one calculation (`GET /api/backlog`).
 
 - **Catalog:** every tracked item's track list with `duration_ms`, kept in SQLite and refreshed as described in [Web API usage](#web-api-usage). It's refreshed at the start of each run, and when the Dashboard or Schedule page opens, at most once every 15 minutes.
 - **What's recorded:** History's per-track records, keyed by Spotify track ID.
@@ -135,6 +135,45 @@ Recording happens in real time, so a backup takes about as long as the music sti
 - **Finish date:** the controller walks the schedule's active hours forward from now until the time left is used up. With Manual only, there's no date.
 - **Unknown items:** followed and linked playlists have no track list, so they're left out of the figure and counted separately.
 - **Accuracy:** duplicates are skipped in seconds, so they barely count. The same song can have a different track ID on a single and on its album; it's counted twice but recorded once, so the estimate leans slightly high.
+
+## Playlist covers
+
+Each playlist's cover is saved next to its `.m3u`, with the same base name: `Music/Playlists/<name>.m3u` and `Music/Playlists/<name>.jpg` (or `.png`). When the playlist is renamed, both files are renamed.
+
+**Why you can upload your own:** Spotify doesn't keep a sharp copy of a playlist cover. Tested on 2026-11-15 against Spotify's image CDN, trying each size code:
+
+| Cover | Sizes on the CDN | Largest |
+|---|---|---|
+| Uploaded in Spotify (`i.scdn.co/image/ab67706c0000<size><id>`) | `bebb` 640, `da84` 300, `d72c` 300 (smaller file). Every other code tried, `82c1` included, is a 404. | 640 × 640 |
+| Grid of four album covers (`mosaic.scdn.co/<size>/<ids>`) | 60, 300, 640, 1280 | 1280 × 1280, built from four 640 px album covers |
+
+Spotify's own upload endpoint takes a JPEG of at most 256 KB, so a sharper original isn't kept on Spotify's side. Album covers are different: the API gives 640 px, but the CDN has larger copies.
+
+**Which cover is saved:**
+1. **Your custom cover**, if you've set one. It's saved byte for byte: never re-encoded or resized.
+2. **Otherwise, Spotify's cover**, at the largest size the CDN has, while "Save Spotify's covers" is on in Settings.
+3. **Liked Songs** has no Spotify cover, and spotibackup doesn't copy Spotify's heart image. It gets a file only if you upload one.
+
+**Spotify's cover:**
+- **Source:** the `images` URL from `GET /me/playlists`, which the catalog refresh already fetches (`images(url)` is added to its `fields`). For a linked playlist, it comes from `GET /playlists/{id}`.
+- **Largest size:** the controller rewrites the URL before downloading. `ab67706c0000<size><id>` becomes `ab67706c0000bebb<id>`, and `mosaic.scdn.co/<size>/` becomes `mosaic.scdn.co/1280/`. This naming isn't documented, so on a 404 the controller downloads the URL as returned.
+- **When:** at step 6 of the run flow, only when the image ID (the part after the size) has changed since the last download. A playlist with a new grid of covers gets a new ID, so it's downloaded again.
+- **No stored URLs:** Spotify documents that playlist image URLs expire in less than a day, so a URL is used straight away and never kept as the cover.
+- **Load:** one CDN request per changed cover. These go to `i.scdn.co` or `mosaic.scdn.co`, not the Web API, so they're not in the Web API request count.
+
+**Your cover:**
+- **Upload:** from the Library's detail view (see [web-ui.md § Detail view](web-ui.md#detail-view)). JPEG or PNG, up to 20 MB. The file keeps its type, so a PNG is saved as `<name>.png`.
+- **Dropped in by hand:** an image you put in `Music/Playlists/` yourself, through the NAS share, with the playlist's base name also counts as a custom cover. The controller stores a hash of every cover file it writes, and never overwrites or deletes a file whose hash doesn't match.
+- **Checks:** a cover that isn't square, or is under 640 px, is accepted with a warning. Players usually crop a non-square cover to the centre.
+- **Never sent to Spotify:** uploading would need the extra `ugc-image-upload` scope, and Spotify would shrink it to a 256 KB JPEG anyway.
+- **Removing it** goes back to Spotify's cover, or to no file for Liked Songs.
+
+**Files:**
+- **One cover file per playlist.** Switching between JPEG and PNG, or between Spotify's and yours, replaces the old file.
+- **Kept:** like the `.m3u`, the cover stays when you stop tracking a playlist or remove it from the Library.
+- **Written either way:** covers are saved whether or not "Write .m3u playlists" is on, so an upload is never lost.
+- **SQLite** keeps, per playlist: the source (`custom`, `spotify` or none), the file name, its hash, its pixel size, and the Spotify image ID.
+- **Thumbnails:** the UI never loads a full-size file. The controller keeps a 300 px thumbnail of each cover in `/config/cache/covers/`.
 
 ## Distribution
 
