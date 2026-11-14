@@ -18,4 +18,4 @@ cp /config/machine-id /etc/machine-id
 rm -f /config/home/.cache/spotify/Singleton*
 
 exec setpriv --reuid=app --regid=app --init-groups \
-    /usr/bin/supervisord -n -c /etc/supervisor/spotibackup.conf
+    /usr/bin/supervisord -n -c /etc/supervisor/spotivault.conf

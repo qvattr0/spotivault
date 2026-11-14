@@ -38,8 +38,8 @@ RUN dbus-uuidgen > /etc/machine-id \
     && useradd --uid 1000 --home-dir /config/home --no-create-home --shell /bin/bash app \
     && printf 'pcm.!default pulse\nctl.!default pulse\n' > /etc/asound.conf
 
-COPY pulse.pa /etc/pulse/spotibackup.pa
-COPY supervisord.conf /etc/supervisor/spotibackup.conf
+COPY pulse.pa /etc/pulse/spotivault.pa
+COPY supervisord.conf /etc/supervisor/spotivault.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY probe.py /usr/local/bin/probe
 COPY --from=shim /src/hostname-shim.so /usr/local/lib/hostname-shim.so
@@ -55,7 +55,7 @@ ENV HOME=/config/home \
     SPYTIFY_TARGET_MPRIS=org.mpris.MediaPlayer2.spotify \
     SPYTIFY_SOCKET=/tmp/runtime-app/spytify.sock \
     PROBE_STATE=/config/probe \
-    DEVICE_NAME=spotibackup \
+    DEVICE_NAME=spotivault \
     TZ=UTC
 
 VOLUME ["/config", "/music"]

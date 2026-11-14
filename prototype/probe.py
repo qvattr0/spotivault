@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""spotibackup feasibility probe.
+"""spotivault feasibility probe.
 
 Drives Spytify (JSON-RPC over its socket), the Spotify Web API and the Spotify
 client's MPRIS interface, to check each risky piece of the design. Stdlib only.
@@ -11,7 +11,8 @@ client's MPRIS interface, to check each risky piece of the design. Stdlib only.
     probe library                   playlists, saved albums, devices (and which endpoints answer)
     probe items URI                 track count of a playlist/album
     probe mpris                     what the client publishes over MPRIS
-    probe record URI [--via mpris]  record one playlist/album end to end
+    probe record URI [--via mpris]  record one playlist/album end to end, with a --once recorder
+    probe record URI --only-missing play only the tracks Spytify's index doesn't have yet
 """
 import argparse
 import base64
@@ -39,10 +40,16 @@ SCOPES = " ".join([
     "user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing",
 ])
 API = "https://api.spotify.com/v1"
+OUTPUT_DIR = os.environ.get("SPYTIFY_OUTPUT_DIR", "/music")
 
 DEFAULT_SETTINGS = {
     "output.dir": "/music",
+    # /music/<artist>/<album>/<track> - <title>.m4a. {track} is two digits ("05"); a track
+    # with no number drops it and its " - ". The album folder gets " (year)" when the player
+    # gives a year, which the Linux client hasn't so far.
     "output.group_by": "artist/album",
+    "output.template": "{track} - {title}",
+    "output.prefix": "none",
     "encode.format": "aac",
     "encode.bitrate_kbps": 256,
     "recorder.duplicates": "skip",
@@ -193,6 +200,78 @@ def context_total(api, kind, cid):
     return None, "; ".join(tried)
 
 
+def context_tracks(api, kind, cid):
+    """The item's tracks in play order, as (status, list). Each entry: position (the context
+    offset), uri, name, artists, duration_ms, playable. Followed playlists answer 403."""
+    out = []
+    if kind == "album":
+        url, params = f"/albums/{cid}/tracks", {"limit": 50, "market": "from_token"}
+    else:
+        url, params = f"/playlists/{cid}/items", {"limit": 50, "market": "from_token"}
+    while url:
+        st, js = api.req("GET", url, params)
+        if st != 200:
+            return st, None
+        for e in js.get("items", []):
+            # Playlist entries carry the track under `item` (Feb 2026 API), `track` before that.
+            t = e if kind == "album" else (e.get("item") or e.get("track") or {})
+            out.append({
+                "position": len(out), "uri": t.get("uri"), "name": t.get("name") or "",
+                "artists": [a.get("name", "") for a in t.get("artists") or []],
+                "duration_ms": t.get("duration_ms") or 0,
+                # Unplayable tracks are passed over by the client (an offset at one plays
+                # another track); local files and episodes are not recorded.
+                "playable": (t.get("type") == "track" and not t.get("is_local")
+                             and t.get("is_playable", True) is not False),
+                "linked_from": (t.get("linked_from") or {}).get("uri"),
+            })
+        url, params = js.get("next"), None
+    return 200, out
+
+
+# --------------------------------------------------------------------------- Spytify's duplicate index
+
+def go_lower(s):
+    """Go's strings.ToLower: per-rune simple case mapping. Python's str.lower() differs for
+    U+0130 (İ -> 'i̇', two runes) and for a final Σ (-> ς); Go gives 'i' and 'σ'."""
+    return "".join("i" if c == "İ" else c.lower() for c in s)
+
+
+def go_trim(s):
+    """Go's strings.TrimSpace (unicode.IsSpace). Python's strip() also strips U+001C..U+001F."""
+    return s.strip(" \t\n\v\f\r\x85\xa0         "
+                   "       　")
+
+
+def track_key(artist, title):
+    """Spytify's trackKey (internal/core/records.go): first artist + U+001F + title,
+    each trimmed and lowercased. Spotify's MPRIS `xesam:artist` holds only the first artist,
+    so a Web API track's key is artists[0].name + name."""
+    return go_lower(go_trim(artist)) + "\x1f" + go_lower(go_trim(title))
+
+
+def web_track_key(t):
+    return track_key(t["artists"][0] if t["artists"] else "", t["name"])
+
+
+def recorded_index(output_dir=None):
+    """Spytify's duplicate index, <output>/.spytify/recorded.jsonl: key -> path, later lines
+    winning. Like recordIndex.lookup, an entry only counts while its file exists."""
+    path = os.path.join(output_dir or OUTPUT_DIR, ".spytify", "recorded.jsonl")
+    idx = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    e = json.loads(line)
+                    idx[e["Key"]] = e["Path"]
+                except (ValueError, KeyError, TypeError):
+                    continue
+    except FileNotFoundError:
+        pass
+    return {k: p for k, p in idx.items() if os.path.exists(p)}
+
+
 def pick_device(api, name=None):
     st, js = api.req("GET", "/me/player/devices")
     devs = (js or {}).get("devices", []) if st == 200 else []
@@ -338,11 +417,21 @@ def cmd_mpris(a):
         print(f"--- {prop}\n{out.strip() if out else '(no answer: is the client running and on the bus?)'}")
 
 
+SUPERVISORCTL = ["supervisorctl", "-c", "/etc/supervisor/spotivault.conf"]
+
+
+def supervisor(*args):
+    out = subprocess.run(SUPERVISORCTL + list(args), capture_output=True, text=True)
+    return " ".join(out.stdout.split())
+
+
 def cmd_record(a):
+    """Record one playlist/album with its own `spytifyd --once --serve --idle-exit` process.
+
+    Spotify only pauses at the end of a context. The always-running recorder never closes
+    the last take then; a --once recorder does, once the player has been idle for --idle s.
+    """
     kind, cid, uri = parse_uri(a.uri)
-    sp = Spytify()
-    info = sp.call("core.info")
-    log(f"spytify {info.get('version')} target={info.get('target')}")
     api = None
     try:
         api = WebAPI()
@@ -361,22 +450,87 @@ def cmd_record(a):
         if a.via == "webapi" and not device:
             raise SystemExit("the container's Spotify client is not listed as a Web API device")
 
-    for cmd in ("pause", "full_volume"):  # full volume, so no take is marked "(low volume)"
+    # --only-missing: play only the tracks Spytify's index doesn't have. `uris` playback doesn't
+    # work on the Linux client (204, then it loads nothing), so this plays the context from the
+    # first missing track, and jumps over recorded ones with an `offset` play of its own.
+    plan = None      # context positions to record, in order
+    tracks = None
+    if a.only_missing:
+        if not (api and device and a.via == "webapi"):
+            raise SystemExit("--only-missing needs the Web API (and --via webapi)")
+        st, tracks = context_tracks(api, kind, cid)
+        if st != 200:
+            log(f"track list -> {st} (a followed playlist?): can't tell what's missing; "
+                f"playing the whole {kind} with skip-forward instead")
+        else:
+            idx = recorded_index()
+            only = set(a.positions or [])
+            plan, have, unplayable = [], [], []
+            for t in tracks:
+                if not t["playable"]:
+                    unplayable.append(t["position"] + 1)
+                elif web_track_key(t) in idx:
+                    have.append(t["position"] + 1)
+                elif not only or t["position"] + 1 in only:
+                    plan.append(t["position"])
+            log(f"{len(tracks)} tracks: {len(have)} recorded, {len(unplayable)} unplayable "
+                f"{unplayable or ''}, to record: {[p + 1 for p in plan]}")
+            if not plan:
+                log("nothing missing: not starting a recorder")
+                return
+            total = len(plan)
+
+    if api and device:
+        # A track the player is paused on past 300 ms is "already playing" to a new session
+        # (startFromInitial): Spytify won't record it, and an offset play of that same track
+        # names no new track, so it stays unrecorded. That's the retry case: an earlier run
+        # paused mid-track. Paused at 0, it is recorded once it plays.
+        st_p, _ = api.req("PUT", "/me/player/pause", {"device_id": device["id"]})
+        st_s, _ = api.req("PUT", "/me/player/seek", {"position_ms": 0, "device_id": device["id"]})
+        log(f"before the recorder: pause -> {st_p}, seek to 0 -> {st_s}")
+
+    # The supervisord daemon owns the socket; hand it over to a --once recorder for this run.
+    log(f"supervisord spytifyd: {supervisor('stop', 'spytifyd')}")
+    os.makedirs("/config/logs", exist_ok=True)
+    cmd = ["/usr/bin/spytifyd", "--once", "--serve", "--idle-exit", f"{a.idle}s",
+           "--wait-target", "60s", "--log-file", "/config/logs/spytifyd-once.log"]
+    if plan is not None:
+        # The controller skips recorded tracks itself; Spytify's Next would restart a paused player.
+        cmd += ["--set", "recorder.skip_duplicates_forward=false"]
+    out_log = open("/config/logs/spytifyd-once.stdout", "ab")
+    proc = subprocess.Popen(cmd, stdout=out_log, stderr=subprocess.STDOUT)
+    log(f"started {' '.join(cmd[1:])} (pid {proc.pid})")
+    sp = None
+    for _ in range(40):
         try:
-            sp.call("player.control", {"cmd": cmd})
-        except SpytifyError as e:
-            log(f"{cmd} before start: {e}")
+            sp = Spytify()
+            break
+        except OSError:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.25)
+    if not sp:
+        supervisor("start", "spytifyd")
+        raise SystemExit(f"--once recorder didn't open its socket (exit code {proc.poll()})")
+    info = sp.call("core.info")
+    log(f"spytify {info.get('version')} target={info.get('target')}")
+
+    try:
+        sp.call("player.control", {"cmd": "full_volume"})  # so no take is marked "(low volume)"
+    except SpytifyError as e:
+        log(f"full_volume: {e}")
     if api and device:
         for ep, params in (("/me/player/shuffle", {"state": "false"}), ("/me/player/repeat", {"state": "off"})):
             st, js = api.req("PUT", ep, dict(params, device_id=device["id"]))
             log(f"PUT {ep} -> {st}")
-
-    started = sp.call("session.start", {})
-    log(f"session.start -> {started}")
+    t_play = time.time()
+    started, jumped = set(), set()   # plan positions seen starting / jumped to
     if a.via == "webapi":
+        start_at = plan[0] if plan else 0
+        jumped.add(start_at)
         st, js = api.req("PUT", "/me/player/play", {"device_id": device["id"]},
-                         {"context_uri": uri, "offset": {"position": 0}, "position_ms": 0})
-        log(f"PUT /me/player/play -> {st} {js or ''}")
+                         {"context_uri": uri, "offset": {"position": start_at}, "position_ms": 0})
+        log(f"PUT /me/player/play offset={start_at} -> {st} {js or ''}")
     else:
         ok, out = mpris_call("OpenUri", f"string:{uri}")
         log(f"MPRIS OpenUri -> ok={ok} {out[:200]}")
@@ -387,13 +541,57 @@ def cmd_record(a):
 
     runlog = []
     counts = {"finished": 0, "skipped": 0}
+    finished_paths = set()
+    jumps = []
     first_track_at = None
-    idle_since = None
+    end_seen_at = None     # when the controller first saw the item end (paused, or all counted)
+    reason = None          # why the controller stepped in, if it did
+    term_sent = None
     last_poll = 0
-    reason = None
     deadline = time.time() + a.max_minutes * 60
+
+    def loaded_positions(title):
+        """Which of the item's positions is loaded: the Web API's item once its name agrees
+        with the event's title (it can lag a moment), else the tracks with that title."""
+        want = go_lower(title or "")
+        for _ in range(6):
+            st, js = api.req("GET", "/me/player", {"market": "from_token"})
+            it = (js or {}).get("item") or {}
+            if st == 200 and go_lower(it.get("name") or "") == want:
+                uris = {it.get("uri"), (it.get("linked_from") or {}).get("uri")} - {None}
+                hits = [t["position"] for t in tracks if t["uri"] in uris or t["linked_from"] in uris]
+                if hits:
+                    return hits
+            time.sleep(0.5)
+        return [t["position"] for t in tracks if go_lower(t["name"]) == want]
+
+    def steer(title):
+        """On each track start: stay if it's a planned track, else jump to the next planned
+        one, or pause when none is left (the recorder's idle exit then ends the item)."""
+        hits = loaded_positions(title)
+        planned = [p for p in hits if p in plan and p not in started]
+        if planned:
+            started.add(planned[0])
+            return
+        nxt = next((p for p in plan if p not in started and p not in jumped), None)
+        status = mpris_status()
+        where = f"track {hits[0] + 1}" if hits else "an unknown track"
+        if nxt is None:
+            if status == "Playing":
+                ok, _ = mpris_call("Pause")
+                log(f"plan: {where} is not on the plan and nothing is left: paused (ok={ok})")
+                jumps.append({"t": time.time(), "at": hits, "action": "pause"})
+            return
+        if status != "Playing":
+            log(f"plan: {where} loaded while {status}: not jumping")
+            return
+        jumped.add(nxt)
+        st, js = api.req("PUT", "/me/player/play", {"device_id": device["id"]},
+                         {"context_uri": uri, "offset": {"position": nxt}, "position_ms": 0})
+        log(f"plan: {where} is not on the plan: jump to track {nxt + 1} -> {st}")
+        jumps.append({"t": time.time(), "at": hits, "action": f"jump {nxt + 1}", "status": st})
+
     def handle(ev):
-        """Log and count one Spytify event. Returns the session state it reports, if any."""
         nonlocal first_track_at
         m, p = ev.get("method"), ev.get("params") or {}
         if m != "level":
@@ -401,9 +599,13 @@ def cmd_record(a):
         if m == "track.started":
             first_track_at = first_track_at or time.time()
             log(f"started  {p.get('artist')} - {p.get('title')} ({p.get('length_ms', 0)//1000}s)")
+            if plan:
+                steer(p.get("title"))
         elif m == "track.finished":
             counts["finished"] += 1
-            log(f"finished {p.get('path')} ({p.get('bytes', 0)//1024} KiB)")
+            finished_paths.add(p.get("path"))
+            log(f"finished {p.get('path')} ({p.get('bytes', 0)//1024} KiB, "
+                f"{p.get('duration_ms', 0)/1000:.1f}s)")
         elif m == "track.skipped":
             counts["skipped"] += 1
             log(f"skipped  {p.get('id')} reason={p.get('reason')}")
@@ -411,75 +613,99 @@ def cmd_record(a):
             log(f"{m} {json.dumps(p)}")
         elif m == "_closed":
             return "closed"
-        return p.get("state") if m == "session.state" else None
+        return None
 
-    def wait_idle(secs):
-        end = time.time() + secs
-        while time.time() < end:
-            try:
-                if handle(sp.events.get(timeout=1)) in ("idle", "closed"):
-                    return True
-            except queue.Empty:
-                pass
-            if sp.call("session.status").get("state") == "idle":
-                return True
-        return False
-
-    while not reason:
+    while True:
         try:
             if handle(sp.events.get(timeout=1)) == "closed":
-                reason = "spytify socket closed"
+                break
         except queue.Empty:
             pass
+        if proc.poll() is not None:
+            break
         now = time.time()
-        if total and counts["finished"] + counts["skipped"] >= total:
-            reason = f"all {total} tracks accounted for (finished+skipped)"
+        if term_sent:
+            if now - term_sent > 45:
+                proc.kill()
+                log("recorder ignored SIGTERM for 45 s: killed")
+            continue
+        if now - last_poll < 5:
+            continue
+        last_poll = now
+        status = mpris_status()
+        # With a plan, skips are the recorded tracks jumped over: only finished ones count.
+        accounted = counts["finished"] + (0 if plan else counts["skipped"])
+        if first_track_at and (status != "Playing" or (total and accounted >= total)):
+            if not end_seen_at:
+                end_seen_at = now
+                log(f"item looks over: MPRIS {status!r}, {accounted}/{total} accounted for; "
+                    f"waiting for the recorder's {a.idle}s idle exit")
+        elif status == "Playing":
+            end_seen_at = None
+        if api and first_track_at:
+            st, js = api.req("GET", "/me/player")
+            ctx = ((js or {}).get("context") or {}).get("uri") if st == 200 else None
+            if st == 200 and ctx and ctx != uri:
+                reason = f"Web API context moved on to {ctx} (autoplay?)"
+                sp.call("player.control", {"cmd": "pause"})
+                # The take in progress belongs to the next context: drop it, end the session.
+                res = sp.call("session.stop", {"now": True}, timeout=30)
+                log(f"{reason}: paused, session.stop now -> {res}")
+                term_sent = now
+                continue
+        if not first_track_at and now - t_play > 90:
+            reason = "playback never started (the idle exit only counts after the player has played)"
+        elif end_seen_at and now - end_seen_at > a.idle + 60:
+            reason = f"recorder still running {a.idle + 60}s after the item ended"
         elif now > deadline:
             reason = f"--max-minutes {a.max_minutes} reached"
-        elif now - last_poll >= 5:
-            last_poll = now
-            status = mpris_status()
-            ctx = None
-            if api and first_track_at:  # poll the Web API only once a track has started
-                st, js = api.req("GET", "/me/player")
-                ctx = ((js or {}).get("context") or {}).get("uri") if st == 200 else None
-                if first_track_at and st == 200 and js and ctx and ctx != uri:
-                    reason = f"Web API context moved on to {ctx} (autoplay?)"
-            if first_track_at and status != "Playing":
-                idle_since = idle_since or now
-                if now - idle_since >= a.idle:
-                    reason = f"MPRIS status {status!r} for {a.idle}s"
-            else:
-                idle_since = None
-    log(f"end detected: {reason}")
-    try:
-        res = sp.call("session.stop", {"now": "context moved" in reason or "max-minutes" in reason}, timeout=30)
-        log(f"session.stop -> {res}")
-    except SpytifyError as e:
-        log(f"session.stop: {e}")
-    if "context moved" in reason:
-        sp.call("player.control", {"cmd": "pause"})
-    # Spotify only *pauses* at the end of a playlist/album, so Spytify never closes the last
-    # track by itself. It does when the audio stream ends or the player goes away.
-    finalized_by = None
-    if wait_idle(8):
-        finalized_by = "session ended by itself"
+        if reason:
+            proc.terminate()  # SIGTERM finishes the take in progress; a second one stops at once
+            term_sent = now
+            log(f"{reason}: sent SIGTERM")
+
+    code = proc.wait()
+    # The last take is saved as the recorder exits: read what's left of its events.
+    while True:
+        try:
+            if handle(sp.events.get(timeout=1)) == "closed":
+                break
+        except queue.Empty:
+            break
+    # At the end of a context Spotify loads track 1 paused. The idle exit then takes it as a new
+    # (duplicate) take, and recorder.skip_duplicates_forward presses Next, so the player starts
+    # track 2 as the recorder exits. Pause it again.
+    time.sleep(2)
+    if mpris_status() == "Playing":
+        ok, _ = mpris_call("Pause")
+        log(f"player was playing again after the recorder exited: paused (ok={ok})")
+    finalized_by = reason or "recorder's idle exit"
+    log(f"recorder exited with code {code}, "
+        f"{time.time() - end_seen_at:.0f}s after the item ended" if end_seen_at else
+        f"recorder exited with code {code}")
+    still_missing = None
+    if plan:
+        idx = recorded_index()
+        still_missing = [p + 1 for p in plan if web_track_key(tracks[p]) not in idx]
+        log(f"plan {[p + 1 for p in plan]}: {len(finished_paths)} distinct files saved, "
+            f"still missing {still_missing or 'none'}"
+            + (" -> would go back in the queue" if still_missing else ""))
     else:
-        # Ending the audio stream does not help (tested): Spytify just waits for a new one.
-        # The player going away does, so restart the client; it comes back logged in.
-        out = subprocess.run(["supervisorctl", "-c", "/etc/supervisor/spotibackup.conf", "restart", "spotify"],
-                             capture_output=True, text=True)
-        log(f"last track still open: restarted the Spotify client ({' '.join(out.stdout.split())})")
-        finalized_by = "restarted the Spotify client" if wait_idle(30) else "NOT finalized"
-    log(f"last track: {finalized_by}")
-    status = sp.call("session.status")
+        accounted = counts["finished"] + counts["skipped"]
+        if total and accounted < total:
+            log(f"only {accounted}/{total} tracks accounted for: the item ended early (a long pause?) "
+                "and would go back in the queue")
+    log(f"supervisord spytifyd: {supervisor('start', 'spytifyd')}")
+
     os.makedirs(os.path.join(STATE_DIR, "runs"), exist_ok=True)
-    out = os.path.join(STATE_DIR, "runs", time.strftime("%Y%m%d-%H%M%S") + f"-{cid}.json")
-    with open(out, "w") as f:
-        json.dump({"uri": uri, "via": a.via, "expected": total, "counts": counts, "end_reason": reason,
-                   "finalized_by": finalized_by,
-                   "final_status": status, "events": runlog}, f, indent=1)
-    log(f"summary: expected={total} finished={counts['finished']} skipped={counts['skipped']}; log: {out}")
+    path = os.path.join(STATE_DIR, "runs", time.strftime("%Y%m%d-%H%M%S") + f"-{cid}.json")
+    with open(path, "w") as f:
+        json.dump({"uri": uri, "via": a.via, "mode": "once" + ("+only-missing" if plan else ""),
+                   "expected": total, "counts": counts, "distinct_finished": sorted(finished_paths),
+                   "plan": [p + 1 for p in plan] if plan else None, "still_missing": still_missing,
+                   "jumps": jumps, "controller_stepped_in": reason, "finalized_by": finalized_by,
+                   "exit_code": code, "events": runlog}, f, indent=1)
+    log(f"summary: expected={total} finished={counts['finished']} skipped={counts['skipped']}; log: {path}")
 
 
 def main():
@@ -503,8 +729,13 @@ def main():
     p.add_argument("uri", help="spotify:playlist:ID, spotify:album:ID or an open.spotify.com link")
     p.add_argument("--via", choices=["webapi", "mpris"], default="webapi", help="how to start playback")
     p.add_argument("--device", help="Web API device name to use (default: the Computer device)")
-    p.add_argument("--idle", type=int, default=20, help="seconds not playing before the run counts as over")
+    p.add_argument("--idle", type=int, default=20, help="--idle-exit for the recorder: seconds idle before it ends the item")
     p.add_argument("--max-minutes", type=int, default=120)
+    p.add_argument("--only-missing", action="store_true",
+                   help="play only the tracks missing from Spytify's index, skip-forward off "
+                        "(albums and owned playlists; others play whole)")
+    p.add_argument("--positions", type=lambda s: [int(x) for x in s.split(",")],
+                   help="with --only-missing, consider only these 1-based track numbers (for tests)")
     p.set_defaults(fn=cmd_record)
     a = ap.parse_args()
     a.fn(a)

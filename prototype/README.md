@@ -1,6 +1,6 @@
 # Feasibility prototype
 
-A throwaway image for testing the risky parts of the spotibackup design before building the real thing:
+A throwaway image for testing the risky parts of the spotivault design before building the real thing:
 
 - the Spotify Linux client running headless, with login through noVNC
 - the client acting as a Web API playback device
@@ -19,7 +19,7 @@ cd prototype && docker compose up -d --build
 
 Open the virtual screen in your Windows browser at <http://localhost:6080/vnc.html> and press **Connect**.
 
-The Spotify client shows up in your Spotify apps as a playback device named after `DEVICE_NAME`, set in `docker-compose.yml` (`LorneNAS`; the image default is `spotibackup`).
+The Spotify client shows up in your Spotify apps as a playback device named after `DEVICE_NAME`, set in `docker-compose.yml` (`LorneNAS`; the image default is `spotivault`).
 
 ## One-time steps
 
@@ -59,42 +59,57 @@ On <https://developer.spotify.com/dashboard>:
 Each command runs inside the container as the `app` user:
 
 ```bash
-docker exec -it -u app spotibackup-prototype probe info
+docker exec -it -u app spotivault-prototype probe info
 ```
 
 ```bash
-docker exec -it -u app spotibackup-prototype probe setup
+docker exec -it -u app spotivault-prototype probe setup
 ```
 
 ```bash
-docker exec -it -u app spotibackup-prototype probe mpris
+docker exec -it -u app spotivault-prototype probe mpris
 ```
 
 ```bash
-docker exec -it -u app spotibackup-prototype probe auth --client-id YOUR_CLIENT_ID
+docker exec -it -u app spotivault-prototype probe auth --client-id YOUR_CLIENT_ID
 ```
 
 ```bash
-docker exec -it -u app spotibackup-prototype probe auth --callback 'http://127.0.0.1:8888/callback?code=...'
+docker exec -it -u app spotivault-prototype probe auth --callback 'http://127.0.0.1:8888/callback?code=...'
 ```
 
 ```bash
-docker exec -it -u app spotibackup-prototype probe library
+docker exec -it -u app spotivault-prototype probe library
 ```
 
 ```bash
-docker exec -it -u app spotibackup-prototype probe record spotify:playlist:SHORT_PLAYLIST_ID
+docker exec -it -u app spotivault-prototype probe record spotify:playlist:SHORT_PLAYLIST_ID
 ```
 
 What each one does:
 
 - **`info`:** Spytify's startup checks.
-- **`setup`:** sets AAC 256, `/music`, skipping duplicates and bug reports off.
+- **`setup`:** sets AAC 256, file names `/music/<artist>/<album>/<track> - <title>.m4a`, skipping duplicates and bug reports off.
 - **`mpris`:** shows whether the client publishes itself over MPRIS.
 - **`auth`:** a one-time Web API login, in two steps. `--client-id` prints the login URL. `--callback` takes the address of the error page your browser lands on. The login expires six months after you approve it.
 - **`library`:** lists playlists, saved albums and devices.
-- **`record`:** records one playlist. Use a short one, since recording runs in real time. Run it twice: the second run should skip every track.
+- **`record`:** records one playlist or album (see `--only-missing` below). Use a short one, since recording runs in real time. Run it twice: the second run should skip every track. For the run, it stops the supervised `spytifyd` and starts its own `spytifyd --once --serve --idle-exit 20s`. That recorder saves the last track and exits about 20 s after Spotify pauses at the end. Then `record` pauses the player and starts the supervised one again. `--idle` changes the 20 s. Before it starts the recorder, it pauses the player and seeks to 0. Otherwise Spytify would take a track left paused mid-way as "already playing" and not record it.
 
 `probe record ... --via mpris` starts playback over MPRIS instead of the Web API.
+
+`probe record URI --only-missing` plays only the tracks that aren't recorded yet:
+
+```bash
+docker exec -it -u app spotivault-prototype probe record spotify:album:ALBUM_ID --only-missing
+```
+
+- **Track list:** it fetches the item's tracks from the Web API (`/albums/{id}/tracks`, or `/playlists/{id}/items` for your own playlists). It leaves out unplayable tracks, local files and episodes.
+- **What's missing:** it looks each track up in Spytify's duplicate index, `/music/.spytify/recorded.jsonl`, by the same key Spytify uses: first artist and title, trimmed and lowercased. An entry only counts while its file is there.
+- **Playback:** it starts the album or playlist at the first missing track (`offset`), and the recorder runs with `recorder.skip_duplicates_forward=false`. When a track that isn't missing starts, the probe jumps to the next missing one. When nothing is left, it pauses, and the recorder's idle exit ends the run.
+- **Nothing missing:** it says so and starts no recorder.
+- **Followed playlists:** their track list returns 403, so they play whole, as without the option.
+- **Summary:** it reports the distinct files saved and anything still missing.
+
+`--positions 2,4` limits it to those track numbers, which keeps tests short.
 
 Recordings land in `prototype/data/music/`. Logs are in `prototype/data/config/logs/`, and run logs in `prototype/data/config/probe/runs/`.

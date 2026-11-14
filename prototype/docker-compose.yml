@@ -1,9 +1,9 @@
 # Local feasibility run (Docker Desktop via WSL). Not the production compose file.
 services:
-  spotibackup:
+  spotivault:
     build: .
-    image: spotibackup-prototype
-    container_name: spotibackup-prototype
+    image: spotivault-prototype
+    container_name: spotivault-prototype
     shm_size: 1g
     environment:
       DEVICE_NAME: LorneNAS   # name of the Spotify Connect device (what "Playing on ..." shows)
