@@ -15397,6 +15397,7 @@
                           "ref": "NSX3b",
                           "name": "Album OK Computer",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15422,6 +15423,9 @@
                             "f8JqqF": {
                               "icon": "disc-3"
                             },
+                            "Hq8n4": {
+                              "enabled": false
+                            },
                             "U6Q5lK": {
                               "content": "OK Computer"
                             },
@@ -15443,6 +15447,7 @@
                           "ref": "NSX3b",
                           "name": "Album Currents",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15468,6 +15473,9 @@
                             "f8JqqF": {
                               "icon": "disc-3"
                             },
+                            "Hq8n4": {
+                              "enabled": false
+                            },
                             "U6Q5lK": {
                               "content": "Currents"
                             },
@@ -15489,6 +15497,7 @@
                           "ref": "NSX3b",
                           "name": "Album Random Access Memories",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15516,62 +15525,45 @@
                             },
                             "Hq8n4": {
                               "type": "frame",
-                              "id": "AAm1O",
-                              "x": 136,
-                              "y": 0,
-                              "name": "Progress ring",
-                              "width": 40,
-                              "height": 40,
-                              "layout": "none",
+                              "id": "Gaefb",
+                              "x": 0,
+                              "y": 8,
+                              "name": "Status",
+                              "width": 176,
+                              "padding": [
+                                0,
+                                8
+                              ],
+                              "justifyContent": "end",
                               "children": [
                                 {
-                                  "type": "ellipse",
-                                  "id": "x9jRU",
-                                  "x": 0,
-                                  "y": 0,
-                                  "name": "Ring track",
-                                  "innerRadius": 0.85,
-                                  "fill": "#FFFFFF33",
-                                  "width": 40,
-                                  "height": 40
-                                },
-                                {
-                                  "type": "ellipse",
-                                  "id": "D7JQ7K",
-                                  "x": 0,
-                                  "y": 0,
-                                  "name": "Ring progress",
-                                  "innerRadius": 0.85,
-                                  "startAngle": 90,
-                                  "sweepAngle": -250,
-                                  "fill": "$accent",
-                                  "width": 40,
-                                  "height": 40
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "HVW5P",
-                                  "x": 8,
-                                  "y": 8,
-                                  "name": "Pct",
-                                  "width": 24,
-                                  "height": 24,
-                                  "fill": "#000000AA",
-                                  "cornerRadius": 999,
-                                  "justifyContent": "center",
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
+                                  "id": "CBUek",
+                                  "type": "ref",
+                                  "ref": "n6C5Bb",
+                                  "name": "Card pill",
+                                  "padding": [
+                                    3,
+                                    8,
+                                    3,
+                                    6
+                                  ],
+                                  "fill": "#000000B3",
+                                  "descendants": {
+                                    "mYY0r": {
                                       "type": "icon",
-                                      "id": "ZdCgN",
-                                      "name": "Live",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "audio-lines",
+                                      "id": "bZtuH",
+                                      "name": "Icon circle-dot",
+                                      "width": 12,
+                                      "height": 12,
+                                      "icon": "circle-dot-dashed",
                                       "library": "lucide",
                                       "fill": "$accent"
+                                    },
+                                    "W1qjc": {
+                                      "content": "Recording",
+                                      "fill": "$accent"
                                     }
-                                  ]
+                                  }
                                 }
                               ]
                             },
@@ -15588,7 +15580,8 @@
                                 8,
                                 3,
                                 6
-                              ]
+                              ],
+                              "enabled": false
                             },
                             "K6FJA/mYY0r": {
                               "type": "icon",
@@ -15612,6 +15605,7 @@
                           "ref": "NSX3b",
                           "name": "Album Blonde",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15638,7 +15632,39 @@
                               "icon": "disc-3"
                             },
                             "Hq8n4": {
-                              "enabled": false
+                              "type": "frame",
+                              "id": "P5qMu",
+                              "x": 0,
+                              "y": 8,
+                              "name": "Status",
+                              "width": 176,
+                              "padding": [
+                                0,
+                                8
+                              ],
+                              "justifyContent": "end",
+                              "children": [
+                                {
+                                  "id": "P9R1x",
+                                  "type": "ref",
+                                  "ref": "n6C5Bb",
+                                  "name": "Card pill",
+                                  "padding": [
+                                    3,
+                                    8
+                                  ],
+                                  "fill": "#000000B3",
+                                  "descendants": {
+                                    "mYY0r": {
+                                      "fill": "$text-sub"
+                                    },
+                                    "W1qjc": {
+                                      "content": "Queued",
+                                      "fill": "$text-sub"
+                                    }
+                                  }
+                                }
+                              ]
                             },
                             "U6Q5lK": {
                               "content": "Blonde"
@@ -15651,7 +15677,8 @@
                               "padding": [
                                 3,
                                 8
-                              ]
+                              ],
+                              "enabled": false
                             },
                             "K6FJA/mYY0r": {
                               "fill": "$text-sub"
@@ -15668,6 +15695,7 @@
                           "ref": "NSX3b",
                           "name": "Album In Rainbows",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15694,7 +15722,39 @@
                               "icon": "disc-3"
                             },
                             "Hq8n4": {
-                              "enabled": false
+                              "type": "frame",
+                              "id": "LRS10",
+                              "x": 0,
+                              "y": 8,
+                              "name": "Status",
+                              "width": 176,
+                              "padding": [
+                                0,
+                                8
+                              ],
+                              "justifyContent": "end",
+                              "children": [
+                                {
+                                  "id": "ZV5OP",
+                                  "type": "ref",
+                                  "ref": "n6C5Bb",
+                                  "name": "Card pill",
+                                  "padding": [
+                                    3,
+                                    8
+                                  ],
+                                  "fill": "#000000B3",
+                                  "descendants": {
+                                    "mYY0r": {
+                                      "fill": "$warn"
+                                    },
+                                    "W1qjc": {
+                                      "content": "Partial",
+                                      "fill": "$warn"
+                                    }
+                                  }
+                                }
+                              ]
                             },
                             "U6Q5lK": {
                               "content": "In Rainbows"
@@ -15707,7 +15767,8 @@
                               "padding": [
                                 3,
                                 8
-                              ]
+                              ],
+                              "enabled": false
                             },
                             "K6FJA/mYY0r": {
                               "fill": "$warn"
@@ -15733,6 +15794,7 @@
                           "ref": "NSX3b",
                           "name": "Album Melodrama",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15758,6 +15820,9 @@
                             "f8JqqF": {
                               "icon": "disc-3"
                             },
+                            "Hq8n4": {
+                              "enabled": false
+                            },
                             "U6Q5lK": {
                               "content": "Melodrama"
                             },
@@ -15779,6 +15844,7 @@
                           "ref": "NSX3b",
                           "name": "Album Discovery",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15805,7 +15871,39 @@
                               "icon": "disc-3"
                             },
                             "Hq8n4": {
-                              "enabled": false
+                              "type": "frame",
+                              "id": "sNcda",
+                              "x": 0,
+                              "y": 8,
+                              "name": "Status",
+                              "width": 176,
+                              "padding": [
+                                0,
+                                8
+                              ],
+                              "justifyContent": "end",
+                              "children": [
+                                {
+                                  "id": "hSlan",
+                                  "type": "ref",
+                                  "ref": "n6C5Bb",
+                                  "name": "Card pill",
+                                  "padding": [
+                                    3,
+                                    8
+                                  ],
+                                  "fill": "#000000B3",
+                                  "descendants": {
+                                    "mYY0r": {
+                                      "fill": "$text-sub"
+                                    },
+                                    "W1qjc": {
+                                      "content": "Queued",
+                                      "fill": "$text-sub"
+                                    }
+                                  }
+                                }
+                              ]
                             },
                             "U6Q5lK": {
                               "content": "Discovery"
@@ -15818,7 +15916,8 @@
                               "padding": [
                                 3,
                                 8
-                              ]
+                              ],
+                              "enabled": false
                             },
                             "K6FJA/mYY0r": {
                               "fill": "$text-sub"
@@ -15835,6 +15934,7 @@
                           "ref": "NSX3b",
                           "name": "Album Kid A",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15860,6 +15960,9 @@
                             "f8JqqF": {
                               "icon": "disc-3"
                             },
+                            "Hq8n4": {
+                              "enabled": false
+                            },
                             "U6Q5lK": {
                               "content": "Kid A"
                             },
@@ -15881,6 +15984,7 @@
                           "ref": "NSX3b",
                           "name": "Album Lost in the Dream",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15907,7 +16011,39 @@
                               "icon": "disc-3"
                             },
                             "Hq8n4": {
-                              "enabled": false
+                              "type": "frame",
+                              "id": "Jv55Y",
+                              "x": 0,
+                              "y": 8,
+                              "name": "Status",
+                              "width": 176,
+                              "padding": [
+                                0,
+                                8
+                              ],
+                              "justifyContent": "end",
+                              "children": [
+                                {
+                                  "id": "Tlz3C",
+                                  "type": "ref",
+                                  "ref": "n6C5Bb",
+                                  "name": "Card pill",
+                                  "padding": [
+                                    3,
+                                    8
+                                  ],
+                                  "fill": "#000000B3",
+                                  "descendants": {
+                                    "mYY0r": {
+                                      "fill": "$danger"
+                                    },
+                                    "W1qjc": {
+                                      "content": "Unavailable",
+                                      "fill": "$danger"
+                                    }
+                                  }
+                                }
+                              ]
                             },
                             "U6Q5lK": {
                               "content": "Lost in the Dream"
@@ -15920,7 +16056,8 @@
                               "padding": [
                                 3,
                                 8
-                              ]
+                              ],
+                              "enabled": false
                             },
                             "K6FJA/mYY0r": {
                               "fill": "$danger"
@@ -15937,6 +16074,7 @@
                           "ref": "NSX3b",
                           "name": "Album Hounds of Love",
                           "width": "fill_container",
+                          "height": "fit_content",
                           "descendants": {
                             "JoiXZ": {
                               "fill": {
@@ -15963,7 +16101,39 @@
                               "icon": "disc-3"
                             },
                             "Hq8n4": {
-                              "enabled": false
+                              "type": "frame",
+                              "id": "V86DJ",
+                              "x": 0,
+                              "y": 8,
+                              "name": "Status",
+                              "width": 176,
+                              "padding": [
+                                0,
+                                8
+                              ],
+                              "justifyContent": "end",
+                              "children": [
+                                {
+                                  "id": "K6bx5I",
+                                  "type": "ref",
+                                  "ref": "n6C5Bb",
+                                  "name": "Card pill",
+                                  "padding": [
+                                    3,
+                                    8
+                                  ],
+                                  "fill": "#000000B3",
+                                  "descendants": {
+                                    "mYY0r": {
+                                      "fill": "$text-sub"
+                                    },
+                                    "W1qjc": {
+                                      "content": "Queued",
+                                      "fill": "$text-sub"
+                                    }
+                                  }
+                                }
+                              ]
                             },
                             "U6Q5lK": {
                               "content": "Hounds of Love"
@@ -15976,7 +16146,8 @@
                               "padding": [
                                 3,
                                 8
-                              ]
+                              ],
+                              "enabled": false
                             },
                             "K6FJA/mYY0r": {
                               "fill": "$text-sub"
@@ -40066,7 +40237,7 @@
     {
       "type": "frame",
       "id": "ZQChN",
-      "x": 7700,
+      "x": 9240,
       "y": 7057,
       "name": "Player · Interactive",
       "clip": true,
@@ -41164,7 +41335,7 @@
     {
       "type": "frame",
       "id": "jh5YJ",
-      "x": 9240,
+      "x": 10780,
       "y": 7057,
       "name": "Player · View-only (during a run)",
       "clip": true,
@@ -42431,7 +42602,7 @@
     {
       "type": "frame",
       "id": "w1uXEY",
-      "x": 10780,
+      "x": 7700,
       "y": 7057,
       "name": "Settings · Edit layout modal",
       "clip": true,
@@ -45825,15 +45996,6 @@
                               "fontFamily": "$font",
                               "fontSize": 12,
                               "fontWeight": "700"
-                            },
-                            {
-                              "type": "text",
-                              "id": "vuFCr",
-                              "name": "Updates as you type",
-                              "fill": "$text-muted",
-                              "content": "Updates as you type",
-                              "fontFamily": "$font",
-                              "fontSize": 12
                             }
                           ]
                         },
@@ -46484,228 +46646,18 @@
               }
             }
           ]
-        },
-        {
-          "type": "frame",
-          "id": "M26mz",
-          "layoutPosition": "absolute",
-          "x": 1056,
-          "y": 290,
-          "name": "Annotation · layout validation",
-          "width": 320,
-          "height": 230,
-          "layout": "none",
-          "children": [
-            {
-              "type": "rectangle",
-              "id": "r6KFlK",
-              "x": 0,
-              "y": 69,
-              "name": "Connector",
-              "fill": "#FEE484",
-              "width": 44,
-              "height": 2
-            },
-            {
-              "type": "ellipse",
-              "id": "uEuEc",
-              "x": -5,
-              "y": 65,
-              "name": "Connector end",
-              "fill": "#FEE484",
-              "width": 10,
-              "height": 10
-            },
-            {
-              "type": "frame",
-              "id": "VO2yg",
-              "x": 44,
-              "y": 0,
-              "name": "Note",
-              "width": 300,
-              "fill": "#FEE484",
-              "cornerRadius": 6,
-              "effect": {
-                "type": "shadow",
-                "shadowType": "outer",
-                "color": "#00000066",
-                "offset": {
-                  "x": 0,
-                  "y": 6
-                },
-                "blur": 16
-              },
-              "layout": "vertical",
-              "gap": 8,
-              "padding": 14,
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "L6Ejn",
-                  "name": "Note head",
-                  "gap": 6,
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "T4Rzm",
-                      "name": "Icon",
-                      "width": 16,
-                      "height": 16,
-                      "icon": "shield-check",
-                      "library": "lucide",
-                      "fill": "#1A1A1A"
-                    },
-                    {
-                      "type": "text",
-                      "id": "w8kqSZ",
-                      "name": "Design note",
-                      "fill": "#5C4A00",
-                      "content": "Design note",
-                      "fontFamily": "$font",
-                      "fontSize": 11,
-                      "fontWeight": "700",
-                      "letterSpacing": 0.5
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "HNW2K",
-                  "name": "This field validates the",
-                  "fill": "#1A1A1A",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "This field validates the scheme string as you type.",
-                  "fontFamily": "$font",
-                  "fontSize": 14,
-                  "fontWeight": "700"
-                },
-                {
-                  "type": "frame",
-                  "id": "d2KIbA",
-                  "name": "Point",
-                  "width": "fill_container",
-                  "gap": 6,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "AOAfJ",
-                      "name": "•",
-                      "fill": "#1A1A1A",
-                      "content": "•",
-                      "fontFamily": "$font",
-                      "fontSize": 12,
-                      "fontWeight": "700"
-                    },
-                    {
-                      "type": "text",
-                      "id": "ZAb4H",
-                      "name": "Only the six placeholder",
-                      "fill": "#2B2B2B",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "Only the six placeholders are accepted.",
-                      "fontFamily": "$font",
-                      "fontSize": 12
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "Gmd80",
-                  "name": "Point",
-                  "width": "fill_container",
-                  "gap": 6,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "nuI4N",
-                      "name": "•",
-                      "fill": "#1A1A1A",
-                      "content": "•",
-                      "fontFamily": "$font",
-                      "fontSize": 12,
-                      "fontWeight": "700"
-                    },
-                    {
-                      "type": "text",
-                      "id": "HENA1",
-                      "name": "The folder part must be ",
-                      "fill": "#2B2B2B",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "The folder part must be none, {album_artist}, or {album_artist}/{album}.",
-                      "fontFamily": "$font",
-                      "fontSize": 12
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "w1q35",
-                  "name": "Point",
-                  "width": "fill_container",
-                  "gap": 6,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "R3aQs",
-                      "name": "•",
-                      "fill": "#1A1A1A",
-                      "content": "•",
-                      "fontFamily": "$font",
-                      "fontSize": 12,
-                      "fontWeight": "700"
-                    },
-                    {
-                      "type": "text",
-                      "id": "Cg5Ne",
-                      "name": "The file name part can't",
-                      "fill": "#2B2B2B",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "The file name part can't contain / and can't be empty.",
-                      "fontFamily": "$font",
-                      "fontSize": 12
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "hRR33",
-                  "name": "Point",
-                  "width": "fill_container",
-                  "gap": 6,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "kFf78",
-                      "name": "•",
-                      "fill": "#1A1A1A",
-                      "content": "•",
-                      "fontFamily": "$font",
-                      "fontSize": 12,
-                      "fontWeight": "700"
-                    },
-                    {
-                      "type": "text",
-                      "id": "oVSZE",
-                      "name": "Errors replace the hint ",
-                      "fill": "#2B2B2B",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "Errors replace the hint under the field in red, and Apply stays disabled until the string is valid.",
-                      "fontFamily": "$font",
-                      "fontSize": 12
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
         }
       ]
+    },
+    {
+      "type": "note",
+      "id": "LLJpU",
+      "x": 8554,
+      "y": 8058,
+      "name": "Note · layout validation",
+      "width": 586,
+      "height": 334,
+      "content": "Design note: this field validates the scheme string as you type.\n\n• Only the six placeholders are accepted.\n• The folder part must be none, {album_artist}, or {album_artist}/{album}.\n• The file name part can't contain / and can't be empty.\n• Errors replace the hint under the field in red, and Apply stays disabled until the string is valid."
     }
   ],
   "variables": {
