@@ -4392,7 +4392,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "K4CXtp",
+                  "id": "WCCQB",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "UJI9C",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -4403,7 +4414,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "V1a9Ro",
+                  "id": "mZV7V",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -4414,7 +4425,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "Arkhz",
+                  "id": "pmnV9",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -4425,7 +4436,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "RGemt",
+                  "id": "YEqUj",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -4436,7 +4447,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "NttLy",
+                  "id": "lCdpM",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -4447,7 +4458,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "hOWl1",
+                  "id": "Y2sOpH",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -4458,7 +4469,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "LkHSD",
+                  "id": "a1sRim",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -4468,7 +4479,7 @@
                   "height": 3
                 },
                 {
-                  "id": "B6YY7",
+                  "id": "Jwp1h",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 1",
@@ -4480,14 +4491,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "U9SN6",
+                  "id": "s09PDj",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "GQkbb",
+                  "id": "c3wfDO",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 2",
@@ -4499,14 +4510,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "UqWLG",
+                  "id": "TIEFK",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "PXSog",
+                  "id": "WArVp",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 3",
@@ -4518,14 +4529,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "PGeQY",
+                  "id": "GiXXP",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "Vj8OI",
+                  "id": "JKsDL",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 4",
@@ -4537,14 +4548,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "PpZkK",
+                  "id": "BtKQT",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "c5Fywa",
+                  "id": "AYwiJ",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 5",
@@ -4556,14 +4567,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "jZIHM",
+                  "id": "CV1pt",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "AXcRH",
+                  "id": "PxbQ3",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 6",
@@ -4575,36 +4586,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "QLJ56",
+                  "id": "z55vTS",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "xp6nz",
+                  "id": "b2KXq",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 7",
                   "descendants": {
                     "wsskk": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "vOiHa",
+                  "id": "r7VCih",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "aSw9s",
+                  "id": "qPKu1",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "C0miS",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "i5xAH",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -4886,7 +4916,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "fEo6X",
+                  "id": "DMyxE",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "NTWPX",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -4897,7 +4938,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "nAdQH",
+                  "id": "APehK",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -4908,7 +4949,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "yVNJH",
+                  "id": "jl6Ec",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -4919,7 +4960,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "R2i5PI",
+                  "id": "jiMzz",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -4930,7 +4971,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "IMXNo",
+                  "id": "LNh3E",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -4941,7 +4982,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "w89Rz",
+                  "id": "UsyPz",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -4952,7 +4993,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "uWSEi",
+                  "id": "e3gwJQ",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -4962,7 +5003,7 @@
                   "height": 3
                 },
                 {
-                  "id": "M72QI8",
+                  "id": "d2eRf",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -4974,14 +5015,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "DvaWJ",
+                  "id": "fq5xl",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "x2zhWL",
+                  "id": "p6cqR",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 2",
@@ -4993,14 +5034,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "FEjvp",
+                  "id": "KG3et",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "mJGL8",
+                  "id": "tTFPl",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 3",
@@ -5012,14 +5053,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "mLEMW",
+                  "id": "tXLtW",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "aQevW",
+                  "id": "EGtcH",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 4",
@@ -5031,14 +5072,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "rOmWM",
+                  "id": "psxwH",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "KwSkb",
+                  "id": "J0CkB5",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 5",
@@ -5050,14 +5091,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "I5J8ki",
+                  "id": "cokBN",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "H6bGc0",
+                  "id": "KOWsG",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 6",
@@ -5069,36 +5110,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "auFDg",
+                  "id": "w4VVeg",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "X7fG8w",
+                  "id": "Nmc1N",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 7",
                   "descendants": {
                     "wsskk": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "PFDOi",
+                  "id": "c9Edu",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "drjW1",
+                  "id": "oUrI8",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "BvR2S",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "M7aYe",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -5418,7 +5478,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "qINIk",
+                  "id": "R5vqa",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "XPF5V",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -5429,7 +5500,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "OKPgI",
+                  "id": "iFJal",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -5440,7 +5511,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "ppfTs",
+                  "id": "Ctxed",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -5451,7 +5522,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "RgPJs",
+                  "id": "ViIC7",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -5462,7 +5533,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "aCy2S",
+                  "id": "smOlD",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -5473,7 +5544,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "qoI7m",
+                  "id": "M6nfA",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -5484,7 +5555,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "rMYuP",
+                  "id": "uxk9B",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -5494,7 +5565,7 @@
                   "height": 3
                 },
                 {
-                  "id": "o2XN6k",
+                  "id": "uDcbs",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -5506,14 +5577,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "VhEVY",
+                  "id": "gwFiJ",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "kbLOU",
+                  "id": "oqwZ2",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 2",
@@ -5525,14 +5596,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "ZcT2F",
+                  "id": "CrDBt",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "UxTF7",
+                  "id": "BGao7",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 3",
@@ -5544,14 +5615,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "Iymuc",
+                  "id": "yvsL9",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "Y1WK5Q",
+                  "id": "jDBSK",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 4",
@@ -5563,14 +5634,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "D1wzX",
+                  "id": "KLmy7",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "p2Jsvi",
+                  "id": "HWFWK",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 5",
@@ -5582,14 +5653,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "CGqq7",
+                  "id": "DHgHZ",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "dIR0M",
+                  "id": "F7wW3",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 6",
@@ -5601,36 +5672,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "Uws3Z",
+                  "id": "J6Fqk",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "L1zLdI",
+                  "id": "C8h7P",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 7",
                   "descendants": {
                     "wsskk": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "mQVzT",
+                  "id": "LIrHr",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "EVVtd",
+                  "id": "YXh7q",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "b7zOm5",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "APr1i",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -5899,7 +5989,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "DRsVg",
+                  "id": "QNj6F",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "VRAUf",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -5910,7 +6011,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "QRjyc",
+                  "id": "Tio0n",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -5921,7 +6022,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "G4hi3",
+                  "id": "MlAKX",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -5932,7 +6033,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "c1ym1K",
+                  "id": "FTN01",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -5943,7 +6044,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "Bn2yw",
+                  "id": "s06GUG",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -5954,7 +6055,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "CwjQR",
+                  "id": "xZXAC",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -5965,7 +6066,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "rAxlS",
+                  "id": "PMufD",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -5975,7 +6076,7 @@
                   "height": 3
                 },
                 {
-                  "id": "ibwIt",
+                  "id": "rCZYH",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -5987,14 +6088,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "L8AXFK",
+                  "id": "c3QPe",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "jYTzM",
+                  "id": "PLn27",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 2",
@@ -6006,14 +6107,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "lej61",
+                  "id": "Y1PPnu",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "QdrHm",
+                  "id": "DbNxR",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 3",
@@ -6025,14 +6126,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "J6DW1",
+                  "id": "XvECB",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "yYVgj",
+                  "id": "pTW5Y",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 4",
@@ -6044,14 +6145,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "hPUL4",
+                  "id": "WVRaQ",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "PHLRC",
+                  "id": "b2jt6",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 5",
@@ -6063,14 +6164,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "sIKIY",
+                  "id": "YkT8L",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "Mz9to",
+                  "id": "q9JJn",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 6",
@@ -6082,36 +6183,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "WzGLL",
+                  "id": "W1qaB",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "I3Lyj",
+                  "id": "o6SacM",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 7",
                   "descendants": {
                     "wsskk": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "w49qln",
+                  "id": "E5gTo",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "GrdP8",
+                  "id": "I4NkMa",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "ImMN0",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "JF4bW",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -6675,7 +6795,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "jH32S",
+                  "id": "h3wq2",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "yMX7j",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -6686,7 +6817,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "SLkFq",
+                  "id": "rLShs",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -6697,7 +6828,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "Sz9Hy",
+                  "id": "Zenmm",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -6708,7 +6839,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "GQUZW",
+                  "id": "KDCfp",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -6719,7 +6850,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "Ut0bM",
+                  "id": "j5ucCx",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -6730,7 +6861,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "htIYQ",
+                  "id": "vOXqX",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -6741,7 +6872,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "WPHGQ",
+                  "id": "Ix86R",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -6751,7 +6882,7 @@
                   "height": 3
                 },
                 {
-                  "id": "pYhHj",
+                  "id": "Qo8re",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -6763,14 +6894,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "h7fh4",
+                  "id": "snFLt",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "Lc8WW",
+                  "id": "a1ViEB",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 2",
@@ -6782,14 +6913,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "RvWht",
+                  "id": "Ti79C",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "zRobW",
+                  "id": "TSCKV",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 3",
@@ -6801,14 +6932,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "tWSoI",
+                  "id": "iPNl8",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "gnBC9",
+                  "id": "mosLy",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 4",
@@ -6820,14 +6951,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "jkvc2",
+                  "id": "TWhr9",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "v1hm3",
+                  "id": "AIAs4",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 5",
@@ -6839,14 +6970,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "zWU4O",
+                  "id": "ioouV",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "oqHxo",
+                  "id": "BiMPh",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 6",
@@ -6858,36 +6989,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "J3T6T",
+                  "id": "PFixw",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "n2cXN4",
+                  "id": "a81L3",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 7",
                   "descendants": {
                     "wsskk": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "pPB0X",
+                  "id": "p7Wj9q",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "X9fZ8H",
+                  "id": "yd8iG",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "C0fNMo",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "HNBHY",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -8255,7 +8405,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "Ks0pi",
+                  "id": "P4pRa7",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "BruZ6",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -8266,7 +8427,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "etovU",
+                  "id": "FAPnC",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -8277,7 +8438,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "yMlrk",
+                  "id": "FGbMz",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -8288,7 +8449,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "m39mLx",
+                  "id": "qHJaw",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -8299,7 +8460,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "ND61C",
+                  "id": "rknQR",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -8310,7 +8471,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "Yol8I",
+                  "id": "as03l",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -8321,7 +8482,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "v4d82",
+                  "id": "KuyP9",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -8331,7 +8492,7 @@
                   "height": 3
                 },
                 {
-                  "id": "BgLUw",
+                  "id": "QWgZV",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -8343,14 +8504,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "RMn0v",
+                  "id": "afdgb",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "I1dFIy",
+                  "id": "O7WMAb",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 2",
@@ -8362,14 +8523,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "dh1DP",
+                  "id": "irn1N",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "W7EBHw",
+                  "id": "RxNQu",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 3",
@@ -8381,14 +8542,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "k8TNP",
+                  "id": "C5Tbar",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "uRoC2",
+                  "id": "IzdeQ",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 4",
@@ -8400,14 +8561,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "yIP3t",
+                  "id": "dYVT3",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "oVdMR",
+                  "id": "Dwzzn",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 5",
@@ -8419,14 +8580,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "V5K7J",
+                  "id": "ixQOZ",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "xGuYF",
+                  "id": "lC5vX",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 6",
@@ -8438,36 +8599,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "nU8d4",
+                  "id": "aHCCx",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "A0btfH",
+                  "id": "qnVc1",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 7",
                   "descendants": {
                     "wsskk": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "stFZs",
+                  "id": "vFUGz",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "RBkUp",
+                  "id": "qVKqs",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "TLnuI",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "p1QUL5",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -9184,7 +9364,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "PpMsI",
+                  "id": "FGBx6",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "h9p4z",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -9195,7 +9386,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "NuRn2",
+                  "id": "o8YJQ",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -9206,7 +9397,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "G8I8bJ",
+                  "id": "HCXrL",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -9217,7 +9408,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "BRLgH",
+                  "id": "qLuh2",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -9228,7 +9419,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "IFjpl",
+                  "id": "K7ktno",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -9239,7 +9430,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "w84rzW",
+                  "id": "pla7M",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -9250,7 +9441,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "RF5Z0",
+                  "id": "vZZpB",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -9260,7 +9451,7 @@
                   "height": 3
                 },
                 {
-                  "id": "x8XkP",
+                  "id": "P4IXv",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -9272,14 +9463,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "iEgyc",
+                  "id": "SnN2X",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "KIMXR",
+                  "id": "CaK7R",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 2",
@@ -9291,14 +9482,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "UoCRB",
+                  "id": "voQoi",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "B8xmU",
+                  "id": "ay15P",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 3",
@@ -9310,14 +9501,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "Qgn6N",
+                  "id": "aA6GV",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "t0mk7t",
+                  "id": "TTef0",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 4",
@@ -9329,14 +9520,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "U2jffe",
+                  "id": "O8RUw",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "WCbfE",
+                  "id": "z3zJ8J",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 5",
@@ -9348,14 +9539,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "UEzvo",
+                  "id": "QZV96",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "mdHdD",
+                  "id": "D9Luo",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 6",
@@ -9367,36 +9558,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "mCOW7",
+                  "id": "uabuf",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "dDsRI",
+                  "id": "lKn5e",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 7",
                   "descendants": {
                     "wsskk": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "xkhri",
+                  "id": "e1cnnV",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "ge6vt",
+                  "id": "dYRZB",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "Q1DGWz",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "BnG79",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -9872,7 +10082,7 @@
       "id": "ZJSG0",
       "x": 10780,
       "y": 3157,
-      "name": "Setup 7 · What to back up",
+      "name": "Setup 7 · Playlists",
       "clip": true,
       "width": 1440,
       "height": 960,
@@ -9967,7 +10177,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "j9uut",
+                  "id": "sShlC",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "GwBle",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -9978,7 +10199,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "EzptD",
+                  "id": "QAZL8",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -9989,7 +10210,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "bOUAz",
+                  "id": "lDbAY",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -10000,7 +10221,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "xF0oh",
+                  "id": "OlYtC",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -10011,7 +10232,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "zUwN1",
+                  "id": "n6eyQM",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -10022,7 +10243,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "gbHrV",
+                  "id": "NDOvi",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -10033,7 +10254,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "GsVFs",
+                  "id": "qppUl",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -10043,7 +10264,7 @@
                   "height": 3
                 },
                 {
-                  "id": "CyOUJ",
+                  "id": "cQvUR",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -10055,14 +10276,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "AOP1o",
+                  "id": "sfBBp",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "iSQEv",
+                  "id": "U8qrY",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 2",
@@ -10074,14 +10295,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "PLkj4",
+                  "id": "Fdfod",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "nlflP",
+                  "id": "Z3rr3",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 3",
@@ -10093,14 +10314,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "AK43R",
+                  "id": "tQNeJ",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "c39WL",
+                  "id": "o0qSn",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 4",
@@ -10112,14 +10333,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "kW8Cw",
+                  "id": "DuUpb",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "H5Mszd",
+                  "id": "l36t1j",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 5",
@@ -10131,14 +10352,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "c2rQR0",
+                  "id": "jIZWt",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "GtZCM",
+                  "id": "a8Sgn3",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 6",
@@ -10150,36 +10371,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "pxLTb",
+                  "id": "vJ0ee",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "I5f8uR",
+                  "id": "kw8HM",
                   "type": "ref",
                   "ref": "v0fEXW",
                   "name": "Step 7",
                   "descendants": {
                     "E4HUs": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "F6WJKq",
+                  "id": "BKifD",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "FNivR",
+                  "id": "nL7Gf",
                   "type": "ref",
                   "ref": "uGokU",
                   "name": "Step 8",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "VyhMf",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "o58nWm",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
                   "descendants": {
                     "wsskk": {
                       "content": "Done"
@@ -10552,9 +10792,9 @@
     {
       "type": "frame",
       "id": "BAzX6",
-      "x": 12320,
+      "x": 13860,
       "y": 3157,
-      "name": "Setup 8 · Done",
+      "name": "Setup 9 · Done",
       "clip": true,
       "width": 1440,
       "height": 960,
@@ -10649,7 +10889,18 @@
               "children": [
                 {
                   "type": "rectangle",
-                  "id": "wYuxu",
+                  "id": "NMB8n",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "wAlkh",
                   "layoutPosition": "absolute",
                   "x": 753,
                   "y": 12.5,
@@ -10660,7 +10911,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "a7QcA",
+                  "id": "a1XIMF",
                   "layoutPosition": "absolute",
                   "x": 637,
                   "y": 12.5,
@@ -10671,7 +10922,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "ivOpB",
+                  "id": "mRBJa",
                   "layoutPosition": "absolute",
                   "x": 521,
                   "y": 12.5,
@@ -10682,7 +10933,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "yRpQS",
+                  "id": "awsut",
                   "layoutPosition": "absolute",
                   "x": 405,
                   "y": 12.5,
@@ -10693,7 +10944,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "LGFcS",
+                  "id": "sMPAk",
                   "layoutPosition": "absolute",
                   "x": 289,
                   "y": 12.5,
@@ -10704,7 +10955,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "ujTw3",
+                  "id": "ButgP",
                   "layoutPosition": "absolute",
                   "x": 173,
                   "y": 12.5,
@@ -10715,7 +10966,7 @@
                 },
                 {
                   "type": "rectangle",
-                  "id": "T4TFiV",
+                  "id": "jHRb3",
                   "layoutPosition": "absolute",
                   "x": 57,
                   "y": 12.5,
@@ -10725,7 +10976,7 @@
                   "height": 3
                 },
                 {
-                  "id": "H9RVri",
+                  "id": "hGVd9",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 1",
@@ -10737,14 +10988,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "MdHE7",
+                  "id": "JGkNp",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "VHetG",
+                  "id": "uI7fv",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 2",
@@ -10756,14 +11007,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "lHLZT",
+                  "id": "q3xcRl",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "XTYPH",
+                  "id": "sKkf7",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 3",
@@ -10775,14 +11026,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "oSCBx",
+                  "id": "Hk7dN",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "x5ttZY",
+                  "id": "SgN4C",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 4",
@@ -10794,14 +11045,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "F6m68",
+                  "id": "lxGYY",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "I7HUts",
+                  "id": "m9LEUw",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 5",
@@ -10813,14 +11064,14 @@
                 },
                 {
                   "type": "frame",
-                  "id": "NqcVA",
+                  "id": "Viq1e",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "skjjt",
+                  "id": "j7gShK",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 6",
@@ -10832,36 +11083,55 @@
                 },
                 {
                   "type": "frame",
-                  "id": "e3kgM",
+                  "id": "zquVc",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "tNmCG",
+                  "id": "cjiLY",
                   "type": "ref",
                   "ref": "Ksmqr",
                   "name": "Step 7",
                   "descendants": {
                     "UE7P4": {
-                      "content": "What to back up"
+                      "content": "Playlists"
                     }
                   }
                 },
                 {
                   "type": "frame",
-                  "id": "A8dN2",
+                  "id": "UN4YI",
                   "name": "Link",
                   "width": 28,
                   "height": 28,
                   "layout": "none"
                 },
                 {
-                  "id": "XN5L1",
+                  "id": "jJnaq",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 8",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "Je7tc",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "q1Ypun",
                   "type": "ref",
                   "ref": "v0fEXW",
-                  "name": "Step 8",
+                  "name": "Step 9",
                   "descendants": {
                     "E4HUs": {
                       "content": "Done"
@@ -11071,7 +11341,7 @@
                       "id": "Rso2G",
                       "name": "23 playlists + Liked Son",
                       "fill": "$text",
-                      "content": "23 playlists + Liked Songs",
+                      "content": "23 playlists + Liked Songs · 42 albums",
                       "fontFamily": "$font",
                       "fontSize": 14,
                       "fontWeight": "600"
@@ -46658,6 +46928,719 @@
       "width": 586,
       "height": 334,
       "content": "Design note: this field validates the scheme string as you type.\n\n• Only the six placeholders are accepted.\n• The folder part must be none, {album_artist}, or {album_artist}/{album}.\n• The file name part can't contain / and can't be empty.\n• Errors replace the hint under the field in red, and Apply stays disabled until the string is valid."
+    },
+    {
+      "type": "frame",
+      "id": "sUXcW",
+      "x": 12320,
+      "y": 3157,
+      "name": "Setup 8 · Albums",
+      "clip": true,
+      "width": 1440,
+      "height": 960,
+      "fill": [
+        "#000000",
+        {
+          "type": "gradient",
+          "gradientType": "radial",
+          "enabled": true,
+          "rotation": 0,
+          "size": {
+            "width": 1.6,
+            "height": 1.1
+          },
+          "colors": [
+            {
+              "color": "#1ED76022",
+              "position": 0
+            },
+            {
+              "color": "#00000000",
+              "position": 1
+            }
+          ],
+          "center": {
+            "y": 0
+          }
+        }
+      ],
+      "layout": "vertical",
+      "gap": 36,
+      "padding": [
+        36,
+        0
+      ],
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "frame",
+          "id": "B9dti",
+          "name": "Wizard top",
+          "layout": "vertical",
+          "gap": 28,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ldljv",
+              "name": "Brand",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BR8Bq",
+                  "name": "Mark",
+                  "width": 30,
+                  "height": 30,
+                  "fill": "$accent",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "B3Cum",
+                      "name": "Icon archive",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "archive",
+                      "library": "lucide",
+                      "fill": "$on-accent"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "lEQi0",
+                  "name": "spotibackup setup",
+                  "fill": "$text",
+                  "content": "spotibackup setup",
+                  "fontFamily": "$font",
+                  "fontSize": 18,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "l25R1Y",
+              "name": "Stepper",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "id": "ft5Ja",
+                  "layoutPosition": "absolute",
+                  "x": 869,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$border-strong",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "Sso3Y",
+                  "layoutPosition": "absolute",
+                  "x": 753,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "JEIA9",
+                  "layoutPosition": "absolute",
+                  "x": 637,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "ZVEBS",
+                  "layoutPosition": "absolute",
+                  "x": 521,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "cRMKm",
+                  "layoutPosition": "absolute",
+                  "x": 405,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "kYFdb",
+                  "layoutPosition": "absolute",
+                  "x": 289,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "ZaCCA",
+                  "layoutPosition": "absolute",
+                  "x": 173,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "C0uJKZ",
+                  "layoutPosition": "absolute",
+                  "x": 57,
+                  "y": 12.5,
+                  "name": "Line",
+                  "fill": "$accent",
+                  "width": 90,
+                  "height": 3
+                },
+                {
+                  "id": "H3Usps",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 1",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Welcome"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "e1CZu",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "MwnaJ",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 2",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Spotify client"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "rbDzr",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "fy3Lx",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 3",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Log in"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "P3tB3",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "nel5E",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 4",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Client settings"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "d4U1Z3",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "sVkuH",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 5",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Web API"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "t8FKmO",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "DW69N",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 6",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Output"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "tdZqa",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "AOmsT",
+                  "type": "ref",
+                  "ref": "Ksmqr",
+                  "name": "Step 7",
+                  "descendants": {
+                    "UE7P4": {
+                      "content": "Playlists"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "fClZC",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "JPuzQ",
+                  "type": "ref",
+                  "ref": "v0fEXW",
+                  "name": "Step 8",
+                  "descendants": {
+                    "E4HUs": {
+                      "content": "Albums"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "X7pTZZ",
+                  "name": "Link",
+                  "width": 28,
+                  "height": 28,
+                  "layout": "none"
+                },
+                {
+                  "id": "r0vscc",
+                  "type": "ref",
+                  "ref": "uGokU",
+                  "name": "Step 9",
+                  "descendants": {
+                    "wsskk": {
+                      "content": "Done"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "FYw96",
+          "name": "Card",
+          "width": 900,
+          "fill": "$bg-base",
+          "cornerRadius": 12,
+          "layout": "vertical",
+          "gap": 24,
+          "padding": 40,
+          "children": [
+            {
+              "type": "text",
+              "id": "h4uKgt",
+              "name": "What should spotibackup ",
+              "fill": "$text",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Which albums should spotibackup back up?",
+              "fontFamily": "$font",
+              "fontSize": 28,
+              "fontWeight": "800"
+            },
+            {
+              "type": "frame",
+              "id": "poOPx",
+              "name": "Choices",
+              "width": "fill_container",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "SQO0A",
+                  "name": "Choice Back up all my playlists",
+                  "width": "fill_container",
+                  "fill": "#1ED76014",
+                  "cornerRadius": 12,
+                  "stroke": "$accent",
+                  "strokeWidth": 2,
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ERFQf",
+                      "name": "Head",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "BIZMq",
+                          "name": "Icon box",
+                          "width": 48,
+                          "height": 48,
+                          "fill": "$accent",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "zjYii",
+                              "name": "Icon list-music",
+                              "width": 24,
+                              "height": 24,
+                              "icon": "disc-3",
+                              "library": "lucide",
+                              "fill": "$on-accent"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "nH6dp",
+                          "name": "Radio",
+                          "width": 20,
+                          "height": 20,
+                          "cornerRadius": 999,
+                          "stroke": "$accent",
+                          "strokeWidth": 2,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "v4iPAe",
+                              "name": "Dot",
+                              "fill": "$accent",
+                              "width": 10,
+                              "height": 10
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "kQ1m7",
+                      "name": "Back up all my playlists",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Back up all my saved albums",
+                      "fontFamily": "$font",
+                      "fontSize": 19,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Mun7R",
+                      "name": "Every playlist you creat",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Every album you've added to your Library is queued and recorded once. After a complete recording, scheduled runs skip it.",
+                      "fontFamily": "$font",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "sYevI",
+                      "name": "Count",
+                      "fill": "$bg-highlight",
+                      "cornerRadius": 999,
+                      "padding": [
+                        4,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "x8kdJ9",
+                          "name": "You have 23 playlists",
+                          "fill": "$text",
+                          "content": "You have 42 saved albums",
+                          "fontFamily": "$font",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "c57Ju",
+                      "type": "ref",
+                      "ref": "z4volr",
+                      "enabled": false,
+                      "name": "Include Liked Songs"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "HfMTS",
+                  "name": "Choice I'll choose in the Library",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$bg-elevated",
+                  "cornerRadius": 12,
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "t9dLMx",
+                      "name": "Head",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "esLZT",
+                          "name": "Icon box",
+                          "width": 48,
+                          "height": 48,
+                          "fill": "$bg-highlight",
+                          "cornerRadius": 8,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "BYA6z",
+                              "name": "Icon mouse-pointer-click",
+                              "width": 24,
+                              "height": 24,
+                              "icon": "mouse-pointer-click",
+                              "library": "lucide",
+                              "fill": "$text"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "p1jq8",
+                          "name": "Radio",
+                          "width": 20,
+                          "height": 20,
+                          "cornerRadius": 999,
+                          "stroke": "$text-sub",
+                          "strokeWidth": 2,
+                          "justifyContent": "center",
+                          "alignItems": "center"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "e51o2Z",
+                      "name": "I'll choose in the Libra",
+                      "fill": "$text",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "I'll choose in Albums",
+                      "fontFamily": "$font",
+                      "fontSize": 19,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "text",
+                      "id": "xijKe",
+                      "name": "Nothing is tracked yet. ",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Nothing is queued yet. You pick albums afterwards.",
+                      "fontFamily": "$font",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Vq7By",
+                      "name": "Spacer",
+                      "width": "fill_container",
+                      "height": "fill_container"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "oV13S",
+                      "name": "Hint",
+                      "width": "fill_container",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        12,
+                        0,
+                        0,
+                        0
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Rzmj8",
+                          "name": "Icon info",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "info",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Rjfmn",
+                          "name": "Hint text",
+                          "fill": "$text-sub",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Add albums anytime with the + button on the Albums page.",
+                          "fontFamily": "$font",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "XOtb9",
+              "name": "This sets \"Automatically",
+              "fill": "$text-muted",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Albums you downloaded in a Spotify app count as saved albums. Albums you save later aren't added on their own; add them from the Albums page.",
+              "fontFamily": "$font",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "Y8J41",
+              "name": "Footer",
+              "width": "fill_container",
+              "padding": [
+                8,
+                0,
+                0,
+                0
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "id": "nSq9u",
+                  "type": "ref",
+                  "ref": "ev6xK",
+                  "name": "Button Back",
+                  "descendants": {
+                    "mFYQ4": {
+                      "content": "Back"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "yGThp",
+                  "name": "Primary wrap",
+                  "gap": 16,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "F6eoJ",
+                      "name": "Btn",
+                      "children": [
+                        {
+                          "id": "bJVv9",
+                          "type": "ref",
+                          "ref": "vcJS5",
+                          "name": "Button Continue",
+                          "descendants": {
+                            "bqMli": {
+                              "content": "Continue"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {
