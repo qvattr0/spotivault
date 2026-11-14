@@ -12732,6 +12732,172 @@
                       }
                     }
                   ]
+                },
+                {
+                  "type": "frame",
+                  "id": "iMmk3",
+                  "layoutPosition": "absolute",
+                  "x": 900,
+                  "y": 317,
+                  "name": "Row menu (open)",
+                  "width": 220,
+                  "fill": "#282828",
+                  "cornerRadius": 6,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#000000A0",
+                    "offset": {
+                      "x": 0,
+                      "y": 8
+                    },
+                    "blur": 24
+                  },
+                  "layout": "vertical",
+                  "padding": 4,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "sxXtE",
+                      "name": "Menu item Back up now",
+                      "width": "fill_container",
+                      "cornerRadius": 4,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "I8E8q",
+                          "name": "Icon play",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "play",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "i687dL",
+                          "name": "Back up now",
+                          "fill": "$text",
+                          "content": "Back up now",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "g2yJIy",
+                      "name": "Menu item Change cover…",
+                      "width": "fill_container",
+                      "fill": "#3E3E3E",
+                      "cornerRadius": 4,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "IKve2",
+                          "name": "Icon image",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "image",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "L1Ydf",
+                          "name": "Change cover…",
+                          "fill": "$text",
+                          "content": "Change cover…",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ydzyo",
+                      "name": "Menu item Open in Spotify",
+                      "width": "fill_container",
+                      "cornerRadius": 4,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "q5cvt",
+                          "name": "Icon external-link",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "external-link",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "eZOJ0",
+                          "name": "Open in Spotify",
+                          "fill": "$text",
+                          "content": "Open in Spotify",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ET2Uw",
+                      "name": "Menu item Show files path",
+                      "width": "fill_container",
+                      "cornerRadius": 4,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "e44bv",
+                          "name": "Icon folder",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GlG3O",
+                          "name": "Show files path",
+                          "fill": "$text",
+                          "content": "Show files path",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -37648,7 +37814,7 @@
       "name": "Settings",
       "clip": true,
       "width": 1440,
-      "height": 2840,
+      "height": 2926,
       "fill": "$bg-app",
       "layout": "vertical",
       "children": [
@@ -38085,6 +38251,73 @@
                               "children": [
                                 {
                                   "id": "ByoxL",
+                                  "type": "ref",
+                                  "ref": "fuGoA",
+                                  "name": "Toggle"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ZP069",
+                          "name": "Row Save Spotify's covers",
+                          "width": "fill_container",
+                          "stroke": "$border",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 24,
+                          "padding": [
+                            14,
+                            0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "tOZi7",
+                              "name": "Label",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 4,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "kMYt0",
+                                  "name": "Save Spotify's covers",
+                                  "fill": "$text",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Save Spotify's covers",
+                                  "fontFamily": "$font",
+                                  "fontSize": 15,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "bV5PD",
+                                  "name": "Covers description",
+                                  "fill": "$text-sub",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Each playlist's cover is saved next to its .m3u as Music/Playlists/<name>.jpg, at the largest size Spotify has. Custom covers you upload in the Library are always saved, and replace Spotify's.",
+                                  "fontFamily": "$font",
+                                  "fontSize": 13,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "BgtcB",
+                              "name": "Control",
+                              "gap": 10,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "id": "E0f2B",
                                   "type": "ref",
                                   "ref": "fuGoA",
                                   "name": "Toggle"
@@ -43776,6 +44009,73 @@
                         },
                         {
                           "type": "frame",
+                          "id": "t8Uss",
+                          "name": "Row Save Spotify's covers",
+                          "width": "fill_container",
+                          "stroke": "$border",
+                          "strokeWidth": {
+                            "bottom": 1
+                          },
+                          "gap": 24,
+                          "padding": [
+                            14,
+                            0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "K9Vch",
+                              "name": "Label",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 4,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "qZTL0",
+                                  "name": "Save Spotify's covers",
+                                  "fill": "$text",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Save Spotify's covers",
+                                  "fontFamily": "$font",
+                                  "fontSize": 15,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "w8Y3Qu",
+                                  "name": "Covers description",
+                                  "fill": "$text-sub",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Each playlist's cover is saved next to its .m3u as Music/Playlists/<name>.jpg, at the largest size Spotify has. Custom covers you upload in the Library are always saved, and replace Spotify's.",
+                                  "fontFamily": "$font",
+                                  "fontSize": 13,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "ENTfZ",
+                              "name": "Control",
+                              "gap": 10,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "id": "IiDJN",
+                                  "type": "ref",
+                                  "ref": "fuGoA",
+                                  "name": "Toggle"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
                           "id": "hCk2e",
                           "name": "Row Music folder",
                           "width": "fill_container",
@@ -48076,6 +48376,2255 @@
                       ]
                     }
                   ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "GZoBm",
+      "x": 10780,
+      "y": 4657,
+      "name": "Library · Detail · Change cover (hover)",
+      "clip": true,
+      "width": 1440,
+      "height": 960,
+      "fill": "$bg-app",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "wyTpI",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 8,
+          "padding": 8,
+          "children": [
+            {
+              "id": "EJlRB",
+              "type": "ref",
+              "ref": "EPlEP",
+              "name": "Sidebar",
+              "height": "fill_container",
+              "descendants": {
+                "NAZKx": {
+                  "fill": "$bg-highlight"
+                },
+                "r7iDX": {
+                  "fill": "$text"
+                },
+                "Et9CQ": {
+                  "fill": "$text"
+                }
+              }
+            },
+            {
+              "type": "frame",
+              "id": "JGkeW",
+              "name": "Main",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": [
+                "#121212",
+                {
+                  "type": "gradient",
+                  "gradientType": "linear",
+                  "enabled": true,
+                  "rotation": 180,
+                  "size": {
+                    "height": 0.45
+                  },
+                  "colors": [
+                    {
+                      "color": "#3B1C6E",
+                      "position": 0
+                    },
+                    {
+                      "color": "#12121200",
+                      "position": 1
+                    }
+                  ],
+                  "center": {
+                    "y": 0.225
+                  }
+                }
+              ],
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "gap": 24,
+              "padding": [
+                28,
+                32
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Qv1nC",
+                  "name": "Breadcrumb",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "P6dcai",
+                      "name": "Icon chevron-left",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "chevron-left",
+                      "library": "lucide",
+                      "fill": "$text-sub"
+                    },
+                    {
+                      "type": "text",
+                      "id": "iWCOX",
+                      "name": "Library",
+                      "fill": "$text-sub",
+                      "content": "Library",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ozu7e",
+                  "name": "Detail header",
+                  "width": "fill_container",
+                  "gap": 28,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "QoGnO",
+                      "name": "Cover",
+                      "width": 200,
+                      "height": 200,
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 135,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E1306C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#7B2FF7",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "cornerRadius": 6,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#00000080",
+                        "offset": {
+                          "x": 0,
+                          "y": 12
+                        },
+                        "blur": 40
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "z7ssR",
+                          "x": 68,
+                          "y": 68,
+                          "name": "Icon music",
+                          "enabled": false,
+                          "width": 64,
+                          "height": 64,
+                          "icon": "music",
+                          "library": "lucide",
+                          "fill": "#FFFFFF66"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "bmPBR",
+                          "layoutPosition": "absolute",
+                          "x": 0,
+                          "y": 0,
+                          "name": "Hover overlay",
+                          "width": 200,
+                          "height": 200,
+                          "fill": "#000000B3",
+                          "cornerRadius": 6,
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "kCSdf",
+                              "name": "Icon pencil",
+                              "width": 44,
+                              "height": 44,
+                              "icon": "pencil",
+                              "library": "lucide",
+                              "fill": "#FFFFFF"
+                            },
+                            {
+                              "type": "text",
+                              "id": "BxylE",
+                              "name": "Change cover",
+                              "fill": "#FFFFFF",
+                              "content": "Change cover",
+                              "fontFamily": "$font",
+                              "fontSize": 15,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "P4UWQN",
+                              "name": "Drop hint",
+                              "fill": "#FFFFFFB3",
+                              "content": "or drop an image here",
+                              "fontFamily": "$font",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "cTWSb",
+                      "name": "Header text",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "yKJCt",
+                          "name": "Playlist",
+                          "fill": "$text",
+                          "content": "Playlist",
+                          "fontFamily": "$font",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "YNx4g",
+                          "name": "Late Night Drive",
+                          "fill": "$text",
+                          "content": "Late Night Drive",
+                          "fontFamily": "$font",
+                          "fontSize": 64,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GNb4x",
+                          "name": "by you · 120 tracks · 7 ",
+                          "fill": "$text-sub",
+                          "content": "by you · 120 tracks · 7 h 48 min · 118 recorded",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "M8uYk",
+                  "name": "Actions",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "id": "kKpn0",
+                      "type": "ref",
+                      "ref": "kYWoD",
+                      "name": "Back up now",
+                      "width": 56,
+                      "height": 56,
+                      "descendants": {
+                        "WVrNW": {
+                          "width": 26,
+                          "height": 26
+                        }
+                      }
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PbBB6",
+                      "name": "Tracking",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "xulR0",
+                          "type": "ref",
+                          "ref": "fuGoA",
+                          "name": "Tracking toggle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "mNAKA",
+                          "name": "Tracked",
+                          "fill": "$text",
+                          "content": "Tracked",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "qK1OU",
+                      "type": "ref",
+                      "ref": "n6C5Bb",
+                      "name": "Status",
+                      "fill": "$info-tint",
+                      "padding": [
+                        3,
+                        8
+                      ],
+                      "descendants": {
+                        "mYY0r": {
+                          "fill": "$info"
+                        },
+                        "W1qjc": {
+                          "content": "2 new",
+                          "fill": "$info"
+                        }
+                      }
+                    },
+                    {
+                      "id": "FQujG",
+                      "type": "ref",
+                      "ref": "FUIY9",
+                      "name": "Icon btn ellipsis",
+                      "descendants": {
+                        "o5egT": {
+                          "icon": "ellipsis",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ON82D",
+                  "name": "Table head",
+                  "width": "fill_container",
+                  "stroke": "$border",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "gap": 16,
+                  "padding": [
+                    0,
+                    16,
+                    10,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CZxCC",
+                      "name": "#",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 28,
+                      "content": "#",
+                      "textAlign": "right",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "z6bKLd",
+                      "name": "Title",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Title",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "RLuWs",
+                      "name": "Album",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 240,
+                      "content": "Album",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "tPviR",
+                      "name": "Icon clock-3",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "clock-3",
+                      "library": "lucide",
+                      "fill": "$text-sub"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uXzm8",
+                      "name": "gap",
+                      "width": 46,
+                      "height": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "duIzA",
+                      "name": "State",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 220,
+                      "content": "State",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "v0OLhN",
+                  "name": "Tracks",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "id": "UuuJR",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 1",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "1"
+                        },
+                        "x3fk5": {
+                          "content": "Nightcall"
+                        },
+                        "T6oAR": {
+                          "content": "Kavinsky"
+                        },
+                        "qLHdn": {
+                          "content": "OutRun"
+                        },
+                        "fDmhM": {
+                          "content": "4:18"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 9.9 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "c3akN",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 2",
+                      "width": "fill_container",
+                      "fill": "#FFFFFF0F",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "2"
+                        },
+                        "x3fk5": {
+                          "content": "Midnight City"
+                        },
+                        "T6oAR": {
+                          "content": "M83"
+                        },
+                        "qLHdn": {
+                          "content": "Hurry Up, We're Dreaming"
+                        },
+                        "fDmhM": {
+                          "content": "4:03"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 9.3 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "BWueD",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 3",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "3"
+                        },
+                        "x3fk5": {
+                          "content": "Tame Impala – The Less I Know"
+                        },
+                        "T6oAR": {
+                          "content": "Tame Impala"
+                        },
+                        "qLHdn": {
+                          "content": "Currents"
+                        },
+                        "fDmhM": {
+                          "content": "3:36"
+                        },
+                        "OsBA9": {
+                          "icon": "redo-2",
+                          "fill": "$text-sub"
+                        },
+                        "tuwCT": {
+                          "content": "Skipped (duplicate)",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "I5lDE",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 4",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "4"
+                        },
+                        "x3fk5": {
+                          "content": "Blinding Lights"
+                        },
+                        "T6oAR": {
+                          "content": "The Weeknd"
+                        },
+                        "qLHdn": {
+                          "content": "After Hours"
+                        },
+                        "fDmhM": {
+                          "content": "3:20"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 7.7 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "N7ydCY",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 5",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "5"
+                        },
+                        "x3fk5": {
+                          "content": "Strobe"
+                        },
+                        "T6oAR": {
+                          "content": "deadmau5"
+                        },
+                        "qLHdn": {
+                          "content": "For Lack of a Better Name"
+                        },
+                        "fDmhM": {
+                          "content": "10:37"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-x",
+                          "fill": "$danger"
+                        },
+                        "tuwCT": {
+                          "content": "Failed · low volume",
+                          "fill": "$danger"
+                        }
+                      }
+                    },
+                    {
+                      "id": "j6qKC",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 6",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "6"
+                        },
+                        "x3fk5": {
+                          "content": "Instant Crush"
+                        },
+                        "T6oAR": {
+                          "content": "Daft Punk"
+                        },
+                        "qLHdn": {
+                          "content": "Random Access Memories"
+                        },
+                        "fDmhM": {
+                          "content": "5:37"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 12.9 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "k9Dpy",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 7",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "7"
+                        },
+                        "x3fk5": {
+                          "content": "Electric Feel"
+                        },
+                        "T6oAR": {
+                          "content": "MGMT"
+                        },
+                        "qLHdn": {
+                          "content": "Oracular Spectacular"
+                        },
+                        "fDmhM": {
+                          "content": "3:49"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-dashed",
+                          "fill": "$text-muted"
+                        },
+                        "tuwCT": {
+                          "content": "Missing",
+                          "fill": "$text-muted"
+                        }
+                      }
+                    },
+                    {
+                      "id": "E9c2kE",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 8",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "8"
+                        },
+                        "x3fk5": {
+                          "content": "Resonance"
+                        },
+                        "T6oAR": {
+                          "content": "HOME"
+                        },
+                        "qLHdn": {
+                          "content": "Odyssey"
+                        },
+                        "fDmhM": {
+                          "content": "3:32"
+                        },
+                        "OsBA9": {
+                          "icon": "sparkles",
+                          "fill": "$info"
+                        },
+                        "tuwCT": {
+                          "content": "New",
+                          "fill": "$info"
+                        }
+                      }
+                    },
+                    {
+                      "id": "EvXiH",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 9",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "9"
+                        },
+                        "x3fk5": {
+                          "content": "Night Drive"
+                        },
+                        "T6oAR": {
+                          "content": "Chromatics"
+                        },
+                        "qLHdn": {
+                          "content": "Kill for Love"
+                        },
+                        "fDmhM": {
+                          "content": "4:41"
+                        },
+                        "OsBA9": {
+                          "icon": "sparkles",
+                          "fill": "$info"
+                        },
+                        "tuwCT": {
+                          "content": "New",
+                          "fill": "$info"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xO6I6",
+                  "name": "Footer",
+                  "width": "fill_container",
+                  "gap": 10,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "id": "ETKK6",
+                      "type": "ref",
+                      "ref": "ev6xK",
+                      "name": "Stop tracking",
+                      "descendants": {
+                        "mFYQ4": {
+                          "content": "Stop tracking"
+                        }
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "id": "VX5fS",
+                      "name": "Files are never deleted.",
+                      "fill": "$text-muted",
+                      "content": "Files are never deleted.",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "CyvW7",
+      "x": 12320,
+      "y": 4657,
+      "name": "Library · Detail · Custom cover menu",
+      "clip": true,
+      "width": 1440,
+      "height": 960,
+      "fill": "$bg-app",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "w1Pdld",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 8,
+          "padding": 8,
+          "children": [
+            {
+              "id": "At0QI",
+              "type": "ref",
+              "ref": "EPlEP",
+              "name": "Sidebar",
+              "height": "fill_container",
+              "descendants": {
+                "NAZKx": {
+                  "fill": "$bg-highlight"
+                },
+                "r7iDX": {
+                  "fill": "$text"
+                },
+                "Et9CQ": {
+                  "fill": "$text"
+                }
+              }
+            },
+            {
+              "type": "frame",
+              "id": "LtIt2",
+              "name": "Main",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": [
+                "#121212",
+                {
+                  "type": "gradient",
+                  "gradientType": "linear",
+                  "enabled": true,
+                  "rotation": 180,
+                  "size": {
+                    "height": 0.45
+                  },
+                  "colors": [
+                    {
+                      "color": "#3B1C6E",
+                      "position": 0
+                    },
+                    {
+                      "color": "#12121200",
+                      "position": 1
+                    }
+                  ],
+                  "center": {
+                    "y": 0.225
+                  }
+                }
+              ],
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "gap": 24,
+              "padding": [
+                28,
+                32
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "CAWAu",
+                  "name": "Breadcrumb",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "FgLv8",
+                      "name": "Icon chevron-left",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "chevron-left",
+                      "library": "lucide",
+                      "fill": "$text-sub"
+                    },
+                    {
+                      "type": "text",
+                      "id": "jyxGw",
+                      "name": "Library",
+                      "fill": "$text-sub",
+                      "content": "Library",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hKBRY",
+                  "name": "Detail header",
+                  "width": "fill_container",
+                  "gap": 28,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "T6Xi5f",
+                      "name": "Cover",
+                      "metadata": {
+                        "type": "unsplash",
+                        "username": "freedom_515",
+                        "link": "https://unsplash.com/@freedom_515",
+                        "author": "515 Freedom"
+                      },
+                      "width": 200,
+                      "height": 200,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "https://images.unsplash.com/photo-1791736495518-2927183e615f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3OTQ2OTUxMjZ8&ixlib=rb-4.1.0&q=80&w=1080",
+                        "mode": "cover"
+                      },
+                      "cornerRadius": 6,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#00000080",
+                        "offset": {
+                          "x": 0,
+                          "y": 12
+                        },
+                        "blur": 40
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "qohII",
+                          "x": 68,
+                          "y": 68,
+                          "name": "Icon music",
+                          "enabled": false,
+                          "width": 64,
+                          "height": 64,
+                          "icon": "music",
+                          "library": "lucide",
+                          "fill": "#FFFFFF66"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "D94LHS",
+                      "name": "Header text",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "UjubN",
+                          "name": "Playlist",
+                          "fill": "$text",
+                          "content": "Playlist",
+                          "fontFamily": "$font",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "iJkiO",
+                          "name": "Late Night Drive",
+                          "fill": "$text",
+                          "content": "Late Night Drive",
+                          "fontFamily": "$font",
+                          "fontSize": 64,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "JLCQf",
+                          "name": "by you · 120 tracks · 7 ",
+                          "fill": "$text-sub",
+                          "content": "by you · 120 tracks · 7 h 48 min · 118 recorded",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "sXy9E",
+                  "name": "Actions",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "id": "zTjNo",
+                      "type": "ref",
+                      "ref": "kYWoD",
+                      "name": "Back up now",
+                      "width": 56,
+                      "height": 56,
+                      "descendants": {
+                        "WVrNW": {
+                          "width": 26,
+                          "height": 26
+                        }
+                      }
+                    },
+                    {
+                      "type": "frame",
+                      "id": "eViuJ",
+                      "name": "Tracking",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "ne4UC",
+                          "type": "ref",
+                          "ref": "fuGoA",
+                          "name": "Tracking toggle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zGyjP",
+                          "name": "Tracked",
+                          "fill": "$text",
+                          "content": "Tracked",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "W99x6w",
+                      "type": "ref",
+                      "ref": "n6C5Bb",
+                      "name": "Status",
+                      "fill": "$info-tint",
+                      "padding": [
+                        3,
+                        8
+                      ],
+                      "descendants": {
+                        "mYY0r": {
+                          "fill": "$info"
+                        },
+                        "W1qjc": {
+                          "content": "2 new",
+                          "fill": "$info"
+                        }
+                      }
+                    },
+                    {
+                      "id": "bhF1j",
+                      "type": "ref",
+                      "ref": "FUIY9",
+                      "name": "Icon btn ellipsis",
+                      "descendants": {
+                        "o5egT": {
+                          "icon": "ellipsis",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "OdA7p",
+                  "name": "Table head",
+                  "width": "fill_container",
+                  "stroke": "$border",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "gap": 16,
+                  "padding": [
+                    0,
+                    16,
+                    10,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mZqaA",
+                      "name": "#",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 28,
+                      "content": "#",
+                      "textAlign": "right",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "h3Xsn",
+                      "name": "Title",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Title",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ONted",
+                      "name": "Album",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 240,
+                      "content": "Album",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "baHHO",
+                      "name": "Icon clock-3",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "clock-3",
+                      "library": "lucide",
+                      "fill": "$text-sub"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "kN4a9",
+                      "name": "gap",
+                      "width": 46,
+                      "height": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "e3DFI",
+                      "name": "State",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 220,
+                      "content": "State",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hCZjo",
+                  "name": "Tracks",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "id": "JkMcP",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 1",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "1"
+                        },
+                        "x3fk5": {
+                          "content": "Nightcall"
+                        },
+                        "T6oAR": {
+                          "content": "Kavinsky"
+                        },
+                        "qLHdn": {
+                          "content": "OutRun"
+                        },
+                        "fDmhM": {
+                          "content": "4:18"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 9.9 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "x1U7gJ",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 2",
+                      "width": "fill_container",
+                      "fill": "#FFFFFF0F",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "2"
+                        },
+                        "x3fk5": {
+                          "content": "Midnight City"
+                        },
+                        "T6oAR": {
+                          "content": "M83"
+                        },
+                        "qLHdn": {
+                          "content": "Hurry Up, We're Dreaming"
+                        },
+                        "fDmhM": {
+                          "content": "4:03"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 9.3 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "K56tQ",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 3",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "3"
+                        },
+                        "x3fk5": {
+                          "content": "Tame Impala – The Less I Know"
+                        },
+                        "T6oAR": {
+                          "content": "Tame Impala"
+                        },
+                        "qLHdn": {
+                          "content": "Currents"
+                        },
+                        "fDmhM": {
+                          "content": "3:36"
+                        },
+                        "OsBA9": {
+                          "icon": "redo-2",
+                          "fill": "$text-sub"
+                        },
+                        "tuwCT": {
+                          "content": "Skipped (duplicate)",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "EFW37",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 4",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "4"
+                        },
+                        "x3fk5": {
+                          "content": "Blinding Lights"
+                        },
+                        "T6oAR": {
+                          "content": "The Weeknd"
+                        },
+                        "qLHdn": {
+                          "content": "After Hours"
+                        },
+                        "fDmhM": {
+                          "content": "3:20"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 7.7 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "fSrJl",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 5",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "5"
+                        },
+                        "x3fk5": {
+                          "content": "Strobe"
+                        },
+                        "T6oAR": {
+                          "content": "deadmau5"
+                        },
+                        "qLHdn": {
+                          "content": "For Lack of a Better Name"
+                        },
+                        "fDmhM": {
+                          "content": "10:37"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-x",
+                          "fill": "$danger"
+                        },
+                        "tuwCT": {
+                          "content": "Failed · low volume",
+                          "fill": "$danger"
+                        }
+                      }
+                    },
+                    {
+                      "id": "HFpBv",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 6",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "6"
+                        },
+                        "x3fk5": {
+                          "content": "Instant Crush"
+                        },
+                        "T6oAR": {
+                          "content": "Daft Punk"
+                        },
+                        "qLHdn": {
+                          "content": "Random Access Memories"
+                        },
+                        "fDmhM": {
+                          "content": "5:37"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 12.9 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "lrnJE",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 7",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "7"
+                        },
+                        "x3fk5": {
+                          "content": "Electric Feel"
+                        },
+                        "T6oAR": {
+                          "content": "MGMT"
+                        },
+                        "qLHdn": {
+                          "content": "Oracular Spectacular"
+                        },
+                        "fDmhM": {
+                          "content": "3:49"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-dashed",
+                          "fill": "$text-muted"
+                        },
+                        "tuwCT": {
+                          "content": "Missing",
+                          "fill": "$text-muted"
+                        }
+                      }
+                    },
+                    {
+                      "id": "SvveL",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 8",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "8"
+                        },
+                        "x3fk5": {
+                          "content": "Resonance"
+                        },
+                        "T6oAR": {
+                          "content": "HOME"
+                        },
+                        "qLHdn": {
+                          "content": "Odyssey"
+                        },
+                        "fDmhM": {
+                          "content": "3:32"
+                        },
+                        "OsBA9": {
+                          "icon": "sparkles",
+                          "fill": "$info"
+                        },
+                        "tuwCT": {
+                          "content": "New",
+                          "fill": "$info"
+                        }
+                      }
+                    },
+                    {
+                      "id": "mqsdu",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 9",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "9"
+                        },
+                        "x3fk5": {
+                          "content": "Night Drive"
+                        },
+                        "T6oAR": {
+                          "content": "Chromatics"
+                        },
+                        "qLHdn": {
+                          "content": "Kill for Love"
+                        },
+                        "fDmhM": {
+                          "content": "4:41"
+                        },
+                        "OsBA9": {
+                          "icon": "sparkles",
+                          "fill": "$info"
+                        },
+                        "tuwCT": {
+                          "content": "New",
+                          "fill": "$info"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "x3xdTo",
+                  "name": "Footer",
+                  "width": "fill_container",
+                  "gap": 10,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "id": "Fcgmz",
+                      "type": "ref",
+                      "ref": "ev6xK",
+                      "name": "Stop tracking",
+                      "descendants": {
+                        "mFYQ4": {
+                          "content": "Stop tracking"
+                        }
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "id": "D3Igkw",
+                      "name": "Files are never deleted.",
+                      "fill": "$text-muted",
+                      "content": "Files are never deleted.",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tWxtr",
+                  "layoutPosition": "absolute",
+                  "x": 182,
+                  "y": 218,
+                  "name": "Cover menu (open)",
+                  "width": 240,
+                  "fill": "#282828",
+                  "cornerRadius": 6,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#000000A0",
+                    "offset": {
+                      "x": 0,
+                      "y": 8
+                    },
+                    "blur": 24
+                  },
+                  "layout": "vertical",
+                  "padding": 4,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "c0fnn7",
+                      "name": "Menu item Change cover",
+                      "width": "fill_container",
+                      "fill": "#3E3E3E",
+                      "cornerRadius": 4,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "wfJRl",
+                          "name": "Icon image-up",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "image-up",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Z2gnUV",
+                          "name": "Change cover",
+                          "fill": "$text",
+                          "content": "Change cover",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "YE1jg",
+                      "name": "Menu item Use Spotify's cover",
+                      "width": "fill_container",
+                      "cornerRadius": 4,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "wKQe5",
+                          "name": "Icon rotate-ccw",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "rotate-ccw",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "lMw3J",
+                          "name": "Use Spotify's cover",
+                          "fill": "$text",
+                          "content": "Use Spotify's cover",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ln3Gh",
+                      "name": "Menu item Show file path",
+                      "width": "fill_container",
+                      "cornerRadius": 4,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "jM3UV",
+                          "name": "Icon folder",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "folder",
+                          "library": "lucide",
+                          "fill": "$text-sub"
+                        },
+                        {
+                          "type": "text",
+                          "id": "y5jHUu",
+                          "name": "Show file path",
+                          "fill": "$text",
+                          "content": "Show file path",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "ay3D7",
+      "x": 13860,
+      "y": 4657,
+      "name": "Library · Detail · Cover saved (not square)",
+      "clip": true,
+      "width": 1440,
+      "height": 960,
+      "fill": "$bg-app",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "BIHDj",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 8,
+          "padding": 8,
+          "children": [
+            {
+              "id": "r5wwG",
+              "type": "ref",
+              "ref": "EPlEP",
+              "name": "Sidebar",
+              "height": "fill_container",
+              "descendants": {
+                "NAZKx": {
+                  "fill": "$bg-highlight"
+                },
+                "r7iDX": {
+                  "fill": "$text"
+                },
+                "Et9CQ": {
+                  "fill": "$text"
+                }
+              }
+            },
+            {
+              "type": "frame",
+              "id": "ErcOi",
+              "name": "Main",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": [
+                "#121212",
+                {
+                  "type": "gradient",
+                  "gradientType": "linear",
+                  "enabled": true,
+                  "rotation": 180,
+                  "size": {
+                    "height": 0.45
+                  },
+                  "colors": [
+                    {
+                      "color": "#3B1C6E",
+                      "position": 0
+                    },
+                    {
+                      "color": "#12121200",
+                      "position": 1
+                    }
+                  ],
+                  "center": {
+                    "y": 0.225
+                  }
+                }
+              ],
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "gap": 24,
+              "padding": [
+                28,
+                32
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "A2DzxX",
+                  "name": "Breadcrumb",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "yvSqy",
+                      "name": "Icon chevron-left",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "chevron-left",
+                      "library": "lucide",
+                      "fill": "$text-sub"
+                    },
+                    {
+                      "type": "text",
+                      "id": "SK5P6",
+                      "name": "Library",
+                      "fill": "$text-sub",
+                      "content": "Library",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "I3c2Ik",
+                  "name": "Detail header",
+                  "width": "fill_container",
+                  "gap": 28,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "yHtcf",
+                      "name": "Cover",
+                      "metadata": {
+                        "type": "unsplash",
+                        "username": "cami_fotosart",
+                        "link": "https://unsplash.com/@cami_fotosart",
+                        "author": "Camila Lourenço"
+                      },
+                      "width": 200,
+                      "height": 200,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "https://images.unsplash.com/photo-1781465098751-7d4847b58640?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3OTQ2OTUxMzR8&ixlib=rb-4.1.0&q=80&w=1080",
+                        "mode": "cover"
+                      },
+                      "cornerRadius": 6,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#00000080",
+                        "offset": {
+                          "x": 0,
+                          "y": 12
+                        },
+                        "blur": 40
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "kUvI7",
+                          "x": 68,
+                          "y": 68,
+                          "name": "Icon music",
+                          "enabled": false,
+                          "width": 64,
+                          "height": 64,
+                          "icon": "music",
+                          "library": "lucide",
+                          "fill": "#FFFFFF66"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "i7cIvy",
+                      "name": "Header text",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "R9tGq",
+                          "name": "Playlist",
+                          "fill": "$text",
+                          "content": "Playlist",
+                          "fontFamily": "$font",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "zqz3l",
+                          "name": "Late Night Drive",
+                          "fill": "$text",
+                          "content": "Late Night Drive",
+                          "fontFamily": "$font",
+                          "fontSize": 64,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "text",
+                          "id": "pIwkN",
+                          "name": "by you · 120 tracks · 7 ",
+                          "fill": "$text-sub",
+                          "content": "by you · 120 tracks · 7 h 48 min · 118 recorded",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "KzDUr",
+                  "type": "ref",
+                  "ref": "J8bEuH",
+                  "name": "Cover warning",
+                  "width": "fill_container",
+                  "descendants": {
+                    "WJ8Sb": {
+                      "icon": "triangle-alert"
+                    },
+                    "j8pXV": {
+                      "content": "Not square: most players crop it to the centre"
+                    },
+                    "S7bM1S": {
+                      "content": "The cover was saved as uploaded, 3000 × 2000. Plex, Jellyfin and Navidrome usually show the middle square."
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "Ppjbf",
+                  "name": "Actions",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "id": "SIsk7",
+                      "type": "ref",
+                      "ref": "kYWoD",
+                      "name": "Back up now",
+                      "width": 56,
+                      "height": 56,
+                      "descendants": {
+                        "WVrNW": {
+                          "width": 26,
+                          "height": 26
+                        }
+                      }
+                    },
+                    {
+                      "type": "frame",
+                      "id": "j8AEAH",
+                      "name": "Tracking",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "t4cH7Y",
+                          "type": "ref",
+                          "ref": "fuGoA",
+                          "name": "Tracking toggle"
+                        },
+                        {
+                          "type": "text",
+                          "id": "y99L0Z",
+                          "name": "Tracked",
+                          "fill": "$text",
+                          "content": "Tracked",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "LePKo",
+                      "type": "ref",
+                      "ref": "n6C5Bb",
+                      "name": "Status",
+                      "fill": "$info-tint",
+                      "padding": [
+                        3,
+                        8
+                      ],
+                      "descendants": {
+                        "mYY0r": {
+                          "fill": "$info"
+                        },
+                        "W1qjc": {
+                          "content": "2 new",
+                          "fill": "$info"
+                        }
+                      }
+                    },
+                    {
+                      "id": "d2cJgP",
+                      "type": "ref",
+                      "ref": "FUIY9",
+                      "name": "Icon btn ellipsis",
+                      "descendants": {
+                        "o5egT": {
+                          "icon": "ellipsis",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "R0CBc",
+                  "name": "Table head",
+                  "width": "fill_container",
+                  "stroke": "$border",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "gap": 16,
+                  "padding": [
+                    0,
+                    16,
+                    10,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "dyOIz",
+                      "name": "#",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 28,
+                      "content": "#",
+                      "textAlign": "right",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "UNyRp",
+                      "name": "Title",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Title",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "mCoCT",
+                      "name": "Album",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 240,
+                      "content": "Album",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "rL2js",
+                      "name": "Icon clock-3",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "clock-3",
+                      "library": "lucide",
+                      "fill": "$text-sub"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "R93roh",
+                      "name": "gap",
+                      "width": 46,
+                      "height": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "tHn97",
+                      "name": "State",
+                      "fill": "$text-sub",
+                      "textGrowth": "fixed-width",
+                      "width": 220,
+                      "content": "State",
+                      "fontFamily": "$font",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d00km",
+                  "name": "Tracks",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "id": "bapzi",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 1",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "1"
+                        },
+                        "x3fk5": {
+                          "content": "Nightcall"
+                        },
+                        "T6oAR": {
+                          "content": "Kavinsky"
+                        },
+                        "qLHdn": {
+                          "content": "OutRun"
+                        },
+                        "fDmhM": {
+                          "content": "4:18"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 9.9 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "cWCOP",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 2",
+                      "width": "fill_container",
+                      "fill": "#FFFFFF0F",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "2"
+                        },
+                        "x3fk5": {
+                          "content": "Midnight City"
+                        },
+                        "T6oAR": {
+                          "content": "M83"
+                        },
+                        "qLHdn": {
+                          "content": "Hurry Up, We're Dreaming"
+                        },
+                        "fDmhM": {
+                          "content": "4:03"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 9.3 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "jARIl",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 3",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "3"
+                        },
+                        "x3fk5": {
+                          "content": "Tame Impala – The Less I Know"
+                        },
+                        "T6oAR": {
+                          "content": "Tame Impala"
+                        },
+                        "qLHdn": {
+                          "content": "Currents"
+                        },
+                        "fDmhM": {
+                          "content": "3:36"
+                        },
+                        "OsBA9": {
+                          "icon": "redo-2",
+                          "fill": "$text-sub"
+                        },
+                        "tuwCT": {
+                          "content": "Skipped (duplicate)",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ZHDwM",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 4",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "4"
+                        },
+                        "x3fk5": {
+                          "content": "Blinding Lights"
+                        },
+                        "T6oAR": {
+                          "content": "The Weeknd"
+                        },
+                        "qLHdn": {
+                          "content": "After Hours"
+                        },
+                        "fDmhM": {
+                          "content": "3:20"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 7.7 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    },
+                    {
+                      "id": "gIwpN",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 5",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "5"
+                        },
+                        "x3fk5": {
+                          "content": "Strobe"
+                        },
+                        "T6oAR": {
+                          "content": "deadmau5"
+                        },
+                        "qLHdn": {
+                          "content": "For Lack of a Better Name"
+                        },
+                        "fDmhM": {
+                          "content": "10:37"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-x",
+                          "fill": "$danger"
+                        },
+                        "tuwCT": {
+                          "content": "Failed · low volume",
+                          "fill": "$danger"
+                        }
+                      }
+                    },
+                    {
+                      "id": "Ovg6j",
+                      "type": "ref",
+                      "ref": "LSB9F",
+                      "name": "Track 6",
+                      "width": "fill_container",
+                      "descendants": {
+                        "o0DRS": {
+                          "content": "6"
+                        },
+                        "x3fk5": {
+                          "content": "Instant Crush"
+                        },
+                        "T6oAR": {
+                          "content": "Daft Punk"
+                        },
+                        "qLHdn": {
+                          "content": "Random Access Memories"
+                        },
+                        "fDmhM": {
+                          "content": "5:37"
+                        },
+                        "OsBA9": {
+                          "icon": "circle-check",
+                          "fill": "$accent"
+                        },
+                        "tuwCT": {
+                          "content": "Recorded · 12.9 MB",
+                          "fill": "$text-sub"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Wk70H",
+                  "name": "Footer",
+                  "width": "fill_container",
+                  "gap": 10,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "id": "XZsOP",
+                      "type": "ref",
+                      "ref": "ev6xK",
+                      "name": "Stop tracking",
+                      "descendants": {
+                        "mFYQ4": {
+                          "content": "Stop tracking"
+                        }
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "id": "c1tuVh",
+                      "name": "Files are never deleted.",
+                      "fill": "$text-muted",
+                      "content": "Files are never deleted.",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "id": "gGfBJ",
+                  "type": "ref",
+                  "ref": "zPeUv",
+                  "name": "Toast cover saved",
+                  "layoutPosition": "absolute",
+                  "x": 466,
+                  "y": 830,
+                  "descendants": {
+                    "EO3hv": {
+                      "content": "Cover saved · 3000 × 2000"
+                    }
+                  }
                 }
               ]
             }
