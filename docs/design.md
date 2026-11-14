@@ -116,6 +116,12 @@ Still to validate:
 
 Rules for the components in `ui-design/spotibackup.pen`. Follow them when editing the design file.
 
+### Logo (`Logo/Mark` components)
+
+- **Pick by size:** use the component that matches the size you need: `Logo/Mark` (140), `Logo/Mark 64` or `Logo/Mark 32`, or `Logo/Mark 16` for the favicon. Never resize an instance, because the smaller variants drop detail on purpose.
+- **Fixed colours:** the parts use fixed hex colours, not tokens. Don't swap them for `$accent` or the surface tokens.
+- **Source:** the geometry comes from `brand/make_logo.py`, so change it there first and copy the new geometry into the components. Full rules are in [brand/README.md](brand/README.md).
+
 ### Shapes vs. icons in a leading slot
 
 Some components take either a **shape** or an **icon** in the same slot. A Lucide icon has built-in whitespace inside its box, while a shape doesn't. So the padding on an icon's side is 2 px smaller than on a shape's side, which makes both look the same distance from the edge.
