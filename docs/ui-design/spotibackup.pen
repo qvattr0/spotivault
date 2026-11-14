@@ -23830,6 +23830,10 @@
                       "type": "ref",
                       "ref": "vcJS5",
                       "name": "Button Edit schedule",
+                      "padding": [
+                        14,
+                        16
+                      ],
                       "descendants": {
                         "jYd5u": {
                           "enabled": true,
@@ -25714,193 +25718,217 @@
                       "padding": 24,
                       "children": [
                         {
-                          "type": "text",
-                          "id": "lSXFY",
-                          "name": "RUN ORDER",
-                          "fill": "$text-sub",
-                          "content": "RUN ORDER",
-                          "fontFamily": "$font",
-                          "fontSize": 12,
-                          "fontWeight": "700",
-                          "letterSpacing": 1
-                        },
-                        {
                           "type": "frame",
-                          "id": "GMTnS",
-                          "name": "Order 1",
+                          "id": "D1jQc",
+                          "name": "Run order head",
                           "width": "fill_container",
-                          "gap": 12,
+                          "justifyContent": "space_between",
                           "alignItems": "center",
                           "children": [
                             {
+                              "type": "text",
+                              "id": "lSXFY",
+                              "name": "RUN ORDER",
+                              "fill": "$text-sub",
+                              "content": "RUN ORDER",
+                              "fontFamily": "$font",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "letterSpacing": 1
+                            },
+                            {
                               "type": "frame",
-                              "id": "Ghsem",
-                              "name": "Num",
-                              "width": 24,
-                              "height": 24,
-                              "fill": "$bg-highlight",
-                              "cornerRadius": 999,
-                              "justifyContent": "center",
+                              "id": "R1DGr",
+                              "name": "Head actions",
+                              "gap": 12,
                               "alignItems": "center",
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "DCqXv",
-                                  "name": "1",
-                                  "fill": "$text",
-                                  "content": "1",
+                                  "id": "q4ZDJh",
+                                  "name": "Drag hint",
+                                  "fill": "$text-muted",
+                                  "content": "Drag to reorder",
                                   "fontFamily": "$font",
                                   "fontSize": 12,
-                                  "fontWeight": "800"
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "id": "gvEgg",
+                                  "type": "ref",
+                                  "ref": "ev6xK",
+                                  "name": "Reset",
+                                  "padding": 4,
+                                  "descendants": {
+                                    "mFYQ4": {
+                                      "content": "Reset to default",
+                                      "fontSize": 13
+                                    }
+                                  }
                                 }
                               ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "J8k1T3",
-                              "name": "Carried-over items",
-                              "fill": "$text",
-                              "textGrowth": "fixed-width",
-                              "width": "fill_container",
-                              "content": "Carried-over items",
-                              "fontFamily": "$font",
-                              "fontSize": 14,
-                              "fontWeight": "500"
                             }
                           ]
                         },
                         {
                           "type": "frame",
-                          "id": "G3jfYM",
-                          "name": "Order 2",
+                          "id": "A0P0C",
+                          "name": "Order list",
                           "width": "fill_container",
-                          "gap": 12,
-                          "alignItems": "center",
+                          "layout": "vertical",
+                          "gap": 6,
                           "children": [
                             {
                               "type": "frame",
-                              "id": "p35z8",
-                              "name": "Num",
-                              "width": 24,
-                              "height": 24,
+                              "id": "GMTnS",
+                              "name": "Order 1",
+                              "width": "fill_container",
                               "fill": "$bg-highlight",
-                              "cornerRadius": 999,
-                              "justifyContent": "center",
+                              "cornerRadius": 6,
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                12
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
+                                  "type": "icon",
+                                  "id": "y5P2uW",
+                                  "name": "Drag handle",
+                                  "width": 18,
+                                  "height": 18,
+                                  "icon": "grip-vertical",
+                                  "library": "lucide",
+                                  "fill": "$text-muted"
+                                },
+                                {
                                   "type": "text",
-                                  "id": "H6DRU6",
-                                  "name": "2",
+                                  "id": "J8k1T3",
+                                  "name": "Carried-over items",
                                   "fill": "$text",
-                                  "content": "2",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Carried-over items",
                                   "fontFamily": "$font",
-                                  "fontSize": 12,
-                                  "fontWeight": "800"
+                                  "fontSize": 14,
+                                  "fontWeight": "500"
                                 }
                               ]
                             },
                             {
-                              "type": "text",
-                              "id": "E3L3Fn",
-                              "name": "Liked Songs",
-                              "fill": "$text",
-                              "textGrowth": "fixed-width",
-                              "width": "fill_container",
-                              "content": "Liked Songs",
-                              "fontFamily": "$font",
-                              "fontSize": 14,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "Su3BD",
-                          "name": "Order 3",
-                          "width": "fill_container",
-                          "gap": 12,
-                          "alignItems": "center",
-                          "children": [
-                            {
                               "type": "frame",
-                              "id": "iJbbv",
-                              "name": "Num",
-                              "width": 24,
-                              "height": 24,
+                              "id": "G3jfYM",
+                              "name": "Order 2",
+                              "width": "fill_container",
                               "fill": "$bg-highlight",
-                              "cornerRadius": 999,
-                              "justifyContent": "center",
+                              "cornerRadius": 6,
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                12
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
+                                  "type": "icon",
+                                  "id": "ub0vO",
+                                  "name": "Drag handle",
+                                  "width": 18,
+                                  "height": 18,
+                                  "icon": "grip-vertical",
+                                  "library": "lucide",
+                                  "fill": "$text-muted"
+                                },
+                                {
                                   "type": "text",
-                                  "id": "vJu2x",
-                                  "name": "3",
+                                  "id": "E3L3Fn",
+                                  "name": "Liked Songs",
                                   "fill": "$text",
-                                  "content": "3",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Liked Songs",
                                   "fontFamily": "$font",
-                                  "fontSize": 12,
-                                  "fontWeight": "800"
+                                  "fontSize": 14,
+                                  "fontWeight": "500"
                                 }
                               ]
                             },
                             {
-                              "type": "text",
-                              "id": "C6JtEC",
-                              "name": "Tracked playlists with n",
-                              "fill": "$text",
-                              "textGrowth": "fixed-width",
-                              "width": "fill_container",
-                              "content": "Tracked playlists with new tracks, most recently changed first",
-                              "fontFamily": "$font",
-                              "fontSize": 14,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "fC5PB",
-                          "name": "Order 4",
-                          "width": "fill_container",
-                          "gap": 12,
-                          "alignItems": "center",
-                          "children": [
-                            {
                               "type": "frame",
-                              "id": "vBwlz",
-                              "name": "Num",
-                              "width": 24,
-                              "height": 24,
+                              "id": "Su3BD",
+                              "name": "Order 3",
+                              "width": "fill_container",
                               "fill": "$bg-highlight",
-                              "cornerRadius": 999,
-                              "justifyContent": "center",
+                              "cornerRadius": 6,
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                12
+                              ],
                               "alignItems": "center",
                               "children": [
                                 {
+                                  "type": "icon",
+                                  "id": "zNV4P",
+                                  "name": "Drag handle",
+                                  "width": 18,
+                                  "height": 18,
+                                  "icon": "grip-vertical",
+                                  "library": "lucide",
+                                  "fill": "$text-muted"
+                                },
+                                {
                                   "type": "text",
-                                  "id": "WOylV",
-                                  "name": "4",
+                                  "id": "C6JtEC",
+                                  "name": "Tracked playlists with n",
                                   "fill": "$text",
-                                  "content": "4",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Tracked playlists with new tracks, most recently changed first",
                                   "fontFamily": "$font",
-                                  "fontSize": 12,
-                                  "fontWeight": "800"
+                                  "fontSize": 14,
+                                  "fontWeight": "500"
                                 }
                               ]
                             },
                             {
-                              "type": "text",
-                              "id": "np9bM",
-                              "name": "Queued and Partial album",
-                              "fill": "$text",
-                              "textGrowth": "fixed-width",
+                              "type": "frame",
+                              "id": "fC5PB",
+                              "name": "Order 4",
                               "width": "fill_container",
-                              "content": "Queued and Partial albums, oldest added first",
-                              "fontFamily": "$font",
-                              "fontSize": 14,
-                              "fontWeight": "500"
+                              "fill": "$bg-highlight",
+                              "cornerRadius": 6,
+                              "gap": 12,
+                              "padding": [
+                                10,
+                                12
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "GYmSx",
+                                  "name": "Drag handle",
+                                  "width": 18,
+                                  "height": 18,
+                                  "icon": "grip-vertical",
+                                  "library": "lucide",
+                                  "fill": "$text-muted"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "np9bM",
+                                  "name": "Queued and Partial album",
+                                  "fill": "$text",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Queued and Partial albums, oldest added first",
+                                  "fontFamily": "$font",
+                                  "fontSize": 14,
+                                  "fontWeight": "500"
+                                }
+                              ]
                             }
                           ]
                         },
@@ -25911,7 +25939,7 @@
                           "fill": "$text-muted",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
-                          "content": "Followed playlists have no totals; they're checked along with the others. Items that are up to date take seconds.",
+                          "content": "Runs follow this order. Liked Songs counts as a playlist. Followed playlists have no totals; they're checked along with the others. Items that are up to date take seconds.",
                           "fontFamily": "$font",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -26193,6 +26221,10 @@
                       "type": "ref",
                       "ref": "vcJS5",
                       "name": "Button Edit schedule",
+                      "padding": [
+                        14,
+                        16
+                      ],
                       "descendants": {
                         "jYd5u": {
                           "enabled": true,
