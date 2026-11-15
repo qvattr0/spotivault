@@ -416,7 +416,7 @@ class UrlBody(BaseModel):
 
 class PlaylistPreview(BaseModel):
     """
-    A playlist that can be added. For a linked playlist the name, owner and cover come from `GET /playlists/{id}`. Pending S0 (Q10): whether that answers when `/items` returns 403, so `name`, `owner` and `cover` may be null for a linked playlist; the UI then shows the id.
+    A playlist that can be added. A followed one comes from the last catalog refresh's `GET /me/playlists`, with its total. A linked one comes from `GET /playlists/{id}`, which answers with its name, owner, cover and `snapshot_id` but no `items`, so its total is null, and its `/items` answers 403 (S0, Q10).
     """
 
     model_config = ConfigDict(
@@ -427,15 +427,24 @@ class PlaylistPreview(BaseModel):
     A Spotify base-62 id.
     """
     uri: str
-    name: str | None
-    owner: str | None
+    name: str
+    owner: str
+    """
+    The owner's display name, or their id when Spotify gives none.
+    """
     cover: str | None
     """
-    A Spotify CDN URL, used straight away and never stored.
+    A Spotify CDN URL, used straight away and never stored. Null when the playlist has no image, or (a suggestion) when no refresh since the controller started has seen one.
     """
     kind: Literal["followed", "linked"]
     item_access: bool
+    """
+    False for a linked playlist, and for a followed one you don't collaborate on.
+    """
     total: Annotated[int | None, Field(ge=0)]
+    """
+    `items.total` for a followed playlist; null for a linked one (unknown).
+    """
     already_added: bool
 
 
@@ -1007,7 +1016,7 @@ class WebApiUsageRateLimit(BaseModel):
     retry_after_s: Annotated[int | None, Field(ge=0)]
     scope: str
     """
-    `run:<id>`, `refresh:<id>` or `other`.
+    `run:<id>`, `refresh:<id>`, `setup` (the code exchange in wizard step 5) or `other`.
     """
 
 
@@ -1337,11 +1346,11 @@ class LibraryItem(BaseModel):
     uri: str
     name: str
     """
-    Pending S0 (Q10): a linked playlist whose metadata can't be read shows its id as the name until a refresh can read it.
+    The playlist's name, or "Liked Songs". Always known: a linked playlist's comes from `GET /playlists/{id}` (S0, Q10).
     """
     owner: str
     """
-    The owner's display name, or `you`.
+    The owner's display name (their id when Spotify gives none), or `you`.
     """
     cover: str | None
     """
@@ -1354,11 +1363,11 @@ class LibraryItem(BaseModel):
     tracked: bool
     item_access: bool
     """
-    False for followed and linked playlists you don't collaborate on. Their track list and total are unknown.
+    False for followed and linked playlists you don't collaborate on. Their track list is unknown.
     """
     total: Annotated[int | None, Field(ge=0)]
     """
-    Playable tracks. Null when unknown (no item access).
+    The playable tracks of its stored track list. Without one, a followed playlist's `items.total` from `GET /me/playlists` (every entry, playable or not: web-ui.md's "32 / 35 recorded"). Null for a linked playlist, whose total is unknown.
     """
     recorded: Annotated[int, Field(ge=0)]
     new: Annotated[int | None, Field(ge=0)]
@@ -1382,10 +1391,6 @@ class LibraryItem(BaseModel):
     removable: bool
     """
     True for followed and linked items only.
-    """
-    playback_note: Literal["liked_not_playable"] | None
-    """
-    Pending S0 (Q9). If Liked Songs can't be played as a context on this client, Liked Songs carries `liked_not_playable` here, shows "can't be played on this client yet", and runs skip it.
     """
     progress: ItemProgress | None
 

@@ -26,10 +26,10 @@ info:
     - **Live updates:** `WS /api/events`, described in `events.md` next to this file. The noVNC
       bridge is `WS /vnc`. Both are listed under `x-websockets`, since OpenAPI has no WebSocket operations.
 
-    **Pending S0:** step S0 answered open questions Q2, Q3, Q9, Q10 and Q13 (web-ui.md § Open
-    questions). The shapes for Q2, Q3 and Q13 follow the answers. Where Q9 or Q10 would still change a
-    shape, the schema says "Pending S0" and carries `x-pending-s0`, with the cautious answer, until S5
-    builds the Library.
+    **S0's answers:** step S0 answered open questions Q2, Q3, Q9, Q10 and Q13 (web-ui.md § Open
+    questions), and every shape follows them. Q2, Q3 and Q13 were settled in S4, Q9 and Q10 in S5:
+    Liked Songs plays as a context, so `LibraryItem` has no playback note; a linked playlist's name,
+    owner and cover come from `GET /playlists/{id}`, so they're always known.
 
     **Left out (deferred UI features):** the Schedule page's preview, notifications, the UI password,
     custom cover uploads, History's Tracks and Logs tabs, and the logs zip.
@@ -610,12 +610,16 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LibraryItem' }
         '409':
-          description: Already in the Library (`already_added`).
+          description: >-
+            Already in the Library (`already_added`), checked before asking Spotify. Or the Web API
+            isn't connected (`not_connected`), or the connection expired (`connection_expired`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '422':
           $ref: '#/components/responses/LinkRefused'
+        '503':
+          $ref: '#/components/responses/SpotifyUnavailable'
 
   /api/library/suggestions:
     get:
@@ -647,8 +651,11 @@ paths:
       tags: [library]
       operationId: resolveLibraryLink
       summary: Preview a pasted link without adding it (+ modal)
-      description: Resolves the link into a preview row with an Add button, or a reason it can't be used.
-      x-pending-s0: [Q10]
+      description: >-
+        Resolves the link into a preview row with an Add button, or a reason it can't be used. One
+        `GET /playlists/{id}`, which answers with the name, owner, cover and `snapshot_id` even for
+        a playlist you don't follow (S0, Q10). A Spotify-made id (`37i9dQZF1…`) is refused without
+        asking Spotify, which answers 404 for those.
       requestBody:
         required: true
         content:
@@ -661,8 +668,12 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PlaylistPreview' }
+        '409':
+          $ref: '#/components/responses/NotConnected'
         '422':
           $ref: '#/components/responses/LinkRefused'
+        '503':
+          $ref: '#/components/responses/SpotifyUnavailable'
 
   /api/library/{id}:
     parameters:
@@ -1284,6 +1295,8 @@ paths:
               examples:
                 week:
                   $ref: '#/components/examples/WebApiUsageWeek'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 
 components:
   parameters:
@@ -1488,7 +1501,6 @@ components:
             last_backup_at: '2026-11-15T03:12:00Z'
             status: new
             removable: false
-            playback_note: null
             progress: null
           - id: 37i9dQZF1DXcBWIGoYBM5M
             kind: followed
@@ -1499,13 +1511,12 @@ components:
             cover_source: spotify
             tracked: true
             item_access: false
-            total: null
+            total: 35
             recorded: 32
             new: null
             last_backup_at: '2026-11-14T02:40:00Z'
             status: up_to_date
             removable: true
-            playback_note: null
             progress: null
     StatusRunning:
       value:
@@ -2083,7 +2094,7 @@ components:
 
     LibraryItem:
       type: object
-      required: [id, kind, uri, name, owner, cover, cover_source, tracked, item_access, total, recorded, new, last_backup_at, status, removable, playback_note, progress]
+      required: [id, kind, uri, name, owner, cover, cover_source, tracked, item_access, total, recorded, new, last_backup_at, status, removable, progress]
       additionalProperties: false
       properties:
         id: { $ref: '#/components/schemas/LibraryItemId' }
@@ -2092,12 +2103,11 @@ components:
         name:
           type: string
           description: >-
-            Pending S0 (Q10): a linked playlist whose metadata can't be read shows its id as the name
-            until a refresh can read it.
-          x-pending-s0: [Q10]
+            The playlist's name, or "Liked Songs". Always known: a linked playlist's comes from
+            `GET /playlists/{id}` (S0, Q10).
         owner:
           type: string
-          description: The owner's display name, or `you`.
+          description: The owner's display name (their id when Spotify gives none), or `you`.
         cover:
           type: [string, 'null']
           description: A thumbnail URL under `/api/library/{id}/cover`. Null for Liked Songs, which shows its tile.
@@ -2108,11 +2118,16 @@ components:
         tracked: { type: boolean }
         item_access:
           type: boolean
-          description: False for followed and linked playlists you don't collaborate on. Their track list and total are unknown.
+          description: >-
+            False for followed and linked playlists you don't collaborate on. Their track list is
+            unknown.
         total:
           type: [integer, 'null']
           minimum: 0
-          description: Playable tracks. Null when unknown (no item access).
+          description: >-
+            The playable tracks of its stored track list. Without one, a followed playlist's
+            `items.total` from `GET /me/playlists` (every entry, playable or not: web-ui.md's
+            "32 / 35 recorded"). Null for a linked playlist, whose total is unknown.
         recorded: { type: integer, minimum: 0 }
         new:
           type: [integer, 'null']
@@ -2123,13 +2138,6 @@ components:
         removable:
           type: boolean
           description: True for followed and linked items only.
-        playback_note:
-          type: [string, 'null']
-          description: >-
-            Pending S0 (Q9). If Liked Songs can't be played as a context on this client, Liked Songs
-            carries `liked_not_playable` here, shows "can't be played on this client yet", and runs skip it.
-          enum: [liked_not_playable, null]
-          x-pending-s0: [Q9]
         progress:
           oneOf:
             - $ref: '#/components/schemas/ItemProgress'
@@ -2147,25 +2155,34 @@ components:
     PlaylistPreview:
       type: object
       description: >-
-        A playlist that can be added. For a linked playlist the name, owner and cover come from
-        `GET /playlists/{id}`. Pending S0 (Q10): whether that answers when `/items` returns 403, so
-        `name`, `owner` and `cover` may be null for a linked playlist; the UI then shows the id.
-      x-pending-s0: [Q10]
+        A playlist that can be added. A followed one comes from the last catalog refresh's
+        `GET /me/playlists`, with its total. A linked one comes from `GET /playlists/{id}`, which
+        answers with its name, owner, cover and `snapshot_id` but no `items`, so its total is null,
+        and its `/items` answers 403 (S0, Q10).
       required: [id, uri, name, owner, cover, kind, item_access, total, already_added]
       additionalProperties: false
       properties:
         id: { $ref: '#/components/schemas/SpotifyId' }
         uri: { type: string }
-        name: { type: [string, 'null'] }
-        owner: { type: [string, 'null'] }
+        name: { type: string }
+        owner:
+          type: string
+          description: The owner's display name, or their id when Spotify gives none.
         cover:
           type: [string, 'null']
-          description: A Spotify CDN URL, used straight away and never stored.
+          description: >-
+            A Spotify CDN URL, used straight away and never stored. Null when the playlist has no
+            image, or (a suggestion) when no refresh since the controller started has seen one.
         kind:
           type: string
           enum: [followed, linked]
-        item_access: { type: boolean }
-        total: { type: [integer, 'null'], minimum: 0 }
+        item_access:
+          type: boolean
+          description: False for a linked playlist, and for a followed one you don't collaborate on.
+        total:
+          type: [integer, 'null']
+          minimum: 0
+          description: '`items.total` for a followed playlist; null for a linked one (unknown).'
         already_added: { type: boolean }
 
     TrackState:
@@ -2816,7 +2833,9 @@ components:
               retry_after_s: { type: [integer, 'null'], minimum: 0 }
               scope:
                 type: string
-                description: '`run:<id>`, `refresh:<id>` or `other`.'
+                description: >-
+                  `run:<id>`, `refresh:<id>`, `setup` (the code exchange in wizard step 5) or
+                  `other`.
         warnings:
           type: array
           description: The usage-log warnings raised in the period (also in the controller log).

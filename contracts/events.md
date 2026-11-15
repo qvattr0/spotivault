@@ -2,7 +2,7 @@
 
 One WebSocket carries every live update, for every page. This file is its contract. The REST side is [openapi.yaml](openapi.yaml), and schema names below (`RunSummary`, `QueueItem` and so on) point into its `components.schemas`.
 
-**Pending S0:** step S0 answered Q2, Q3, Q9, Q10 and Q13. The client payloads follow the answers. Where Q9 or Q10 would still change a payload, the event says "Pending S0" and takes the cautious answer until S5 builds the Library.
+**S0's answers:** step S0 answered Q2, Q3, Q9, Q10 and Q13, and every payload follows them (Q9 and Q10 settled in S5: see Library and Albums).
 
 ## Connection
 
@@ -173,7 +173,7 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 | `library.item` | `LibraryItem` | Its status, counts or `progress` change, or a catalog refresh changes it. During a run, at most one per item per second. |
 | `album.item` | `Album` | The same, for an album. |
 
-Pending S0 (Q9): if Liked Songs can't be played as a context, its `library.item` carries `playback_note: "liked_not_playable"`. Pending S0 (Q10): a linked playlist's `name` and `cover` may be null.
+**Settled in S5:** Q9, Liked Songs plays as a context, so `LibraryItem` has no playback note. Q10, a linked playlist's name, owner and cover come from `GET /playlists/{id}`, so its `name` is always known; its `cover` is null only while no thumbnail is cached, like any other item's.
 
 ### Setup, client and connection
 

@@ -204,6 +204,7 @@ Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implicatio
 1. **Plan.**
    - **Missing tracks only:** fetch the track list with `market=from_token`. Leave out entries with `is_playable: false`, local files, episodes and empty entries. Look each one up in Spytify's duplicate index (`/music/.spytify/recorded.jsonl`) by Spytify's own key: the first artist and the title, trimmed and lowercased the Go way. An entry counts only while its file exists. **Nothing missing:** the item is Up to date, and no recorder starts.
    - **Whole:** the item is Up to date without playing if its `snapshot_id` is the one from its last clean full pass **and** every track seen in that pass is still in the index. A deleted file forces a full pass. A clean full pass is one that ended normally, with no failed track and no interruption.
+     - **A fresh `snapshot_id`:** the run's own catalog refresh reads linked playlists' `snapshot_id` first, before any track list. If the refresh couldn't read an item's `snapshot_id` (the listing failed, or Spotify stopped answering), the stored one may be stale, so the item plays whole.
 2. **Prepare the player:** pause, seek to 0, and turn shuffle and repeat off. Spytify won't record a track the player is paused on more than 300 ms in, and it misses a restart within 2 s of that point, so seeking to 0 first matters ([Spytify bugs](upstream/spytify-bugs.md) #2).
 3. **Start the recorder:** `spytifyd --once --serve --idle-exit 20s` for this item, with every recorder setting passed as `--set` (see [Container](#container)). `recorder.skip_duplicates_forward` is **off** for missing-tracks-only items and **on** for whole items. With it on, Spytify presses Next on the paused track 1 at the end of an album ([Spytify bugs](upstream/spytify-bugs.md) #1), so whole items get a loop guard (a track seen twice in one item pauses the player). Then `player.control full_volume`.
 4. **Play:** `PUT /me/player/play` with the container's `device_id`, the item's `context_uri` and an `offset`.
@@ -255,10 +256,17 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 **Requests:**
 - **One at a time:** the controller sends one Web API request at a time, with a short pause between them (250 ms by default) during catalog refreshes. Playback calls during a run aren't delayed.
 - **Retries:**
-  - A `429` waits for `Retry-After`.
-  - A `5xx`, a `503` or a timeout is retried after 5 s, and the delay doubles on each further attempt, up to 3 retries. If a `429` also carries `Retry-After`, the longer of the two wins.
-  - A `401` refreshes the token once, then retries. A `403` or `404` is not retried: it's an answer (no item access, or the item is gone).
+  - A `429` waits for `Retry-After`. Spotify's limits are per app, so the wait holds every lane, playback included. Without a `Retry-After`, it waits 5 s, 10 s, then 20 s.
+    - A `Retry-After` over 120 s isn't waited out. The call fails at once with `rate_limited`, and while that hold lasts, other calls fail at once too: new ones, and ones already waiting for their turn.
+  - A `5xx`, a `503` or a timeout is retried after 5 s, and the delay doubles on each further attempt, up to 3 retries. If a `5xx` also carries `Retry-After`, the longer of the two waits wins.
+  - **One budget:** a call gets 3 retries in all, shared by `429`s, `5xx`s, timeouts and network errors. When they run out, the call fails with `rate_limited` (after a `429`) or `spotify_unavailable` (otherwise).
+  - A `401` refreshes the token once, then retries. The resend goes on with what's left of the call's budget. A `403` or `404` is not retried: it's an answer (no item access, or the item is gone).
 - **Counting:** the controller counts requests per catalog refresh and per run, with retries and `429`s counted separately. Each refresh and each run ends with one Controller log line, for example "Web API: 112 requests · 2 retried · 0 rate-limited". A rising rate-limited count is the early sign of a quota problem.
+- **Usage log:** every attempt is a row in the database, kept 90 days: when, the endpoint *template* (`/playlists/{id}/items`, never an ID, a URL or a token), the status, the latency, the attempt number, `Retry-After`, the lane, and the refresh or run it was for.
+  - **Warnings** in the Controller log: every `429`; more than 30 requests in 30 s (the `webapi_burst_threshold` setting); five `4xx` answers in a row from one endpoint (a `429` isn't counted); a refresh or run with more than twice the 7-day median of its kind, once three earlier ones exist to compare.
+  - **Daily:** one summary line per endpoint for each UTC day, written once that day is over (a minute after midnight UTC). Rows older than 90 days are deleted then.
+  - **Where the thresholds live:** `webapi_burst_threshold` is a row in the settings table, default 30. It isn't in Settings or `PUT /api/settings`, so nothing in the UI changes it. The other limits (five `4xx`s, twice the median, 90 days) are fixed in code.
+  - **For later analysis:** `GET /api/webapi/usage?days=` returns the totals per endpoint per day and every `429`. No page shows it yet.
 
 **Not used:** some tools, such as [zotify](https://github.com/Googolplexed0/zotify), log in as Spotify's own desktop client and call Spotify's internal endpoints. That gets around every Development Mode limit, followed playlists included. spotivault doesn't do this:
 - it passes the controller off as Spotify's own client, which breaks the developer terms more directly than recording does;
