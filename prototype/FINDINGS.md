@@ -220,6 +220,8 @@ Step S0 of the M1 plan, on the prototype rebuilt with **Spytify 2.0.2**. Command
 | 26 | Checklist settings in the prefs file (Q3) | ✅ | In `Users/<id>-user/prefs`: `audio.allow_downgrade=false` (Auto adjust), `audio.automix=false`, `audio.normalize_v2=false`, `audio.play_bitrate_enumeration=4` (Very high). Crossfade and gapless show only as `audio.crossfade_migrated_to_ps=true` and `audio.gapless_migrated_to_ps=true`: they moved to Spotify's servers. A toggle test with a 0.5 s watcher on the file: **Equalizer writes `audio.equalizer_v2=true` and Mono writes `audio.downmixer_v2=true`**; both keys are removed again when the setting goes back off, so a missing key means off. The client saves the file about a second after a change, in one write for several changes. **Autoplay wrote nothing** in two rounds, so it's stored on Spotify's servers, like crossfade and gapless. |
 | 27 | `spytifyd --fake`, `--events` and `SPYTIFY_CONFIG` | ✅ | A timeline of two tracks, then track 1 loaded paused (Spotify's end of album), with `--idle-exit 3s`: both takes saved as `Artist/Album/01 - One.m4a` and `02 - Two.m4a`; the phantom `track.started` + `track.skipped duplicate` of the paused track 1 shows up, as with the real client. **The `--events` file holds the last `track.finished`**, written as the process exits. `settings.set` over the socket is saved to `$SPYTIFY_CONFIG`; `--set` values aren't. Spytify's standalone `cmd/fakeplayer` is a real MPRIS player (Play, Pause, Next, Previous, SetPosition; OpenUri and Seek do nothing) but plays through `pw-play`, so it needs PipeWire. |
 
+| 28 | A Spotify-made playlist by link (editorial, `37i9dQZF1DX…`) | ⚠️ | `GET /playlists/{id}` and `/items` both return **404 "Resource not found"**, so the API gives no name, owner, cover or track list, and "made by Spotify" can't be told from "not found" by the answer. Every Spotify-made playlist ID seen so far starts with `37i9dQZF1`, the Liked Songs alias of row 17 included. **It does play by `context_uri`:** MPRIS and the Web API reported the same playing track within 2 s, with the context unchanged. A first attempt that also sent `position_ms: 0` didn't register as playing within 10 s; that wasn't looked into. |
+
 **What changes for the controller:**
 - **Start and jump by `offset.uri`**, never by position.
 - **Identify the loaded track by `mpris:trackid`.** Use the Web API's player state only for the context and the device.
@@ -233,7 +235,6 @@ Step S0 of the M1 plan, on the prototype rebuilt with **Spytify 2.0.2**. Command
 
 - A long playlist run, e.g. "Old-School", 16 tracks, about an hour. Multi-track runs are tested on a 5-track album and a 2-track playlist plan only.
 - Autoplay off really stopping at the end of a playlist. Albums ended in `Paused`, as expected.
-- Spotify-made playlists by URI.
 - A linked playlist (public, not followed): metadata and playback (Q10).
 - Why the Satie take is 3.6 s shorter than its cut points.
 - The NAS: UGOS Docker app fields, `/volume6/Music`, overnight runs.

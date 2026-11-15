@@ -225,7 +225,7 @@ The Library is where you choose what gets backed up. It follows the client's own
 - **Added by you:** through the **+** button.
   - Playlists you follow.
   - Any playlist pasted as a link.
-- **Not supported:** playlists made by Spotify (Discover Weekly, Daily Mixes). They aren't available through the API, so a pasted link to one is refused with that message.
+- **Not supported:** playlists made by Spotify (Discover Weekly, Daily Mixes, editorial playlists). The API answers 404 for them, with no name, cover or track list, so a pasted link to one is refused with that message. The controller tells them from a missing playlist by their ID, which starts with `37i9dQZF1`. They would play by link (S0), but without a name or track list they can't be shown or checked.
 
 ### Header
 - **Title:** "Library", with a one-line summary: "18 of 23 tracked · last backup 03:12 today".
