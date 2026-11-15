@@ -1,0 +1,96 @@
+/* `Card` (NSX3b): $bg-elevated, 8 px corners, padding 12, gap 10. */
+
+.card {
+  --card-bg: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--card-bg);
+  transition: background-color 0.1s;
+}
+
+/* Hover (WOwRb, measured in GH52o): the card lightens to $bg-highlight. --card-bg is there for
+   the badge's outline to follow (a request to ui-a's TrackBadge). */
+.card:hover,
+.card:focus-within,
+.card[data-state='hover'] {
+  --card-bg: var(--bg-highlight);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.art {
+  position: relative;
+}
+
+/* The badge sits 8 px in from the art's top right (x 144, y 8 on the 176 px art). */
+.badge {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+}
+
+/* Albums: the pill (with `onCover`) at the top right, 8 px in. */
+.corner {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+}
+
+/* Back up now: 8 px in from the art's bottom right (x 120, y 120), on hover or keyboard focus. */
+.action {
+  position: absolute;
+  right: var(--s-2);
+  bottom: var(--s-2);
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.card:hover .action,
+.card:focus-within .action,
+.card[data-state='hover'] .action {
+  opacity: 1;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--text);
+  font: var(--type-row-title);
+  font-weight: 700;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.title {
+  max-width: 100%;
+  border-radius: var(--r-sm);
+}
+
+button.title:hover {
+  text-decoration: underline;
+}
+
+.sub {
+  overflow: hidden;
+  color: var(--text-sub);
+  font: var(--type-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  display: flex;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .action {
+    transition: none;
+  }
+}

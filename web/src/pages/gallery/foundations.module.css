@@ -1,0 +1,64 @@
+/* The TOKENS section, sized like the sheet's (QLSnE): 132 × 72 swatches 16 apart, the type
+   specimens on one baseline, and the spacing squares and radius boxes on one line. */
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-6) var(--s-4);
+}
+
+.swatch {
+  display: grid;
+  gap: var(--s-3);
+  width: 132px;
+}
+
+.chip {
+  height: 72px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.swatchLabel {
+  font: var(--type-caption);
+  font-weight: 400;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+.typeScale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-4) 40px;
+}
+
+.scale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s-6) 40px;
+}
+
+.step {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-3);
+}
+
+.space {
+  background: var(--accent);
+}
+
+.radius {
+  width: 56px;
+  height: 40px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-highlight);
+}
+
+.stepLabel {
+  font: var(--type-caption);
+  font-weight: 400;
+  color: var(--text-muted);
+}

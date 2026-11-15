@@ -1,0 +1,34 @@
+/* Toasts stack at the bottom centre of the content area (Library · Detail · Cover saved, ay3D7). */
+
+.viewport {
+  position: absolute;
+  bottom: var(--s-6);
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--s-6));
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.item {
+  pointer-events: auto;
+  animation: rise 0.2s ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    animation: none;
+  }
+}

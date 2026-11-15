@@ -1,0 +1,105 @@
+/* The gallery, laid out like the component sheet (design-reference/E3ZmN.png): the sheet's
+   bg-base background and 64 px margin, uppercase section labels in text-sub, and a muted spec
+   label above each component. Sizes off the spacing scale are the sheet's, measured from the PNG. */
+
+.page {
+  min-height: 100%;
+  padding: 72px 40px 96px;
+  background: var(--bg-base);
+}
+
+.header {
+  display: grid;
+  gap: var(--s-2);
+  padding: 0 var(--s-6);
+}
+
+.title {
+  font: var(--type-display);
+}
+
+.lede {
+  max-width: 960px;
+  color: var(--text-sub);
+}
+
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+.tocLink {
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  font: var(--type-caption);
+}
+
+.tocLink:hover {
+  background: var(--bg-press);
+}
+
+.sections {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-8);
+}
+
+/* The 24 px padding is the margin the e2e screenshot keeps round a section, as the sheet's crop
+   boxes do (sheet.ts). */
+.section {
+  padding: var(--s-6);
+  scroll-margin-top: var(--s-4);
+}
+
+/* "BRAND", "CONTROLS": 12/700, spaced out a little, as measured on the sheet. */
+.sectionTitle {
+  font: var(--type-caption);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-sub);
+}
+
+.entries {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px 40px;
+  margin-top: 28px;
+}
+
+.entry {
+  display: grid;
+  gap: var(--s-3);
+  justify-items: start;
+  min-width: 0;
+}
+
+.ownRow {
+  flex-basis: 100%;
+}
+
+.label {
+  font: var(--type-caption);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.node {
+  font: var(--type-mono);
+  color: var(--text-muted);
+}
+
+.empty {
+  margin-top: var(--s-4);
+  color: var(--text-muted);
+}
+
+.entryError {
+  max-width: 480px;
+  font: var(--type-small);
+  color: var(--danger);
+}

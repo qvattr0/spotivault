@@ -1,0 +1,40 @@
+/* Cover art and its placeholder (components.md § List row, § Card). */
+
+.cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--bg-highlight);
+  color: var(--cover-glyph);
+}
+
+/* Card art: 6 px corners, a larger, fainter glyph. */
+.large {
+  border-radius: 6px;
+  color: var(--cover-glyph-large);
+}
+
+/* size="fill": as wide as its container, and square. */
+.fill {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+/* Liked Songs' tile: its gradient with a white heart. */
+.liked {
+  background: var(--liked-gradient);
+  color: var(--text);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.glyph {
+  pointer-events: none;
+}

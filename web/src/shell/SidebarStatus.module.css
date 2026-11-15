@@ -1,0 +1,60 @@
+/* The sidebar's status card (components.md § Sidebar › Status card, Ck29S). */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: 600 12px / normal var(--font);
+}
+
+.line svg {
+  flex-shrink: 0;
+}
+
+/* Drawn in text-muted, but that's 4.2:1 on bg-elevated, under WCAG AA's 4.5:1 for small text.
+   text-sub instead (web-ui.md § What the drawings leave out). The grey dot stays text-muted. */
+.connection {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: var(--type-caption);
+  color: var(--text-sub);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Tones: the line's text and icon, or the connection dot. */
+.sub {
+  color: var(--text-sub);
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.muted {
+  color: var(--text-muted);
+}

@@ -1,0 +1,34 @@
+// The browser code: src/ (and the sample data it borrows from mock/fixtures.ts).
+// Node-side files (vite config, mock server, scripts, e2e) are in tsconfig.node.json.
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "noImplicitOverride": true,
+
+    "paths": {
+      "@/*": ["./src/*"],
+      "@mock/*": ["./mock/*"],
+      "@brand/*": ["../docs/brand/*"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,68 @@
+/* Toggle/On and Toggle/Off (components.md § Toggle): a 40 × 22 pill track with a 16 px knob.
+   Off: bg-press with a 1 px border-strong stroke, text-sub knob at the left.
+   On: accent, on-accent knob at the right.
+   The stroke sits inside the box, so the padding of 3 is 2 here plus a 1 px border, which On
+   keeps in its own colour so the knob doesn't shift. Hover (the knob turns white), pressed and
+   disabled are ours (§ Differences, row 5). Also used, without the button, in a menu item. */
+
+.toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  width: 40px;
+  height: 22px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  background: var(--bg-press);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.knob {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-pill);
+  background: var(--text-sub);
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease;
+}
+
+.on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.on .knob {
+  transform: translateX(18px);
+  background: var(--on-accent);
+}
+
+.toggle:not(.on, :disabled):hover .knob,
+.toggle:not(.on)[data-state='hover'] .knob {
+  background: var(--text);
+}
+
+.on:not(:disabled):active,
+.on[data-state='active'] {
+  border-color: var(--accent-press);
+  background: var(--accent-press);
+}
+
+.toggle[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.toggle:disabled {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle,
+  .knob {
+    transition: none;
+  }
+}

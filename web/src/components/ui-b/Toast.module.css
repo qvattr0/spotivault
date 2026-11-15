@@ -1,0 +1,18 @@
+/* `Toast` (zPeUv): $info, 8 px corners, padding 12 16, gap 10; icon 18 and text 14/600 in $on-accent. */
+
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--info);
+  box-shadow: var(--shadow-toast);
+  color: var(--on-accent);
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.icon {
+  flex-shrink: 0;
+}
