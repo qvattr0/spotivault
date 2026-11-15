@@ -8,7 +8,8 @@
 # would be) and /config left to an anonymous one, then checks:
 #   1. it turns healthy, and /api/health sees the database, the screen and PulseAudio;
 #   2. only s6's supervision tree (started by /init) runs as root, and the controller runs as app;
-#   3. WS /vnc reaches the VNC server (RFB 003.008), and /vnc.html and noVNC's core are served;
+#   3. WS /vnc reaches the VNC server (RFB 003.008), /vnc.html and noVNC's core are served, and the
+#      web UI is: / and a deep link answer with index.html, and the hashed script it names loads;
 #   4. the controller's venv is byte-compiled, read-only for app and has no pip;
 #   5. the setup endpoints of wizard steps 1, 2, 4 and 6 answer through curl;
 #   6. spytifyd reports the pinned version, and the DEVICE_NAME shim works;
@@ -178,6 +179,31 @@ if [ "$code" = 200 ] && grep -q "export default class RFB" "$tmp/body"; then
 else
     fail "GET /novnc/core/rfb.js: HTTP $code"
 fi
+
+# The web UI (S7, built into the web root): GET / is the SPA's index.html, the hashed script it names
+# loads, and an app route (/library) gets index.html too, not a 404. A missing asset is a 404.
+api GET /
+if [ "$code" = 200 ] && grep -q '<div id="root">' "$tmp/body"; then
+    cp "$tmp/body" "$tmp/index.html"
+    pass "GET /: the web UI's index.html"
+else
+    fail "GET /: HTTP $code, not the web UI's index.html"
+fi
+asset="$(grep -o 'src="/assets/[^"]*\.js"' "$tmp/index.html" 2>/dev/null | head -n 1 | sed 's/^src="//; s/"$//' || true)"
+if [ -n "$asset" ]; then
+    api GET "$asset"
+    if [ "$code" = 200 ] && [ -s "$tmp/body" ]; then pass "GET $asset: the hashed script from index.html"; else fail "GET $asset: HTTP $code"; fi
+else
+    fail "index.html names no /assets/*.js script"
+fi
+api GET /library
+if [ "$code" = 200 ] && cmp -s "$tmp/body" "$tmp/index.html"; then
+    pass "GET /library (a deep link): index.html"
+else
+    fail "GET /library: HTTP $code, not index.html"
+fi
+api GET /assets/no-such-file.js
+if [ "$code" = 404 ]; then pass "GET /assets/no-such-file.js: 404, not index.html"; else fail "GET /assets/no-such-file.js: HTTP $code"; fi
 
 step "4. the controller's venv"
 # Every module has a valid .pyc (app can't write one), app can't change the venv, and no pip.

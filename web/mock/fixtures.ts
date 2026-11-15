@@ -124,7 +124,7 @@ export const clientLoggedIn: ClientStatus = {
   version: '1.3.4.258',
   running: true,
   logged_in: true,
-  login_signals: { mpris: true, user_folder: true },
+  login_signals: { mpris: true, user_folder: true, window_title: 'Spotify Premium' },
   device_name: 'spotivault',
   restartable: true,
   install: installInstalled,
@@ -135,7 +135,7 @@ export const clientNotInstalled: ClientStatus = {
   version: null,
   running: false,
   logged_in: false,
-  login_signals: { mpris: false, user_folder: false },
+  login_signals: { mpris: false, user_folder: false, window_title: null },
   device_name: 'spotivault',
   restartable: false,
   install: installNotStarted,
@@ -144,7 +144,8 @@ export const clientNotInstalled: ClientStatus = {
 export const clientLoggedOut: ClientStatus = {
   ...clientLoggedIn,
   logged_in: false,
-  login_signals: { mpris: true, user_folder: false },
+  // A logged-out client shows its plain login window, titled "Spotify" (contract: logged_in).
+  login_signals: { mpris: true, user_folder: false, window_title: 'Spotify' },
 };
 
 /** contract: components.examples.ChecklistM1 */
@@ -157,8 +158,8 @@ export const checklistM1: Checklist = {
     { id: 'automix', section: 'playback', required: 'Off', check: 'auto', state: 'ok', confirmed: null, blocker: true },
     { id: 'autoplay', section: 'playback', required: 'Off', check: 'confirm', state: null, confirmed: false, blocker: false },
     { id: 'normalization', section: 'playback', required: 'Off', check: 'auto', state: 'needs_change', confirmed: null, blocker: true },
-    { id: 'equalizer', section: 'playback', required: 'Off', check: 'confirm', state: null, confirmed: true, blocker: true },
-    { id: 'mono', section: 'playback', required: 'Off', check: 'confirm', state: null, confirmed: true, blocker: true },
+    { id: 'equalizer', section: 'playback', required: 'Off', check: 'auto', state: 'ok', confirmed: null, blocker: true },
+    { id: 'mono', section: 'playback', required: 'Off', check: 'auto', state: 'ok', confirmed: null, blocker: true },
     { id: 'streaming_quality', section: 'audio_quality', required: 'Very high', check: 'auto', state: 'ok', confirmed: null, blocker: true },
     { id: 'auto_adjust_quality', section: 'audio_quality', required: 'Off', check: 'auto', state: 'unknown', confirmed: null, blocker: true },
     { id: 'volume', section: 'player', required: '100%', check: 'set_for_you', state: null, confirmed: null, blocker: false },

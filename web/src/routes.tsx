@@ -7,6 +7,7 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { Placeholder } from './pages/Placeholder.tsx';
 import { NotFound } from './pages/NotFound.tsx';
+import { Welcome } from './pages/setup/Welcome.tsx';
 import { AppLayout } from './shell/AppLayout.tsx';
 import { Page, type PageTint } from './shell/Page.tsx';
 import { SetupGate } from './shell/SetupGate.tsx';
@@ -76,7 +77,11 @@ export const routes: RouteObject[] = [
             path: step.slug,
             element: (
               <WizardCard width={step.cardWidth}>
-                <Placeholder title={`${i + 1}. ${step.label}`} spec="Setup wizard" frames={STEP_FRAMES[step.slug]} />
+                {step.slug === 'welcome' ? (
+                  <Welcome />
+                ) : (
+                  <Placeholder title={`${i + 1}. ${step.label}`} spec="Setup wizard" frames={STEP_FRAMES[step.slug]} />
+                )}
               </WizardCard>
             ),
           })),

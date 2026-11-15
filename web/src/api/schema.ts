@@ -83,6 +83,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish the wizard (step 9's Open Library and Back up now)
+         * @description Marks steps 7 to 9 done and `completed` true. Steps 7 and 8 are choices with defaults, so they're accepted as they are; step 8's "I'll choose in Albums" needs no call of its own. Refused with 409 `setup_incomplete`, listing the steps in `details.steps`, while a step from 1 to 6 isn't done. Calling it again once setup is complete changes nothing.
+         */
+        post: operations["completeSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/checklist/confirm": {
         parameters: {
             query?: never;
@@ -94,7 +114,7 @@ export interface paths {
         put?: never;
         /**
          * Tick or untick Confirm rows (step 4)
-         * @description "I've set these". Only rows whose `check` is `confirm` can be ticked; others are refused with `validation_failed`. Which rows are `confirm` is pending S0 (Q3), so the UI reads `check` from `GET /api/client/checklist` and never hard-codes it.
+         * @description "I've set these". Only rows whose `check` is `confirm` can be ticked: crossfade, gapless and autoplay (Q3, resolved in S0). Any other row is refused with `validation_failed`, with `details.field` set to `rows.<id>`, and nothing is changed. The UI still reads `check` from `GET /api/client/checklist` rather than hard-coding it.
          */
         post: operations["confirmChecklist"];
         delete?: never;
@@ -134,7 +154,7 @@ export interface paths {
         put?: never;
         /**
          * Install or retry the client install (step 2)
-         * @description Starts the install in the background and returns at once. Progress arrives as WS `client.install` events. Refused while an install is running, and during a run.
+         * @description Starts the install in the background and returns at once. Progress arrives as WS `client.install` events. Refused while an install is running, and during a run. On its first start, the controller installs a missing client by itself (web-ui.md step 2), so this is the step's Retry.
          */
         post: operations["installClient"];
         delete?: never;
@@ -925,7 +945,7 @@ export interface components {
          * @description Every error code the API returns. New codes are additions, never renames.
          * @enum {string}
          */
-        ErrorCode: "validation_failed" | "not_found" | "invalid_url" | "private" | "spotify_owned" | "already_added" | "not_removable" | "invalid_layout" | "run_active" | "no_run" | "not_paused" | "item_is_current" | "setup_incomplete" | "no_client_id" | "not_connected" | "connection_expired" | "client_not_installed" | "client_logged_out" | "install_in_progress" | "invalid_redirect" | "access_denied" | "state_mismatch" | "no_pending_auth" | "token_exchange_failed" | "rate_limited" | "spotify_unavailable" | "internal";
+        ErrorCode: "validation_failed" | "not_found" | "invalid_url" | "private" | "spotify_owned" | "already_added" | "not_removable" | "invalid_layout" | "run_active" | "no_run" | "not_paused" | "item_is_current" | "setup_incomplete" | "no_client_id" | "not_connected" | "connection_expired" | "client_not_installed" | "client_logged_out" | "install_in_progress" | "invalid_redirect" | "access_denied" | "state_mismatch" | "no_pending_auth" | "token_exchange_failed" | "rate_limited" | "spotify_unavailable" | "internal" | "forbidden";
         /**
          * @description A Spotify base-62 id.
          * @example 4glBZ0bZMgkmFyi6TD4h69
@@ -975,7 +995,7 @@ export interface components {
             /** Format: date-time */
             tos_acknowledged_at: string | null;
         };
-        /** @description The runtime install of the Spotify client into `/config/spotify`. Pending S0 (Q13): if the install turns out too slow or unreliable for a wizard step, the phases and progress may change. */
+        /** @description The runtime install of the Spotify client into `/config/spotify`, by `spotify-install`. Q13, resolved in S0: it takes about 18 s, so it's a wizard step. */
         ClientInstall: {
             /** @enum {string} */
             state: "not_started" | "installing" | "installed" | "failed";
@@ -1005,12 +1025,15 @@ export interface components {
             installed: boolean;
             version: string | null;
             running: boolean;
-            /** @description Pending S0 (Q2). Until then, plan D4's cautious rule: true only when the MPRIS name is on the bus **and** a `Users/*-user/` folder exists. Wizard step 5 and the pre-run check also require the Web API device list to show our device. */
+            /** @description Q2, resolved in S0: true when a `Users/*-user/` folder exists **and** the client's main window has a title other than plain "Spotify" ("Spotify Premium" when idle, "Artist - Title" while playing). A logged-out client still publishes MPRIS, so MPRIS isn't a signal. Wizard step 5 and the pre-run check also require the Web API device list to show our device. */
             logged_in: boolean;
-            /** @description The raw signals behind `logged_in`, for the UI's diagnostics. Pending S0 (Q2) may add or drop signals. */
+            /** @description The raw signals behind `logged_in`, for the UI's diagnostics. */
             login_signals: {
+                /** @description The client's MPRIS name is on the bus. Reported, but not part of `logged_in`. */
                 mpris: boolean;
                 user_folder: boolean;
+                /** @description The client's main window title, or null when there's no window. */
+                window_title: string | null;
             };
             /** @description `DEVICE_NAME`, the Connect device name. */
             device_name: string;
@@ -1027,7 +1050,7 @@ export interface components {
             /** Format: date-time */
             checked_at: string;
         };
-        /** @description One row of the step 4 table. Plan D3: crossfade and gapless are `confirm`, because Spytify's `core.info` warning is always printed. Pending S0 (Q3): which rows the prefs file can serve, so `check` may move between `auto` and `confirm` per row. The UI must read `check`, never assume it. */
+        /** @description One row of the step 4 table. Q3, resolved in S0: automix, normalization, equalizer, mono, streaming quality and auto adjust are `auto`, read from the prefs file. Crossfade, gapless and autoplay are stored on Spotify's servers, so they're `confirm`. Volume is `set_for_you`. The UI still reads `check` rather than assuming it. */
         ChecklistRow: {
             id: components["schemas"]["ChecklistRowId"];
             /** @enum {string} */
@@ -1145,7 +1168,7 @@ export interface components {
         Container: {
             device_name: string;
             tz: string;
-            /** @description The host side of the `/music` mount, from `/proc/self/mountinfo`, when it can be read. */
+            /** @description Where `/music` comes from, as the container's `/proc/self/mountinfo` shows it: the mounted folder's path inside its own file system. That's the host's full path only when the folder is on the host's root file system: a share at `/volume6/Music`, on a volume mounted at `/volume6`, shows as `/Music`. A whole file system mounted at `/music` shows its source, such as a device. Null when it can't be read. The container can't see the host's own mounts. */
             music_source: string | null;
             umask: string;
             /** @description `UI_PASSWORD` is set but not enforced in M1 (D11). Settings shows a warning. */
@@ -1922,6 +1945,35 @@ export interface operations {
             409: components["responses"]["RunActive"];
         };
     };
+    completeSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The setup state, with `completed` true and `first_unfinished` null. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Setup"];
+                };
+            };
+            /** @description A step from 1 to 6 isn't done (`setup_incomplete`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     confirmChecklist: {
         parameters: {
             query?: never;
@@ -1936,8 +1988,6 @@ export interface operations {
                  *       "rows": {
                  *         "crossfade": true,
                  *         "gapless": true,
-                 *         "equalizer": true,
-                 *         "mono": true,
                  *         "autoplay": false
                  *       }
                  *     }

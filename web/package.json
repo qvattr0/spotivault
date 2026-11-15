@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "e2e:controller": "vite build && playwright test --config playwright.controller.config.ts",
     "e2e:report": "node e2e/report.ts",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",

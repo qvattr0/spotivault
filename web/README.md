@@ -21,17 +21,29 @@ npm run dev                         # http://localhost:5173, with the mock backe
 | `npm test` | Unit and component tests (Vitest, jsdom). `npm run test:watch` keeps watching. |
 | `npm run e2e` | End-to-end tests (Playwright, Chromium) against the dev server and the mock. They also save 2x screenshots of the gallery and the shell to `e2e/screenshots/`. |
 | `npm run e2e:report` | Writes `e2e/screenshots/index.html`: each e2e screenshot beside its drawing (side by side, or as a difference). `npm run e2e` writes it too. |
+| `npm run e2e:controller` | Builds `dist/`, then runs the Playwright tests in `e2e-controller/` against the real controller in fake mode (see below). Needs uv and Python 3.12. |
 | `npm run lint` | ESLint, with no warnings allowed. |
 | `npm run typecheck` | TypeScript, strict, for the browser code and the Node-side code. |
 | `npm run gen:api` | Regenerates `src/api/schema.ts` from `contracts/openapi.yaml`. |
 | `npm run gen:tokens` | Regenerates `src/design/tokens.css` from `tokens.json`. |
-| `npm run check` | Everything: tokens, API types and colours current, lint, typecheck, tests, build, e2e. Run it before you hand work over. |
+| `npm run check` | Everything: tokens, API types and colours current, lint, typecheck, tests, build, e2e (against the mock). Run it before you hand work over. `npm run e2e:controller` is the other e2e run, against the controller. |
 
-**Against the real controller:** `SPOTIVAULT_BACKEND=http://localhost:8080 npm run dev` sends `/api` and `/vnc` there, and no mock starts.
+**Against the real controller**, in fake mode. Two terminals, from the repository root:
+
+```bash
+# 1. The controller, fake mode, on port 8181 (controller/ARCHITECTURE.md). It keeps its data in controller/.dev/.
+cd controller && uv run python -m spotivault --fake --port 8181
+# 2. The UI against it. The page is at http://localhost:5173; no mock starts.
+cd web && SPOTIVAULT_BACKEND=http://localhost:8181 npm run dev
+```
+
+Add `SPOTIVAULT_FAKE_SCENARIO=wizard` to the first command to walk the wizard from a fresh start (`demo` is the default: set up, with a library). The dev server sends `/api`, `/__mock` and `/vnc` to the controller, with the controller's own Host. For the dev page's own requests (an `Origin` equal to the address the page was opened at, on a home-network name), it rewrites `Origin` to the controller's, so the controller's request guard (controller/src/spotivault/web/guard.py) lets them and both WebSockets through. Any other `Origin` goes through as it is, so the controller still refuses other sites' pages. The mock's routes (`/__mock`) get a 404 there.
+
+**Controller e2e:** `npm run e2e:controller` builds `dist/`, then starts `uv run python -m spotivault --fake` on a free port, with `SPOTIVAULT_WEB_ROOT=dist` (what the image serves), the `wizard` scenario and a new empty data folder. Its tests in [e2e-controller/](e2e-controller/) check that the app loads, the live socket sends its `hello`, the setup gate sends you to the first unfinished step, step 1's "I understand" and Continue reach `POST /api/setup/tos`, and a 501 from an unbuilt route (S5, S6) leaves the page working. CI runs it in the `web` job.
 
 **Two e2e runs at once** (two worktrees) would share the mock and `test-results/`. Give the second its own: `E2E_PORT=5299 E2E_MOCK_PORT=8299 E2E_OUTPUT=test-results-2 npm run e2e`.
 
-**Mock API with a real noVNC view:** `SPOTIVAULT_VNC=http://localhost:8080 npm run dev` sends only `/vnc` to a running container (the S2 image bridges `/vnc` already). The mock has no VNC: it closes `/vnc` with code 4000.
+**Mock API with a real noVNC view:** `SPOTIVAULT_VNC=http://localhost:8080 npm run dev` sends only `/vnc` to a running container (the S2 image bridges `/vnc` already), with the same Host and `Origin` handling. The mock has no VNC: it closes `/vnc` with code 4000.
 
 ## Folder layout
 
@@ -51,7 +63,7 @@ web/
     components/
       ui-a/             controls and the logo
       ui-b/             lists, cards, feedback, modals, the stepper
-    pages/              one folder per page (S8); Placeholder.tsx until then
+    pages/              one folder per page (S8); Placeholder.tsx until then. setup/Welcome.tsx is step 1, minimal until S8
       gallery/          /gallery: every component in every state
     styles/             global CSS: base.css (reset, type scale), fixed.css, global.ts
     design/             the .pen export: tokens.json, tokens.css, components.md, screens.md
@@ -61,6 +73,8 @@ web/
   mock/                 the mock backend (Node), and fixtures.ts, the shared sample data
   e2e/                  Playwright tests
   scripts/              gen-api.mjs, check-colors.mjs
+  e2e-controller/       Playwright tests against the real controller in fake mode (npm run e2e:controller)
+  playwright.controller.config.ts   that run's config: it starts the controller
   design-reference/     the .pen screens as PNGs, at 2x (gitignored; screens.md says how to export them)
 ```
 
@@ -166,7 +180,7 @@ curl -X POST localhost:5173/__mock/scenario -H 'Content-Type: application/json' 
 | `POST /__mock/error` | A Spytify `capture_silent` alert. `{"withdrawn": true}` withdraws it. |
 | `POST /__mock/install-fails` | The client install fails (wizard step 2, Failed). |
 | `POST /__mock/storage` | `{"mounted": false}`: `/music` isn't mounted (step 6's red alert). |
-| `POST /__mock/setup/next` | Marks the active wizard step done. For steps the contract has no write for (see below). |
+| `POST /__mock/setup/next` | Marks the active wizard step done. For steps with no write of their own: Output (6), Playlists (7) and Albums (8). Step 9 is `POST /api/setup/complete`, which the mock answers for real. |
 | `POST /__mock/connection` | `{"state": "expiring"}`: the Web API connection changes live (`ok`, `expiring`, `expired`, `disconnected`, `not_configured`). The banner follows. |
 | `POST /__mock/drop` | The line drops (the browser sees 1006). Clients reconnect to the same controller. `{"every_s": 30}` repeats it; `{"every_s": 0}` stops. |
 | `POST /__mock/restart` | A controller restart: a new `boot_id`, `seq` from 1 again, sockets closed with 1012. The world's state stays. |

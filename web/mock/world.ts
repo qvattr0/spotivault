@@ -253,7 +253,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
 
     // The QR scan: the mock logs in by itself a few seconds later.
     await wait(4000);
-    setClient({ ...data.client, logged_in: true, login_signals: { mpris: true, user_folder: true } });
+    setClient({ ...data.client, logged_in: true, login_signals: { mpris: true, user_folder: true, window_title: 'Spotify Premium' } });
   }
 
   // --- Runs ---------------------------------------------------------------------------------------
@@ -691,6 +691,14 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
     nextStep() {
       const first = setup().first_unfinished;
       if (first) world.markDone(first);
+      return setup();
+    },
+    /** POST /api/setup/complete: steps 7 to 9 done, once steps 1 to 6 are (contract § completeSetup). */
+    completeSetup(): Setup | { error: true; steps: SetupStepId[] } {
+      const unfinished = setup().steps.slice(0, 6).filter((s) => s.state !== 'done').map((s) => s.id);
+      if (unfinished.length > 0) return { error: true, steps: unfinished };
+      for (const step of ['playlists', 'albums', 'done'] as const) data.manualDone.add(step);
+      publishSetup();
       return setup();
     },
     restartSetup() {

@@ -69,6 +69,10 @@ const ROUTES: Record<string, Handler> = {
   'POST /api/setup/tos': (w, req) =>
     req.body.understood === true ? ok(w.acknowledgeTos()) : fail(422, 'validation_failed', 'understood must be true.', { field: 'understood' }),
   'POST /api/setup/restart': (w) => (w.runActive() ? runActive() : ok(w.restartSetup())),
+  'POST /api/setup/complete': (w) => {
+    const result = w.completeSetup();
+    return 'error' in result ? fail(409, 'setup_incomplete', 'Finish the setup steps first: ' + result.steps.join(', ') + '.', { steps: result.steps }) : ok(result);
+  },
   'POST /api/setup/checklist/confirm': (w, req) => ok(w.confirm((req.body.rows ?? {}) as Record<string, boolean>)),
 
   // The client

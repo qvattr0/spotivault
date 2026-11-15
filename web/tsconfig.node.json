@@ -22,7 +22,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    // The e2e tests import the setup steps from src/ (their types come from '@/api').
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "mock", "e2e", "scripts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "playwright.controller.config.ts", "mock", "e2e", "e2e-controller", "scripts"]
 }

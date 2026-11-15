@@ -6,21 +6,75 @@
 // - With SPOTIVAULT_VNC=http://localhost:8080 as well, only /vnc goes there: the mock API plus a real
 //   container's noVNC bridge (the S2 image has one).
 
+import type { ClientRequest, IncomingMessage } from 'node:http';
+import { isIP } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Plugin, type ProxyOptions } from 'vite';
 import { startMockServer, type MockServer } from './mock/server.ts';
 
 const mockPort = Number(process.env.MOCK_PORT ?? 8081);
-const backend = process.env.SPOTIVAULT_BACKEND || `http://localhost:${mockPort}`;
+const mockUrl = `http://localhost:${mockPort}`;
+const backend = process.env.SPOTIVAULT_BACKEND || mockUrl;
 const vncBackend = process.env.SPOTIVAULT_VNC || backend;
 const useMock = !process.env.SPOTIVAULT_BACKEND;
 
+/**
+ * A real controller's request guard (controller/src/spotivault/web/guard.py) refuses a Host it
+ * doesn't know and an Origin that isn't its own. `changeOrigin` sends the target's Host. The dev
+ * page's Origin is the dev server's (localhost:5173, or a LAN address), so for the dev page's own
+ * requests it's rewritten to the target's origin, which then matches that Host. The WebSockets get
+ * the same rewrite (proxyReqWs).
+ *
+ * Only the dev page's own requests: any other Origin goes through as it is, so the controller still
+ * refuses other sites' pages (a form post, a WebSocket to /vnc). That's the CSRF hole Vite's docs
+ * warn about for `rewriteWsOrigin`.
+ */
+function rewriteOwnOrigin(target: string): ProxyOptions['configure'] {
+  const targetOrigin = new URL(target).origin;
+  const rewrite = (proxyReq: ClientRequest, req: IncomingMessage) => {
+    if (isDevPage(req)) proxyReq.setHeader('origin', targetOrigin);
+  };
+  return (proxy) => {
+    proxy.on('proxyReq', rewrite);
+    proxy.on('proxyReqWs', rewrite);
+  };
+}
+
+/**
+ * True when the request comes from a page this dev server served: its Origin is the address it was
+ * sent to (Host), and that address is one the guard's Host rule allows (a home-network name, not a
+ * public one a page could point at this computer: DNS rebinding).
+ */
+function isDevPage(req: IncomingMessage): boolean {
+  const { origin, host } = req.headers;
+  return host !== undefined && origin === `http://${host}` && homeNetworkHost(host);
+}
+
+// guard.py's host_allowed, without SPOTIVAULT_ALLOWED_HOSTS: an IP address, localhost, a name with
+// no dot, or one ending in a private-use suffix.
+const PRIVATE_SUFFIXES = ['.local', '.lan', '.internal', '.home.arpa', '.localhost'];
+
+function homeNetworkHost(host: string): boolean {
+  let name: string;
+  try {
+    name = new URL(`http://${host}`).hostname.replace(/\.$/, '');
+  } catch {
+    return false;
+  }
+  if (isIP(name.replace(/^\[|\]$/g, ''))) return true; // IPv6 comes in brackets
+  return name === 'localhost' || !name.includes('.') || PRIVATE_SUFFIXES.some((s) => name.endsWith(s));
+}
+
+// The mock checks nothing, so requests to it pass as they are. Anything else is a real controller,
+// /vnc included when only SPOTIVAULT_VNC is set.
+const guarded = (target: string) => (target === mockUrl ? {} : { configure: rewriteOwnOrigin(target) });
+
 const proxy = {
-  '/api': { target: backend, ws: true, changeOrigin: true },
-  '/vnc': { target: vncBackend, ws: true, changeOrigin: true },
+  '/api': { target: backend, ws: true, changeOrigin: true, ...guarded(backend) },
+  '/vnc': { target: vncBackend, ws: true, changeOrigin: true, ...guarded(vncBackend) },
   // The mock's own controls (scenarios). Harmless against a real controller: it answers 404.
-  '/__mock': { target: backend, changeOrigin: true },
+  '/__mock': { target: backend, changeOrigin: true, ...guarded(backend) },
 };
 
 /**
