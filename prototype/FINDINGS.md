@@ -222,6 +222,8 @@ Step S0 of the M1 plan, on the prototype rebuilt with **Spytify 2.0.2**. Command
 
 | 28 | A Spotify-made playlist by link (editorial, `37i9dQZF1DX…`) | ⚠️ | `GET /playlists/{id}` and `/items` both return **404 "Resource not found"**, so the API gives no name, owner, cover or track list, and "made by Spotify" can't be told from "not found" by the answer. Every Spotify-made playlist ID seen so far starts with `37i9dQZF1`, the Liked Songs alias of row 17 included. **It does play by `context_uri`:** MPRIS and the Web API reported the same playing track within 2 s, with the context unchanged. A first attempt that also sent `position_ms: 0` didn't register as playing within 10 s; that wasn't looked into. |
 
+| 29 | A linked playlist: public, made by a user, not followed (Q10) | ✅ | Not in `/me/playlists`. `GET /playlists/{id}` returns 200 with name, owner (`type: user`), one image, `snapshot_id`, `followers` and `public: true`, and no `items` field, so no total. `/items` returns 403. It plays by `context_uri`, and the Web API reports the same context and track as MPRIS. |
+
 **What changes for the controller:**
 - **Start and jump by `offset.uri`**, never by position.
 - **Identify the loaded track by `mpris:trackid`.** Use the Web API's player state only for the context and the device.
@@ -235,6 +237,5 @@ Step S0 of the M1 plan, on the prototype rebuilt with **Spytify 2.0.2**. Command
 
 - A long playlist run, e.g. "Old-School", 16 tracks, about an hour. Multi-track runs are tested on a 5-track album and a 2-track playlist plan only.
 - Autoplay off really stopping at the end of a playlist. Albums ended in `Paused`, as expected.
-- A linked playlist (public, not followed): metadata and playback (Q10).
 - Why the Satie take is 3.6 s shorter than its cut points.
 - The NAS: UGOS Docker app fields, `/volume6/Music`, overnight runs.

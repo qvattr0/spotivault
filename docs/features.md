@@ -67,7 +67,7 @@ Each phase needs the one before it. Within a phase, the order is a suggestion.
 
 | Feature | Spec | Status | Waits on | Notes |
 |---|---|---|---|---|
-| Run flow per playlist or album | [design.md § Run flow](design.md#run-flow-per-playlist-or-album) | Specified | Q10 | Missing tracks only, offsets by URI, MPRIS track identity; unchanged followed playlists are Up to date by `snapshot_id`. |
+| Run flow per playlist or album | [design.md § Run flow](design.md#run-flow-per-playlist-or-album) | Specified | | Missing tracks only, offsets by URI, MPRIS track identity; unchanged followed playlists are Up to date by `snapshot_id`. |
 | Queue and run order, which you can reorder | [web-ui.md § Run order](web-ui.md#run-order) | Specified | | Stored with the schedule (`run_order`). |
 | Stop, resume, device takeover and interrupted items | [web-ui.md § Running: queue-first](web-ui.md#running-queue-first), [§ Warnings during a run](web-ui.md#warnings-during-a-run) | Specified | | |
 | Scheduler: weekly hour grid, windows, carry-over, missed runs | [web-ui.md § How runs follow the grid](web-ui.md#how-runs-follow-the-grid) | Specified | | |

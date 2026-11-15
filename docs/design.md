@@ -266,8 +266,9 @@ Step S0 of the M1 plan settled these (2026-11-15, Spytify 2.0.2):
 
 Spytify's own bugs, and what the controller does about them, are in [upstream/spytify-bugs.md](upstream/spytify-bugs.md).
 
+- **Linked playlists** (public, not followed) give their name, owner, cover and `snapshot_id`, and play by `context_uri` (Q10).
+
 Still to validate:
-- **Linked playlists** (public, not followed): metadata and playback (Q10).
 - **Cover sizes on the CDN:** the size rewrites in [Spotify's image CDN](#spotifys-image-cdn) rely on undocumented naming. Tested on public playlists on 2026-11-15; re-check before release, and whenever the fallback warning starts showing up.
 
 ## Component Rules
