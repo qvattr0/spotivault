@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg procps util-linux \
         xvfb openbox x11vnc novnc websockify fonts-dejavu-core \
         dbus dbus-x11 pulseaudio pulseaudio-utils libasound2-plugins \
-        supervisor python3 xdg-utils \
+        supervisor python3 xdg-utils x11-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Spotify client from Spotify's own apt repo (signing key 5384CE82BA52C83A, binary keyring).
@@ -27,7 +27,7 @@ RUN curl -fsSL -o /usr/share/keyrings/spotify.gpg \
     && rm -rf /var/lib/apt/lists/*
 
 # Spytify 2.0 (recorder daemon + CLI). Pulls in ffmpeg and Mesa.
-ARG SPYTIFY_VERSION=2.0.1
+ARG SPYTIFY_VERSION=2.0.2
 RUN curl -fsSL -o /tmp/spytify.deb \
         "https://github.com/spytify/spytify/releases/download/${SPYTIFY_VERSION}/spytify_${SPYTIFY_VERSION}_amd64.deb" \
     && apt-get update && apt-get install -y --no-install-recommends /tmp/spytify.deb \

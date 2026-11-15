@@ -165,7 +165,7 @@ Excerpt (missing 3, 5):
 | Web API calls | 1 | 1 + 1 per gap, plus 1 `GET /me/player` per track start |
 | Context in `GET /me/player` | `null` | the album/playlist, so the "context moved on" (autoplay) check still works |
 
-**Playlists:** the track-list side was checked on owned playlists: `/playlists/{id}/items` with the track under `item`, including unplayable and multi-artist entries. A followed playlist gave 403, so `--only-missing` falls back to whole-context playback. A recording run on a playlist with `offset` by position wasn't done.
+**Playlists:** the track-list side was checked on owned playlists: `/playlists/{id}/items` with the track under `item`, including unplayable and multi-artist entries. A followed playlist gave 403, so `--only-missing` falls back to whole-context playback. On a playlist, `offset` by position turned out to count only playable entries, so the probe now offsets by URI; a playlist recording that way is row 21.
 
 ## Implications for the design
 
@@ -174,8 +174,8 @@ Excerpt (missing 3, 5):
   2. pause, seek to 0, and shuffle and repeat off
   3. start `spytifyd --once --serve --idle-exit 20s --set recorder.skip_duplicates_forward=false`, which starts the session itself
   4. `full_volume` over its socket
-  5. `PUT /me/player/play` with the context, `offset` at the first missing track, and the `device_id` matched by `DEVICE_NAME`
-  6. follow events; on a `track.started` that isn't planned, jump to the next missing track, or pause if none is left
+  5. `PUT /me/player/play` with the context, `offset` **by URI** at the first missing track (row 19), and the `device_id` matched by `DEVICE_NAME`
+  6. follow events; on a `track.started` that isn't planned (identified by MPRIS `mpris:trackid`, row 18), jump to the next missing track by URI, or pause if none is left
   7. the process exits 20–27 s after the end, with the last track saved; read its remaining events
   8. pause the player, in case it is playing
   9. recompute what's missing from the index, and re-queue the item if anything is
@@ -183,7 +183,7 @@ Excerpt (missing 3, 5):
 - **Container:**
   - Keep the Connect device name stable with `DEVICE_NAME` (row 8) and the machine ID in `/config` (row 4).
   - Keep the client's own folder under `/config` so the login survives restarts.
-- **Followed playlists:** no track count (403), so the UI shows "n recorded" without a total. End detection relies on MPRIS/context instead.
+- **Followed playlists:** no track list (403), but `/me/playlists` does give their `items.total` (row 20), so the UI can show "n / total recorded". End detection relies on MPRIS/context instead.
 - **Spotify-made playlists** (Discover Weekly, Daily Mixes) can't be listed through the API.
   - Option: the user pastes their links, and playback works by URI.
   - This is untested for Spotify-made playlists.
@@ -200,11 +200,41 @@ Excerpt (missing 3, 5):
 - **Format:** no lossless on Linux, so offer AAC 256 (default), AAC 320 and MP3, and hide or label FLAC.
 - **Working files:** Spytify keeps working WAVs and its duplicate index in `<output>/.spytify/`. A take stopped with `now` leaves its WAV there until the next track; the controller should clean up stale ones.
 
+## M1 live validation (S0, 2026-11-15)
+
+Step S0 of the M1 plan, on the prototype rebuilt with **Spytify 2.0.2**. Commands: `probe liked`, `probe offsets`, `probe playlists`, `probe prefs`, [tests/s0-fresh-client.sh](tests/s0-fresh-client.sh) and [tests/s0_spytify_fake.py](tests/s0_spytify_fake.py).
+
+| # | Question | Status | Evidence |
+| --- | --- | --- | --- |
+| 15 | Spytify 2.0.2 behaves like 2.0.1 | ✅ | All 8 `core.info` checks pass. A real `--once` recording (row 21) and the fake-player runs (row 27) behave as before. The image was rebuilt from the same `/config`. |
+| 16 | An image rebuild keeps the client's login (row 4's open point) | ✅ | Rebuilt image, same `/config`: `LorneNAS` listed in `GET /me/player/devices` with no new scan. |
+| 17 | Liked Songs as a playback context (Q9) | ✅ | `context_uri` `spotify:user:<id>:collection` plays. `offset.position` 0 and 2 loaded `/me/tracks` entries 0 and 2 (newest first). **`GET /me/player` names the context `spotify:playlist:37i9dQZF1F…`**, a playlist alias, not the URI that was played, so a "context moved on" check must accept that alias. `spotify:collection:tracks` returns 204 but nothing plays; `spotify:user:<id>:collection:tracks` returns 400 "Invalid context uri". |
+| 18 | MPRIS identifies the loaded track (D10) | ✅ | `mpris:trackid` is `/com/spotify/track/<id>`, and `<id>` is the playlist entry's (or `/me/tracks` entry's) own ID in every test. **`GET /me/player` reports a relinked ID for 4 of 9 playlist tracks, with or without `market`**, and `linked_from` was removed in 2026, so only MPRIS can tell which entry is loaded. |
+| 19 | `offset.position` with unplayable entries | ❌ use `offset.uri` | On an owned 300-track playlist with 20 unplayable entries (`is_playable: false`), a position counts **only playable entries**: position 19 loaded entry 21 (entries 2 and 20 unplayable), 69 loaded 72. **`offset: {"uri": entry's uri}` loaded the exact entry at 9 of 9 positions**, including entry 289 after all 20 unplayable ones. |
+| 20 | Followed playlists in `/me/playlists` | ⚠️ | `snapshot_id` is present on all 18 playlists, followed included. **The followed playlist also has `items.total` (35)**, although the migration guide says it's left out. `/items` still returns 403. `GET /playlists/{id}` returns 200 with name, owner, images, `snapshot_id` and `followers`, and no `items` field. Covers come from `image-cdn-ak.spotifycdn.com`. |
+| 21 | `--only-missing` on an owned playlist, with a gap after an unplayable entry | ✅ | Plan: entries 225 and 227 (226 unplayable). Offset by URI started 225 (146.2 s saved of 148 s). Spotify skipped 226 by itself and played 227 (98.8 s of 98 s). 228 started, the probe identified it through MPRIS and paused at once; its take was `skipped incomplete` at the idle exit. The recorder exited 18 s after the pause. Spytify named the files with each track's **album** track number (`12 - Open Window.m4a`). |
+| 22 | Field names under the 2026 rules (Risk) | ✅ | Only playlist entries moved to `item` (`/playlists/{id}/items`: `added_at, added_by, is_local, item, …`). **`/me/tracks` entries still use `track`**, `/me/albums` entries use `album` with `album.tracks.items`, and albums carry `release_date`. `/me/albums` and `/albums/{id}/tracks` answer 200 (Q11). |
+| 23 | Installing the client at runtime (Q13) | ✅ | 17.6 s on Docker Desktop: InRelease verified with gpgv against the baked keyring (0.5 s), Packages by sha256, the 179 MB `.deb` downloaded (14.9 s) and checked, `dpkg-deb -x` (1.7 s, **387 MB unpacked**), `ldd` finds every library. **`http://repository.spotify.com` now answers 301 to `https://`**, so the installer must use https (curl without `-L` saved an empty file). |
+| 24 | Signals that the client is logged in (Q2) | ✅ | A fresh profile on its own display and bus: **MPRIS name present** (`PlaybackStatus` Stopped), no `Users/` folder, window titles `Spotify` and `spotify` only. The logged-in client: `Users/<id>-user/`, and a window titled **`Spotify Premium`** (it shows "Artist - Title" while playing). So MPRIS alone doesn't mean logged in. |
+| 25 | `--disable-dev-shm-usage` | ✅ | The fresh client started with the flag held 0 open files in `/dev/shm`; the logged-in client without it held 69. So the image can stop depending on `shm_size`. Rendering under a 64 MB `/dev/shm` is checked in S2. |
+| 26 | Checklist settings in the prefs file (Q3) | ⚠️ | In `Users/<id>-user/prefs`: `audio.allow_downgrade=false` (Auto adjust), `audio.automix=false`, `audio.normalize_v2=false`, `audio.play_bitrate_enumeration=4` (Very high). Crossfade and gapless show only as `audio.crossfade_migrated_to_ps=true` and `audio.gapless_migrated_to_ps=true`: they moved to Spotify's servers. No key for autoplay, equalizer or mono; a toggle test (`probe prefs --save`, change, `--diff`) is still to do. |
+| 27 | `spytifyd --fake`, `--events` and `SPYTIFY_CONFIG` | ✅ | A timeline of two tracks, then track 1 loaded paused (Spotify's end of album), with `--idle-exit 3s`: both takes saved as `Artist/Album/01 - One.m4a` and `02 - Two.m4a`; the phantom `track.started` + `track.skipped duplicate` of the paused track 1 shows up, as with the real client. **The `--events` file holds the last `track.finished`**, written as the process exits. `settings.set` over the socket is saved to `$SPYTIFY_CONFIG`; `--set` values aren't. Spytify's standalone `cmd/fakeplayer` is a real MPRIS player (Play, Pause, Next, Previous, SetPosition; OpenUri and Seek do nothing) but plays through `pw-play`, so it needs PipeWire. |
+
+**What changes for the controller:**
+- **Start and jump by `offset.uri`**, never by position.
+- **Identify the loaded track by `mpris:trackid`.** Use the Web API's player state only for the context and the device.
+- **Liked Songs:** play `spotify:user:<id>:collection`. Remember the context URI the Web API reports after the first play, and treat it as the same context.
+- **`/me/tracks`** is read with `track`, and playlists with `item`.
+- **Followed playlists** have a total from `/me/playlists`, so the backlog and the Library can count their tracks, but not their durations.
+- **Login detection:** a `Users/*-user/` folder **and** a Spotify window titled anything but `Spotify`. The Web API device list confirms it.
+- **The client installer** uses https and verifies InRelease, Packages and the `.deb`. Keeping a previous version costs another 387 MB in `/config`.
+
 ## Not tested yet
 
-- A long playlist run, e.g. "Old-School", 16 tracks, about an hour. Multi-track runs are tested on a 5-track album only.
+- A long playlist run, e.g. "Old-School", 16 tracks, about an hour. Multi-track runs are tested on a 5-track album and a 2-track playlist plan only.
 - Autoplay off really stopping at the end of a playlist. Albums ended in `Paused`, as expected.
 - Spotify-made playlists by URI.
-- `--only-missing` recording on a playlist (offset by position, a gap after an unplayable entry).
+- A linked playlist (public, not followed): metadata and playback (Q10).
+- Which prefs keys autoplay, equalizer and mono write (Q3, row 26).
 - Why the Satie take is 3.6 s shorter than its cut points.
 - The NAS: UGOS Docker app fields, `/volume6/Music`, overnight runs.
