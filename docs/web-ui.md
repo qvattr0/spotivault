@@ -187,7 +187,7 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 - **Content:** a summary:
   - Account: "Lorne · expires 12 May 2027";
   - Format: "AAC 256 · .m4a";
-  - Folder: "/music → /volume6/Music";
+  - Folder: "/music → /Music";
   - Tracking: "23 playlists + Liked Songs · 42 albums";
   - Schedule: "None yet · set it in Schedule".
 - **Backup length:** how long the first full backup takes, since recording is real time: "About 298 h of music to record". While the track lists load, it shows "Measuring…". Followed playlists add "+ 2 followed playlists (unknown length)". The figure comes from the [backlog estimate](design.md#backlog-estimate).
@@ -758,8 +758,8 @@ One scrolling page, like the client's Settings: section headings, with rows of l
 - **Playlist covers:** a toggle, "Save Spotify's covers", on by default.
   - Each playlist's cover is saved next to its `.m3u` as `Music/Playlists/<name>.jpg`, at the largest size Spotify has (640 px, or 1280 px for a grid of album covers).
   - The description says: "Custom covers you upload in the Library are always saved, and replace Spotify's." Turning the toggle off doesn't delete covers already saved.
-- **Music folder:** read-only. It shows `/music → /volume6/Music`, the free space, and a "Check access" button that re-runs the wizard's step-6 check.
-  - **What the arrow can show:** the container sees the shared folder only as a path inside its volume, so on the NAS `/volume6/Music` may read `/Music` (`GET /api/container`'s `music_source`). The same goes for step 9's summary and Settings › Container. Not yet checked on the NAS (M2).
+- **Music folder:** read-only. It shows `/music → /Music`, the free space, and a "Check access" button that re-runs the wizard's step-6 check.
+  - **The right side is the shared folder's own path** (`GET /api/container`'s `music_source`), not the host path. The container can't see `/volume6`, and the UGOS Docker app names the folder the same way ("Shared folder/Music"). Step 9's summary and Settings › Container show it the same way. Settled with the user on 2026-11-15; still to check on the NAS (M2).
 
 ### Library
 - **Automatically track playlists I create:** a toggle. It's the same setting as in the Library's ⋯ menu and wizard step 7.
@@ -814,7 +814,7 @@ Two channels share one event table.
 Read-only, with the note "Change these in the UGOS Docker app":
 - **Device name** (`DEVICE_NAME`, default `spotivault`), with the warning "Changing it may log the Spotify client out; you'd scan the QR code again".
 - **Time zone** (`TZ`).
-- **Music mapping** (`/music`).
+- **Music mapping:** `/music → /Music`, the shared folder's own path, as under Files › Music folder.
 - **`UMASK`.**
 - **Versions:** the image, Spytify and the Spotify client.
 
