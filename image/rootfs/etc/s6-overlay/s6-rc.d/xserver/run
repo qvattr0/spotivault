@@ -1,0 +1,7 @@
+#!/command/with-contenv sh
+# The virtual screen the client draws on. Ready once it writes its display number on fd 3.
+# A lock left by an earlier run of this container (docker restart) would stop it starting.
+n="${DISPLAY#:}"
+rm -f "/tmp/.X$n-lock" "/tmp/.X11-unix/X$n"
+umask 077
+exec s6-setuidgid app Xvfb ":$n" -screen 0 1280x800x24 -nolisten tcp -displayfd 3 2>&1

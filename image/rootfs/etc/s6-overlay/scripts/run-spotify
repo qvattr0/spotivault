@@ -1,0 +1,40 @@
+#!/bin/sh
+# Runs as app. Waits for spotify-install, then runs the client until s6 stops the service.
+set -u
+bin=/config/spotify/current/spotify
+pid=""
+
+# The client ignores SIGTERM, SIGINT and SIGHUP. MPRIS Quit closes it cleanly, and it saves its
+# prefs file on the way out. If it's still there after 15 s, kill it.
+stop() {
+    [ -n "$pid" ] || exit 0
+    dbus-send --session --print-reply --reply-timeout=5000 --dest=org.mpris.MediaPlayer2.spotify \
+        /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Quit >/dev/null 2>&1
+    i=0
+    while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 30 ]; do
+        sleep 0.5
+        i=$((i + 1))
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "the client didn't quit within 15 s; killing it"
+        kill -KILL "$pid"
+    fi
+    exit 0
+}
+trap stop TERM INT HUP
+if [ ! -x "$bin" ]; then
+    echo "not installed yet: waiting for spotify-install"
+    while [ ! -x "$bin" ]; do sleep 2; done
+fi
+
+# Chromium locks its profile to "<hostname>-<pid>". A lock left by an earlier run, whose pid may
+# now belong to another process, makes the client quit at once. s6 only starts this when the
+# previous client has exited, so clear it.
+rm -f "$HOME"/.cache/spotify/Singleton*
+cd "$HOME" || exit 1
+
+# The shim makes the client see $DEVICE_NAME as the hostname, which names its Connect device.
+LD_PRELOAD=/usr/local/lib/hostname-shim.so "$bin" --no-zygote --no-sandbox --disable-gpu &
+pid=$!
+
+wait "$pid"

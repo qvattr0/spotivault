@@ -1,0 +1,4 @@
+#!/command/with-contenv sh
+# The web UI and API on port 8080. In this image it's a stub: /api/health, /vnc.html and WS /vnc.
+umask 077
+exec s6-setuidgid app /usr/local/bin/spotivault-controller 2>&1

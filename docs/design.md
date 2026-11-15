@@ -31,39 +31,102 @@ spotivault is a single Docker image for a UGREEN NASync DXP4800+ (x86_64, UGOS P
 - **Client:** logs in by QR code scanned with the Spotify phone app, shown through noVNC. No browser is needed in the image.
 - **Web API:** uses PKCE with the redirect `http://127.0.0.1:8888/callback`, and you paste the resulting address back. Refresh tokens expire 6 months after you authorize (Spotify, 2026-06-18), so the UI tracks the expiry and offers Reconnect.
 
-**Base image:** Spotify Linux 1.2.77+ needs glibc 2.38+, so the image is Ubuntu 24.04 or Debian 13.
+**Base image:** Spotify Linux 1.2.77+ needs glibc 2.38+ (1.3.4 needs 2.39), so the image is Ubuntu 24.04 or Debian 13. It's Ubuntu 24.04: see [Container](#container).
 
 **Developer app:** since March 2026, a Development Mode app needs a Premium owner and allows up to five users. The same change narrowed the Web API: see [Web API usage](#web-api-usage).
 
 ## Container
 
-One container, with s6-overlay supervising:
+One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-overlay v3 is PID 1 and supervises every service. Files baked into the image are in [image/rootfs/](../image/rootfs/).
 
 | Service | Role |
 |---|---|
-| Xvfb + window manager | The virtual display the client runs on. |
-| x11vnc + noVNC | Views that display in the browser, proxied by the controller at `/vnc`. |
-| D-Bus session | MPRIS and the client's IPC. |
-| PulseAudio | A null sink at 44.1 kHz. Spytify records from it. |
-| Spotify client | Installed from Spotify's apt repo on first start into `/config`, not baked into the public image. |
-| `spytifyd` | The recorder. The controller starts it for each item (`--once --serve --idle-exit 20s`), so it is not a long-running service, and the controller passes the recorder settings in at the start. |
-| controller | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. |
+| `init-spotivault` | A oneshot, run as root before the others. It checks the settings, prepares `/config`, `/music` and the runtime folders, then exits. |
+| `xserver` | Xvfb, the virtual screen the client draws on (`:99`, 1280 × 800). |
+| `wm` | matchbox-window-manager. The client's window fills the screen with no title bar. |
+| `vnc` | x11vnc on `127.0.0.1:5900` only. The controller bridges it to the browser at `WS /vnc`. |
+| `dbus` | The D-Bus session bus, for MPRIS and the client's IPC. |
+| `pulseaudio` | A null sink at 44.1 kHz ([spotivault.pa](../image/rootfs/etc/pulse/spotivault.pa)). Spytify records from it with `parec`. |
+| `spotify` | The Spotify client. It isn't in the image: `spotify-install` puts it in `/config`, and the service waits until it's there. |
+| `controller` | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. Until S4 it's a stub: `/api/health`, `/vnc.html` and `WS /vnc` ([image/stub/](../image/stub/)). |
 
-**UGOS configuration:**
-- `EXPOSE 8080`.
+`spytifyd` is not a service. The controller starts it for each item (`--once --serve --idle-exit 20s`) and passes the recorder settings in at the start.
+
+### Users and processes
+
+- **`app` (uid 1000):** every service drops to it with `s6-setuidgid`, loggers included. `HOME` is `/config/home`. The image's `ubuntu` user is removed.
+- **Root:** only s6's own supervision tree, which `/init` starts (`s6-svscan`, `s6-supervise`, the s6-rc fd holder), and the `init-spotivault` oneshot.
+- **Logs:** each service has an `s6-log` that writes to docker's stdout, prefixed with the service name, and to `/config/logs/<service>/current` with timestamps. It keeps 10 files of 1 MB.
+- **Shutdown:** the client ignores SIGTERM, SIGINT and SIGHUP. Its service quits it over MPRIS (`org.mpris.MediaPlayer2.Quit`) and kills it after 15 s. A clean quit also writes the client's `prefs` file. s6 gives the services 50 s to stop, inside the compose file's `stop_grace_period: 60s`.
+- **Health check:** `curl http://127.0.0.1:8080/api/health`, every 30 s.
+
+### Startup checks
+
+`init-spotivault` stops the container with a clear message when a setting is wrong:
+
+| Setting | Rule |
+|---|---|
+| `UMASK` | 3 or 4 octal digits. It applies to `/music` only; the controller sets it on the recorder. `/config` stays private (mode 0700, umask 077), because it holds the client's login and the tokens. |
+| `TZ` | A zone in the image's tz database, such as `Europe/Berlin`. |
+| `DEVICE_NAME` | 1 to 64 bytes, with no `/` and no control characters, because it becomes the client's hostname. |
+
+It also:
+- gives `/config` to `app`, and creates `home`, `logs`, `spotify` and `spytify` in it;
+- keeps `/config/machine-id` for the life of `/config` (`/etc/machine-id` links to it);
+- clears the client's Chromium `Singleton*` locks;
+- gives `/music` to `app` only when it's an empty folder owned by root, which is what Docker creates for a new bind mount. Otherwise it leaves the folder's permissions alone and warns if `app` can't write there.
+
+### The Spotify client
+
+**Not in the image.** [`spotify-install`](../image/rootfs/usr/local/bin/spotify-install) puts it in `/config/spotify`. It runs as `app`, without apt and without root:
+1. Download `InRelease` from Spotify's repository and check it with `gpgv` against the key baked into the image (`/usr/share/keyrings/spotify.gpg`). Only the signed text is used from then on.
+2. Download `Packages` and check its sha256 and size against `InRelease`.
+3. Pick the newest `spotify-client`, or the one given with `--version`.
+4. Check the free space, download the `.deb` (179 MB) and check its sha256 and size.
+5. Unpack it with `dpkg-deb -x`, and keep only `usr/share/spotify`.
+6. List the client's libraries with the dynamic loader. A missing one fails with "update the image".
+7. Move it to `versions/<version>`, switch the `current` link in one rename, and keep one previous version.
+
+It prints one JSON object per line (`{"stage":"download","percent":42,…}`), which the controller relays to wizard step 2. The last line has stage `done` or `error`. `--check` only reports the installed and the available version. A lock stops two installs running at once. On Docker Desktop the whole install takes about 20 s.
+
+**Running it:** the `spotify` service starts `/config/spotify/current/spotify --no-zygote --no-sandbox --disable-gpu` with the `DEVICE_NAME` shim preloaded. The client talks to PulseAudio directly through `libpulse`, so ALSA needs no plugins.
+
+### What's in the image
+
+The image is 281 MB uncompressed (95 MB compressed). The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
+
+| Part | How it's kept small |
+|---|---|
+| Spotify's libraries | The build installs `spotify-client` with `--no-install-recommends`, keeps what it pulled in, then purges the client. Its Recommends (`libavcodec`, for local files) stay out. |
+| `spytifyd` | Built from source at tag 2.0.2 as a static Go binary, with `image/spytify/patches/*.patch` applied. The `.deb` would pull Mesa, GL and X for the desktop app. |
+| ffmpeg | Built with Spytify's own `scripts/build-ffmpeg.sh`: only the encoders, filters and formats Spytify runs (4 MB). Spytify finds it through `SPYTIFY_FFMPEG`. |
+| Screen and VNC | Xvfb + x11vnc. TigerVNC's `Xvnc` measured 56 MB more, because its package pulls Perl for a wrapper script. |
+| Window manager | matchbox-window-manager, which adds nothing. openbox would add about 104 MB: it pulls Python, and Ghostscript and image codecs through imlib2. |
+| Mesa | Its drivers and LLVM (about 180 MB) are left out with `dpkg` path-excludes. The client runs with `--disable-gpu` and has its own SwiftShader. `libgbm.so.1`, which it links, loads a driver only when used. |
+| systemd | `dbus-x11` stands in for `dbus-user-session`, which GTK's dconf would otherwise pull, with systemd. |
+| Placeholders | Two empty packages stand in for hard Depends that nothing here loads: `libasound2-plugins` (pulseaudio's; it pulls libavcodec, about 97 MB) and `tk` (x11vnc's, for its unused `-gui`). |
+| Files | `dpkg` path-excludes for docs, man pages, translations, desktop icon themes (cursors kept) and GStreamer's ISO code tables. |
+| Fonts | `fonts-dejavu-core`, which GTK pulls anyway. |
+
+The excludes are in [spotivault-excludes](../image/rootfs/etc/dpkg/dpkg.cfg.d/spotivault-excludes).
+
+### Configuration
+
+- `EXPOSE 8080`. Only this port is published: noVNC goes through `WS /vnc`.
 - `VOLUME /config /music`: map `/music` to `/volume6/Music`.
 - `ENV`:
-  - `TZ`
-  - `UMASK=000`
+  - `TZ` (default `UTC`)
+  - `UMASK` (default `000`)
   - `UI_PASSWORD` (optional): requires a password for the web UI. It can also be set in Settings.
-  - `DEVICE_NAME` (default `spotivault`): the name of the Spotify Connect device ("Playing on …"). A small preloaded library sets it, because the client takes its name from `gethostname()`. Recreating the container (for example, for an image update) keeps the login: tested with `--force-recreate`. That relies on a stable `/config/machine-id` and an unchanged `DEVICE_NAME`. Changing `DEVICE_NAME` is untested.
-- A `docker-compose.yml` for the Docker app's Project feature.
+  - `DEVICE_NAME` (default `spotivault`): the name of the Spotify Connect device ("Playing on …"). A small preloaded library ([hostname-shim.c](../image/hostname-shim.c)) sets it, because the client takes its name from `gethostname()`. Recreating the container keeps the login: tested with `--force-recreate` and with an image update, and the device kept its name and ID. That relies on a stable `/config/machine-id` and an unchanged `DEVICE_NAME`. Changing `DEVICE_NAME` is untested.
+- `shm_size: 1g`: the client is Chromium, which passes data through `/dev/shm`.
+- **Compose files:** [docker-compose.yml](../docker-compose.yml) builds from source for Docker Desktop, with data in `./data`. The one for the UGOS Docker app's Project feature comes in M2.
 - Avoids host ports 9999 and 9443, which UGOS uses.
 
-**Spytify defaults:**
-- `privacy.bug_tracker=off`
+**Spytify defaults** (its booleans take `true` or `false`):
+- `privacy.bug_tracker=false`. The image's `spytifyd` is built without a crash-report address, so it sends nothing either way.
 - `recorder.duplicates=skip`
-- `recorder.skip_duplicates_forward=on`
+- `recorder.skip_duplicates_forward`: off for items played as missing tracks only, on for items played whole (see [Run flow](#run-flow-per-playlist-or-album))
 - File naming from Settings › Files › Layout, passed in with the other recorder settings. The default is `{album_artist}/{album}/{track} - {title}`. How Spytify takes it is [open question 16](web-ui.md#open-questions).
 
 ## Run flow, per playlist or album
@@ -215,7 +278,10 @@ Every other code tried returned 404, including `82c1`, the code that gives album
 
 ## Distribution
 
-GitHub Actions builds an amd64 image and pushes it to Docker Hub.
+- **CI:** [.github/workflows/ci.yml](../.github/workflows/ci.yml) runs shellcheck, builds the amd64 image and runs the [smoke test](../image/test/smoke.sh) on every pull request and every push to main. It pushes nothing.
+- **Docker Hub:** publishing comes in M3, with its secrets.
+
+The smoke test runs the same way by hand: `docker build -t spotivault:ci .`, then `image/test/smoke.sh spotivault:ci --install`. It checks that the container turns healthy, that only s6 runs as root, that `WS /vnc` reaches VNC, the `spytifyd` version and the shim, fake recordings in AAC, MP3 and FLAC, that bad settings stop the container, the client install, and a quick stop.
 
 ## Terms of Service
 

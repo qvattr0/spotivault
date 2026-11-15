@@ -1,0 +1,9 @@
+#!/bin/sh
+# Logs one service: to docker's stdout, prefixed with its name, and to /config/logs/<name>/current
+# with timestamps, rotated at 1 MB, 10 files kept.
+case "$1" in
+    # Xvfb's keymap compiler warns about every new keysym in xkb-data on each start. Not an error.
+    xserver) drop='-.*(Could not resolve keysym|XKEYBOARD keymap compiler|Errors from xkbcomp).*' ;;
+    *) drop='-^$' ;;
+esac
+exec s6-setuidgid app s6-log -b -- "$drop" "p$1:" 1 p T n10 s1048576 "/config/logs/$1"

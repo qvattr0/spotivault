@@ -1,0 +1,5 @@
+# Minimal PulseAudio setup: one socket, one virtual output nobody hears.
+# 44.1 kHz matches Spotify's output, so nothing is resampled before Spytify records it.
+load-module module-native-protocol-unix socket=/tmp/runtime-app/pulse/native auth-anonymous=1 auth-cookie-enabled=0
+load-module module-null-sink sink_name=backup rate=44100 channels=2 sink_properties=device.description=Backup
+set-default-sink backup

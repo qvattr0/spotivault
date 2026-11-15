@@ -1,0 +1,4 @@
+#!/command/with-contenv sh
+# A kiosk window manager: the client's window fills the screen, with no title bar.
+umask 077
+exec s6-setuidgid app matchbox-window-manager -use_titlebar no -use_cursor yes 2>&1
