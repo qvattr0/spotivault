@@ -4,6 +4,8 @@ The controller serves this UI on port 8080. It's how you set up, choose, schedul
 
 The screens are drawn in Pencil, in `docs/ui-design/spotivault.pen`. This document is the source those screens are drawn from. Where they differ, this document wins until it's updated.
 
+The endpoint tables below summarize the API. The full request, response and event shapes for M1 are in [contracts/openapi.yaml](../contracts/openapi.yaml) and [contracts/events.md](../contracts/events.md).
+
 **Status:** Phase 1 draft, awaiting review.
 - **Shaped with the user:** every page: Setup wizard, Library, Albums, Dashboard, Schedule, History, Settings and Player.
 - **Drawn:** every page, in `docs/ui-design/spotivault.pen`. Not drawn yet: the backup-length line on wizard step 9.
@@ -206,10 +208,11 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 | GET | `/api/storage` | 6 | Whether `/music` is mounted and writable, plus free bytes. |
 | GET/PUT | `/api/settings` | 6, 7, Settings | Format, bitrate, file layout and `auto_track_owned`. |
 | GET | `/api/library/summary` | 7, 9 | Count of owned playlists, and whether Liked Songs is tracked. |
+| PATCH | `/api/library/liked` | 7 | `{tracked}`: "Include Liked Songs". `liked` is Liked Songs' id in every Library endpoint. |
 | GET | `/api/albums/saved` | 8 | The saved-album count. Shared with the Albums + modal. |
 | POST | `/api/albums` | 8 | `{all: true}` adds every saved album as Queued. Shared with the Albums page. |
 | GET | `/api/backlog` | 9 | The backup length. Shared with the Dashboard. |
-| WS | `/api/events` | all | Live push. During setup it carries client-install progress and setup state changes. |
+| WS | `/api/events` | all | Live push. During setup it carries these events:<br>• `client.install`: install progress, phase and log lines<br>• `client.status`: installed, running, logged in<br>• `setup.state`: a step changed state<br>• `connection`: the Web API connection changed |
 
 ---
 
@@ -313,7 +316,7 @@ A modal in the client's dialog style.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover` (a thumbnail URL, null for Liked Songs, which shows its tile), `cover_source` (`custom`, `spotify` or `none`)<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
-| PATCH | `/api/library/{id}` | `{tracked}` |
+| PATCH | `/api/library/{id}` | `{tracked}`. Liked Songs' id is `liked`. |
 | POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. |
 | DELETE | `/api/library/{id}` | Removes an added item. The files are kept. |
 | GET | `/api/library/suggestions?q=` | Followed playlists not yet in the Library. |
@@ -403,6 +406,7 @@ A modal in the same style as the Library's + modal.
 | POST | `/api/albums` | `{ids: [...]}` adds albums, or `{all: true}` (wizard step 8) adds every saved album not yet added. They start Queued. |
 | DELETE | `/api/albums/{id}` | Removes an album from the page. The files are kept. |
 | GET | `/api/albums/{id}/tracks` | The track list with per-track state. |
+| GET | `/api/albums/{id}/cover?size=thumb` | The cover image: `thumb` (300 px, the default) or `full` (640 px, as the Web API gives it). |
 | POST | `/api/runs` | `{items: [id…]}` "Record now" or "Record again". Shared with the Library and the Dashboard. |
 | WS | `/api/events` | `album.item` updates: status and progress while recording. |
 
@@ -816,6 +820,10 @@ Read-only, with the note "Change these in the UGOS Docker app":
 | DELETE | `/api/spotify/connection` | Disconnect. |
 | GET | `/api/client/status`, `/api/client/checklist` | Shared with the wizard. |
 | GET | `/api/container` | Read-only env values and versions. |
+| POST | `/api/setup/restart` | About › "Run setup again": reopens the wizard from step 2. Nothing is deleted. Refused with `409` during a run. |
+| GET | `/api/health` | Docker's healthcheck. `200` while the controller and its database are up, even before setup. No page uses it. |
+| GET | `/api/webapi/usage?days=` | Web API usage: totals per endpoint per day, and every `429`, for up to 90 days. No page shows it yet. |
+| WS | `/api/events` | `client.status` and `connection`, for the Spotify client and Spotify account sections. |
 
 ---
 

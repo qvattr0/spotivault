@@ -1,0 +1,493 @@
+{
+  "about": "Settings › Files › Edit layout: which layouts are valid, the error each invalid one gets (PUT /api/settings → 422 invalid_layout, details.reason), and the Spytify --set values a valid one maps to.",
+  "generator": {
+    "script": "contracts/vectors/generate.py",
+    "how": "expected = validate_layout and spytify_settings in generate.py, which encode the rules below. Cases get a 'spytify' block only when the file is generated with --go: Spytify 2.0.2's own code, run by tools/spytify_vectors_test.go, gives 'accepts' (settings.Def.Coerce on every mapped --set value), 'template_error' (Coerce's error for an invalid layout's file name) and 'examples' (naming.Build + naming.FileName for sample_tracks, counter 1, extension m4a). Check mode recomputes 'expected' only.",
+    "regenerate": "python3 contracts/vectors/generate.py --write --go <spytify-2.0.2-src>"
+  },
+  "rules": [
+    "Split the pattern at its last '/': the folder part before it, the file name after it. No '/' means no folder.",
+    "Validation runs these checks in order and reports the first that fails:",
+    "unknown_placeholder: web-ui.md: only {album_artist}, {artists}, {title}, {album}, {track} and {year} are accepted. Spytify's old name {artist} is refused too. details.placeholder names the first one.",
+    "stray_brace: extra: a { or } that isn't part of a placeholder. Spytify would keep it as text; refused as a likely typo.",
+    "backslash: extra: Spytify refuses a template with \\ ('folders come from output.group_by').",
+    "bad_folder: web-ui.md: the folder part, before the last /, must be none, {album_artist} or {album_artist}/{album}, exactly.",
+    "empty_file_name: web-ui.md: the file name, after the last /, can't be empty or only spaces.",
+    "no_placeholder: extra: Spytify refuses a template with no placeholder; {year} alone doesn't count, since it's always empty on Linux.",
+    "Mapping: folder none → output.group_by=none; {album_artist} → artist; {album_artist}/{album} → artist/album. output.template = the file name, unchanged. prefix none/counter/track_number → output.prefix none/counter/album_track. underscores → output.underscores. strip_accents → output.ascii_filenames.",
+    "Spytify's naming then: {track} is two digits and empty without a number; {year} is empty (none on Linux); empty () is dropped and the name trimmed of ' -_'; characters / \\ : * ? \" < > | and controls are removed; the album folder gets ' (YYYY)' only if the player sends a year.",
+    "The counter prefix is three digits ('001 ') and continues across items (Spytify's output.counter_next)."
+  ],
+  "extra_rules_note": "stray_brace, backslash and no_placeholder aren't in web-ui.md § Edit layout modal yet. They're the cautious reading: backslash and no_placeholder would make Spytify refuse its settings at the start of every item (exit 2). web-ui.md should list them.",
+  "sample_tracks": {
+    "elsewhere": {
+      "artists": [
+        "fakename"
+      ],
+      "album_artists": [
+        "fakename"
+      ],
+      "title": "Last Hours",
+      "album": "Elsewhere",
+      "track_number": 5,
+      "year": 0
+    },
+    "collaboration": {
+      "artists": [
+        "Erik Satie",
+        "Olga Scheps"
+      ],
+      "album_artists": [
+        "Erik Satie"
+      ],
+      "title": "Cinq Grimaces pour le songe d'une nuit d'été: IV. Fanfaronnade",
+      "album": "Satie: Gymnopédies",
+      "track_number": 10,
+      "year": 0
+    },
+    "no-number": {
+      "artists": [
+        "fakename"
+      ],
+      "album_artists": [
+        "fakename"
+      ],
+      "title": "No Number",
+      "album": "Singles",
+      "track_number": 0,
+      "year": 0
+    }
+  },
+  "cases": [
+    {
+      "id": "default",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{track} - {title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "The default layout.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist/album",
+          "output.template": "{track} - {title}",
+          "output.prefix": "none",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "default-track-number-prefix",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{title}",
+        "prefix": "track_number",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "Prefix 'Album track number' maps to Spytify's album_track.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist/album",
+          "output.template": "{title}",
+          "output.prefix": "album_track",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "artist-folder-counter",
+      "layout": {
+        "pattern": "{album_artist}/{title}",
+        "prefix": "counter",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "One folder per artist; a three-digit counter before the name.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist",
+          "output.template": "{title}",
+          "output.prefix": "counter",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "no-folder",
+      "layout": {
+        "pattern": "{artists} - {title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "No folder: every file in the music folder's root.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "none",
+          "output.template": "{artists} - {title}",
+          "output.prefix": "none",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "underscores",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{track} - {title}",
+        "prefix": "none",
+        "underscores": true,
+        "strip_accents": false
+      },
+      "note": "Spaces become underscores in folders and names.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist/album",
+          "output.template": "{track} - {title}",
+          "output.prefix": "none",
+          "output.underscores": true,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "strip-accents",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{track} - {title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": true
+      },
+      "note": "Accents are removed from folders and names.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist/album",
+          "output.template": "{track} - {title}",
+          "output.prefix": "none",
+          "output.underscores": false,
+          "output.ascii_filenames": true
+        }
+      }
+    },
+    {
+      "id": "old-prototype-naming",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{album_artist} - {title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "The prototype's first naming.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist/album",
+          "output.template": "{album_artist} - {title}",
+          "output.prefix": "none",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "year-empty",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{title} ({year})",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "{year} is always empty on Linux, and Spytify drops the empty ().",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist/album",
+          "output.template": "{title} ({year})",
+          "output.prefix": "none",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "trailing-space",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{track} - {title} ",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "Spytify trims the expanded name.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "artist/album",
+          "output.template": "{track} - {title} ",
+          "output.prefix": "none",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "album-in-name",
+      "layout": {
+        "pattern": "{album} - {track} - {title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "{album} can be used in the file name.",
+      "expected": {
+        "valid": true,
+        "spytify_settings": {
+          "output.group_by": "none",
+          "output.template": "{album} - {track} - {title}",
+          "output.prefix": "none",
+          "output.underscores": false,
+          "output.ascii_filenames": false
+        }
+      }
+    },
+    {
+      "id": "unknown-genre",
+      "layout": {
+        "pattern": "{album_artist}/{genre}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "unknown_placeholder",
+        "placeholder": "{genre}"
+      }
+    },
+    {
+      "id": "unknown-capitalised",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{Title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "Placeholders are case-sensitive.",
+      "expected": {
+        "valid": false,
+        "reason": "unknown_placeholder",
+        "placeholder": "{Title}"
+      }
+    },
+    {
+      "id": "unknown-old-artist",
+      "layout": {
+        "pattern": "{artist} - {title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "Spytify accepts {artist} as {album_artist}'s old name; the UI doesn't offer it.",
+      "expected": {
+        "valid": false,
+        "reason": "unknown_placeholder",
+        "placeholder": "{artist}"
+      }
+    },
+    {
+      "id": "unknown-with-spaces",
+      "layout": {
+        "pattern": "{ title }",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "unknown_placeholder",
+        "placeholder": "{ title }"
+      }
+    },
+    {
+      "id": "stray-open",
+      "layout": {
+        "pattern": "{album_artist}/{title",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "stray_brace"
+      }
+    },
+    {
+      "id": "stray-close",
+      "layout": {
+        "pattern": "{title}}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "stray_brace"
+      }
+    },
+    {
+      "id": "backslash-in-name",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{track}\\{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "backslash"
+      }
+    },
+    {
+      "id": "folder-album-only",
+      "layout": {
+        "pattern": "{album}/{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "bad_folder"
+      }
+    },
+    {
+      "id": "folder-three-levels",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{track}/{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "bad_folder"
+      }
+    },
+    {
+      "id": "folder-all-artists",
+      "layout": {
+        "pattern": "{artists}/{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "Spytify can group by all artists; the UI doesn't offer it.",
+      "expected": {
+        "valid": false,
+        "reason": "bad_folder"
+      }
+    },
+    {
+      "id": "folder-leading-slash",
+      "layout": {
+        "pattern": "/{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "A slash with nothing before it is a folder part that isn't allowed.",
+      "expected": {
+        "valid": false,
+        "reason": "bad_folder"
+      }
+    },
+    {
+      "id": "folder-spaced",
+      "layout": {
+        "pattern": "{album_artist} /{album}/{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "The folder part must match exactly.",
+      "expected": {
+        "valid": false,
+        "reason": "bad_folder"
+      }
+    },
+    {
+      "id": "empty",
+      "layout": {
+        "pattern": "",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "empty_file_name"
+      }
+    },
+    {
+      "id": "empty-file-name",
+      "layout": {
+        "pattern": "{album_artist}/",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "empty_file_name"
+      }
+    },
+    {
+      "id": "blank-file-name",
+      "layout": {
+        "pattern": "{album_artist}/{album}/   ",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "empty_file_name"
+      }
+    },
+    {
+      "id": "no-placeholder",
+      "layout": {
+        "pattern": "{album_artist}/{album}/Track",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "no_placeholder"
+      }
+    },
+    {
+      "id": "year-only",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{year}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "no_placeholder"
+      }
+    }
+  ]
+}

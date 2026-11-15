@@ -24,7 +24,7 @@ Open questions are numbered as in [web-ui.md § Open questions](web-ui.md#open-q
 ## Known gaps in the docs
 
 - **The docs are ahead of the `.pen` file** in one place: the backup-length line on wizard step 9 isn't drawn yet.
-- **`prototype/FINDINGS.md`**, which design.md cites for the settled risks, is on another branch and isn't in this checkout.
+- **Spytify bugs** that shape the design are tracked in [upstream/spytify-bugs.md](upstream/spytify-bugs.md).
 - **README.md** is out of date: it calls this a Docker Compose project and links to `jwallet/spy-spotify`, where design.md uses [Spytify 2.0](https://github.com/spytify/spytify).
 
 ## Build order
