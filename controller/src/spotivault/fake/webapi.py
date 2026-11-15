@@ -12,14 +12,20 @@ usage, prototype/FINDINGS.md rows 7, 17–22, 28, 29):
   different one, `spotify:collection:tracks` answers but plays nothing, and Liked Songs is
   reported by its playlist alias.
 
-The real client's tokens, scheduler, retries and usage log (S5) have no part here. Tests steer
-it instead: `connected`, `expired`, and `failures` (errors the next calls raise, in order: a
+The real client's scheduler, retries and usage log (S5) have no part here. Tests steer it
+instead: `connected`, `expired`, and `failures` (errors the next calls raise, in order: a
 RateLimited, a SpotifyUnavailable…). Every call is recorded in `calls` with its scope.
+
+**Tokens:** in fake mode, services.py attaches the controller's AuthStore (`auth`), so a call is
+connected exactly when the controller holds a token, as with the real port: connecting through
+wizard step 5 and disconnecting work end to end. Without it (a FakeWorld on its own, in tests),
+the `connected` flag decides.
 
 Owner: the fake agent.
 """
 
 from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING
 
 from spotivault.fake.catalog import SPOTIFY_MADE_PREFIX, Catalog
 from spotivault.fake.player import SimPlayer
@@ -47,6 +53,9 @@ from spotivault.ports import (
     WebApiError,
 )
 
+if TYPE_CHECKING:
+    from spotivault.webapi.auth_store import AuthStore
+
 # The scopes wizard step 5 asks for (web-ui.md § 5).
 SCOPES = (
     "playlist-read-private",
@@ -72,8 +81,11 @@ class FakeWebApi:
         self.clock = clock
         self.catalog = catalog
         self.player = player
-        self.connected = False  # a token is stored: exchange_code() connects
+        self.connected = False  # a token is stored: exchange_code() connects (no `auth` only)
         self.expired = False  # every call raises ConnectionExpired (invalid_grant)
+        # The controller's stored token, in fake mode (services.py). When set, it decides whether
+        # a call is connected, in place of `connected`.
+        self.auth: AuthStore | None = None
         self.failures: list[WebApiError] = []  # raised by the next calls, first one first
         self.calls: list[FakeCall] = []
         self.grants = 0
@@ -112,18 +124,18 @@ class FakeWebApi:
         )
 
     async def me(self, *, scope: ApiScope = OTHER) -> SpotifyUser:
-        self._call("GET /me", scope)
+        await self._gate("GET /me", scope)
         return self.catalog.user
 
     async def my_playlists(
         self, *, offset: int = 0, limit: int = 50, scope: ApiScope = OTHER
     ) -> Page[Playlist]:
-        self._call("GET /me/playlists", scope)
+        await self._gate("GET /me/playlists", scope)
         playlists = [item.playlist for item in self.catalog.library_playlists()]
         return _page(playlists, offset, limit)
 
     async def playlist(self, playlist_id: str, *, scope: ApiScope = OTHER) -> Playlist:
-        self._call("GET /playlists/{id}", scope)
+        await self._gate("GET /playlists/{id}", scope)
         item = self.catalog.playlists.get(playlist_id)
         if item is None or item.access == "spotify" or playlist_id.startswith(SPOTIFY_MADE_PREFIX):
             raise NotFound("Resource not found", status=404)
@@ -134,7 +146,7 @@ class FakeWebApi:
     async def playlist_items(
         self, playlist_id: str, *, offset: int = 0, limit: int = 50, scope: ApiScope = OTHER
     ) -> Page[PlaylistEntry]:
-        self._call("GET /playlists/{id}/items", scope)
+        await self._gate("GET /playlists/{id}/items", scope)
         item = self.catalog.playlists.get(playlist_id)
         if item is None or item.access == "spotify":
             raise NotFound("Resource not found", status=404)
@@ -146,7 +158,7 @@ class FakeWebApi:
     async def saved_tracks(
         self, *, offset: int = 0, limit: int = 50, scope: ApiScope = OTHER
     ) -> Page[SavedTrack]:
-        self._call("GET /me/tracks", scope)
+        await self._gate("GET /me/tracks", scope)
         saved = [
             SavedTrack(added_at=entry.added_at or "", track=entry.track)
             for entry in self.catalog.liked
@@ -157,7 +169,7 @@ class FakeWebApi:
     async def saved_albums(
         self, *, offset: int = 0, limit: int = 50, scope: ApiScope = OTHER
     ) -> Page[SavedAlbum]:
-        self._call("GET /me/albums", scope)
+        await self._gate("GET /me/albums", scope)
         albums = []
         for item in self.catalog.saved_albums():
             tracks = [entry.track for entry in item.entries if entry.track is not None]
@@ -172,7 +184,7 @@ class FakeWebApi:
     async def album_tracks(
         self, album_id: str, *, offset: int = 0, limit: int = 50, scope: ApiScope = OTHER
     ) -> Page[Track]:
-        self._call("GET /albums/{id}/tracks", scope)
+        await self._gate("GET /albums/{id}/tracks", scope)
         item = self.catalog.albums.get(album_id)
         if item is None:
             raise NotFound("Resource not found", status=404)
@@ -180,11 +192,11 @@ class FakeWebApi:
         return _page(tracks, offset, limit)
 
     async def devices(self, *, scope: ApiScope = OTHER) -> list[Device]:
-        self._call("GET /me/player/devices", scope)
+        await self._gate("GET /me/player/devices", scope)
         return self.player.devices()
 
     async def player_state(self, *, scope: ApiScope = OTHER) -> PlayerState | None:
-        self._call("GET /me/player", scope)
+        await self._gate("GET /me/player", scope)
         return self.player.player_state()
 
     async def play(
@@ -196,35 +208,53 @@ class FakeWebApi:
         position_ms: int = 0,
         scope: ApiScope = OTHER,
     ) -> None:
-        self._call("PUT /me/player/play", scope)
+        await self._gate("PUT /me/player/play", scope)
         self.player.api_play(device_id, context_uri, offset_uri, position_ms)
 
     async def pause(self, *, device_id: str, scope: ApiScope = OTHER) -> None:
-        self._call("PUT /me/player/pause", scope)
+        await self._gate("PUT /me/player/pause", scope)
         self.player.api_pause(device_id)
 
     async def seek(self, position_ms: int, *, device_id: str, scope: ApiScope = OTHER) -> None:
-        self._call("PUT /me/player/seek", scope)
+        await self._gate("PUT /me/player/seek", scope)
         self.player.api_seek(position_ms, device_id)
 
     async def set_shuffle(self, state: bool, *, device_id: str, scope: ApiScope = OTHER) -> None:
-        self._call("PUT /me/player/shuffle", scope)
+        await self._gate("PUT /me/player/shuffle", scope)
         self.player.api_shuffle(state, device_id)
 
     async def set_repeat(
         self, state: RepeatState, *, device_id: str, scope: ApiScope = OTHER
     ) -> None:
-        self._call("PUT /me/player/repeat", scope)
+        await self._gate("PUT /me/player/repeat", scope)
         self.player.api_repeat(state, device_id)
 
     # --- Inside --------------------------------------------------------------------------------
 
-    def _call(self, endpoint: str, scope: ApiScope) -> None:
-        """Records the call, then raises what a disconnected, expired or failing API would."""
+    async def aclose(self) -> None:
+        return None
+
+    async def _gate(self, endpoint: str, scope: ApiScope) -> None:
+        """Records the call, then raises what a disconnected, expired or failing API would.
+
+        With an AuthStore attached (services.py does it in fake mode), the controller's stored
+        token decides, as it does for the real port: no token is NotConnected, and an expiry it
+        already knows of is ConnectionExpired. `expired` set by a test is Spotify answering
+        `invalid_grant`, which the controller learns here, as the real port's refresh would.
+        """
         self.calls.append(FakeCall(endpoint, scope))
-        if not self.connected:
+        if self.auth is not None:
+            row = await self.auth.load()
+            connected = row.has_token
+            known_expired = row.invalid_grant_at is not None
+        else:
+            connected = self.connected
+            known_expired = False
+        if not connected:
             raise NotConnected("not connected: connect the Web API first (wizard step 5)")
-        if self.expired:
+        if self.expired or known_expired:
+            if self.auth is not None and not known_expired:
+                await self.auth.mark_invalid_grant()
             raise ConnectionExpired("invalid_grant: Refresh token revoked", status=400)
         if self.failures:
             raise self.failures.pop(0)

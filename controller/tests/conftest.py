@@ -7,6 +7,8 @@
 - `running_app`: the app with its lifespan entered (store open, background tasks running).
 - `client`: an httpx.AsyncClient that calls the running app in-process (ASGITransport).
 - For WebSockets, see tests/asgi_ws.py; for checking bodies against openapi.yaml, tests/contract.py.
+- `spotify_mock`: a mock Spotify (tests/spotify_mock.py) on the fake clock. `mock_webapi`: the
+  real Web API port on it, in place of the fake one (not connected: `await connect(...)`).
 
 Every test's event loop runs in asyncio debug mode, and a callback that runs longer than 100 ms
 fails the test (design.md § Stack): something blocked the loop. Mark a test that blocks on
@@ -24,10 +26,12 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
+from spotify_mock import SpotifyMock, use_mock
 from spotivault.app import create_app
 from spotivault.config import Config, load_config
 from spotivault.fake.clock import FakeClock
 from spotivault.services import Services, build_services
+from spotivault.webapi.client import SpotifyWebApi
 
 SLOW_CALLBACKS = pytest.StashKey["SlowCallbackLog"]()
 
@@ -175,6 +179,19 @@ async def running_app(app: FastAPI, services: Services) -> AsyncIterator[FastAPI
         yield app
     if services.fatal_errors:
         pytest.fail(f"a background task failed: {services.fatal_errors!r}")
+
+
+@pytest.fixture
+def spotify_mock(fake_clock: FakeClock, config: Config) -> SpotifyMock:
+    """A mock Spotify with the fixtures library, on the fake clock (tests/spotify_mock.py)."""
+    return SpotifyMock(clock=fake_clock, device_name=config.device_name)
+
+
+@pytest.fixture
+def mock_webapi(services: Services, spotify_mock: SpotifyMock) -> SpotifyWebApi:
+    """The real Web API port on `spotify_mock`, in place of the fake one. Not connected yet:
+    `await connect(services, spotify_mock)` (from spotify_mock) once the store is open."""
+    return use_mock(services, spotify_mock)
 
 
 @pytest.fixture

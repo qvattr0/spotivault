@@ -23,6 +23,7 @@ PROTOCOLS = {
     "webapi": ports.WebApi,
     "storage": ports.StorageProbe,
     "desktop": ports.Desktop,
+    "cdn": ports.ImageCdn,
 }
 
 

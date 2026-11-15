@@ -124,6 +124,8 @@ spotivault uses the Web API to list your playlists and albums and to start playb
    - Opens Spotify's consent page in a new tab.
    - After you approve, the browser goes to `http://127.0.0.1:8888/callback?...` and shows an error page. That's expected.
    - You copy that whole URL from the address bar and paste it into the field this step then shows. Then Connect.
+   - A pasted address works once. If the exchange then fails, press Authorize again for a new one.
+   - If you declined on Spotify's page, the error says so.
 4. **Checks:** both must pass for the step to turn green.
    - The token works. Shows "Connected as <display name>".
    - The container's client is listed as a playback device. If not: "Make sure the client in step 3 is open and logged in", with Retry.
@@ -136,6 +138,7 @@ Scopes requested:
 **Token storage and expiry:**
 - The token is kept in `/config` and refreshed by the controller. The Client ID is permanent unless the app is deleted.
 - **Six-month expiry:** since mid-2026, a Spotify refresh token expires 6 months after you authorize, and refreshing does not extend it. An expired token gets `400 invalid_grant`. So the controller stores the authorization date, and the UI shows when the connection expires.
+- **When it counts as expired:** from the expiry date, the connection shows as expired and scheduled runs are held. A request is refused only after Spotify answers `invalid_grant`, so Spotify has the final say.
 - **Connection summary:** the step's success state shows "Connected as <name> · expires <date>".
 
 **Reconnect:**
@@ -211,12 +214,12 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 | POST | `/api/spotify/app` | 5 | Stores the Client ID. |
 | POST | `/api/spotify/auth/start` | 5 | Returns the authorize URL. The PKCE verifier stays on the server. |
 | POST | `/api/spotify/auth/finish` | 5 | Body: `{redirect_url}`. Exchanges the code and returns the user's display name. |
-| GET | `/api/spotify/devices` | 5 | Whether the container's client is a device. |
-| GET | `/api/spotify/connection` | 5, banner, Settings | Display name, `authorized_at`, `expires_at` and state (`ok`, `expiring`, `expired`). |
+| GET | `/api/spotify/devices` | 5 | Whether the container's client is a device. Step 5's rule: Retry runs it again. Without a connection: `409 not_connected`. |
+| GET | `/api/spotify/connection` | 5, banner, Settings | Display name, `authorized_at`, `expires_at` and state: `not_configured` (no Client ID), `disconnected` (no token), `ok`, `expiring` (within 4 weeks of expiry) or `expired`. |
 | GET | `/api/storage` | 6 | Whether `/music` is mounted and writable, plus free bytes. |
 | GET/PUT | `/api/settings` | 6, 7, Settings | Format, bitrate, file layout and `auto_track_owned`. |
 | GET | `/api/library/summary` | 7, 9 | Count of owned playlists, and whether Liked Songs is tracked. |
-| PATCH | `/api/library/liked` | 7 | `{tracked}`: "Include Liked Songs". `liked` is Liked Songs' id in every Library endpoint. |
+| PATCH | `/api/library/liked` | 7 | `{tracked}`: "Include Liked Songs". `liked` is Liked Songs' id in every Library endpoint. Liked Songs exists once step 5 is done, before the first catalog refresh ends; it starts tracked only while "Automatically track playlists I create" is on. |
 | GET | `/api/albums/saved` | 8 | The saved-album count. Shared with the Albums + modal. |
 | POST | `/api/albums` | 8 | `{all: true}` adds every saved album as Queued. Shared with the Albums page. |
 | GET | `/api/backlog` | 9 | The backup length. Shared with the Dashboard. |
@@ -239,13 +242,13 @@ The Library is where you choose what gets backed up. It follows the client's own
 
 ### Header
 - **Title:** "Library", with a one-line summary: "18 of 23 tracked · last backup 03:12 today".
-- **Filter chips** (like the client's): All · Tracked · Not tracked · Created by you · Added.
+- **Filter chips** (like the client's): All · Tracked · Not tracked · Created by you · Added. "Created by you" includes Liked Songs.
 - **Search:** a box that filters by name.
 - **Sort:** Recently backed up · Name · Recently added · Track count.
 - **View switch:** List / Grid, like the client's Library view options. The choice is remembered per browser.
 - **+ button:** adds playlists (see "Add playlists" below).
 - **Options menu (⋯):**
-  - "Automatically track playlists I create", a toggle;
+  - "Automatically track playlists I create", a toggle. Turning it off before setup is complete (step 7's "I'll choose in the Library") also untracks Liked Songs and the playlists it had tracked on its own. Later, it only stops new playlists being tracked.
   - "Back up all tracked now".
 
 ### Item states
@@ -315,6 +318,7 @@ A modal in the client's dialog style.
 - **Pasting a link:**
   - The link resolves into a preview row (cover, name, owner) with an **Add** button.
   - If it can't be used, an inline error explains why: not found, private, or made by Spotify and not supported.
+  - A link to one of your own playlists that the list hasn't loaded yet previews as a linked playlist, with no total. Once added, it's stored as your own.
 - **Suggestions:** the playlists you follow that aren't in the Library yet. Each row shows a cover, the name, the owner and an **Add** button.
   - The list shows a "Nothing to suggest" empty state.
 - **Added items:** they come in tracked. The modal stays open so you can add several, and Done closes it.
@@ -325,10 +329,10 @@ A modal in the client's dialog style.
 |---|---|---|
 | GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover` (a thumbnail URL, null for Liked Songs, which shows its tile), `cover_source` (`custom`, `spotify` or `none`)<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
 | PATCH | `/api/library/{id}` | `{tracked}`. Liked Songs' id is `liked`. |
-| POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. |
+| POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. Without a connection: `409` (`not_connected` or `connection_expired`). |
 | DELETE | `/api/library/{id}` | Removes an added item. The files are kept. |
 | GET | `/api/library/suggestions?q=` | Followed playlists not yet in the Library. |
-| POST | `/api/library/resolve` | `{url}` returns a preview without adding the playlist. |
+| POST | `/api/library/resolve` | `{url}` returns a preview without adding the playlist. Same errors as `POST`, and `503` (`spotify_unavailable` or `rate_limited`) when Spotify is down or rate-limiting. |
 | GET | `/api/library/{id}/tracks` | The track list with per-track state. |
 | GET | `/api/library/{id}/cover?size=thumb` | The cover image: `thumb` (300 px, the default) or `full`. |
 | PUT | `/api/library/{id}/cover` | Multipart image upload. Returns the item, plus `width`, `height` and any `warnings` (`not_square`, `small`). It's refused with `unsupported_type` or `too_large`, and with `not_supported` for Liked Songs. |
@@ -356,7 +360,7 @@ A separate sidebar page, because albums almost never change once they're out.
 
 ### Header
 - **Title:** "Albums", with a one-line summary: "42 albums · 39 recorded · 3 queued".
-- **Filter chips:** All · Recorded · Queued · Partial.
+- **Filter chips:** All · Recorded · Queued · Partial. Partial also lists unavailable albums that have recorded tracks.
 - **Search:** a box that filters by album or artist.
 - **Sort:** Recently added · Album · Artist · Year.
 - **View switch:** List / Grid, remembered separately from the Library's.
@@ -371,6 +375,8 @@ A separate sidebar page, because albums almost never change once they're out.
 | Recorded | Every track is recorded. Scheduled runs skip it from now on. |
 | Partial | Some tracks failed. The next run retries only the missing tracks; the recorded ones are skipped as duplicates in under a second. |
 | Unavailable | Spotify no longer offers the album. Its files are kept. |
+
+Unavailable is checked before Recorded, so an album Spotify has dropped shows Unavailable, even when every track is recorded.
 
 ### Grid view
 - **Card:** a square cover, the album name, and the artist and year below it.
@@ -410,8 +416,8 @@ A modal in the same style as the Library's + modal.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/albums` | The added albums, with these fields:<br>• `id`, `name`, `artist`, `year`, `cover`<br>• `total`, `recorded`, `status`, `completed_at`<br><br>It filters, searches and sorts on the server. |
-| GET | `/api/albums/saved` | Saved albums not yet added, for the modal. The UI does the filtering. |
-| POST | `/api/albums` | `{ids: [...]}` adds albums, or `{all: true}` (wizard step 8) adds every saved album not yet added. They start Queued. |
+| GET | `/api/albums/saved` | Saved albums not yet added, for the modal. The UI does the filtering. Without a connection: `409 not_connected`. |
+| POST | `/api/albums` | `{ids: [...]}` adds albums, or `{all: true}` (wizard step 8) adds every saved album not yet added. They start Queued. Without a connection: `409 not_connected`. |
 | DELETE | `/api/albums/{id}` | Removes an album from the page. The files are kept. |
 | GET | `/api/albums/{id}/tracks` | The track list with per-track state. |
 | GET | `/api/albums/{id}/cover?size=thumb` | The cover image: `thumb` (300 px, the default) or `full` (640 px, as the Web API gives it). |
@@ -911,6 +917,7 @@ View-only is set on the noVNC client, which is a guard against mistakes, not a s
    - Playback moved to another device: the item is Interrupted, and the run pauses until you press Resume or Stop.
    - Playback paused for more than 20 s for another reason: the item is Interrupted and retried once at the end of the queue. If it's interrupted again, it ends as Partial.
    - A Spytify error: the item is marked Partial, and the run goes on to the next item.
+   - Spotify asks for a wait over 2 minutes (a long `Retry-After`): the controller doesn't sit it out. Until that hold passes, every Web API call, playback included, fails at once with `rate_limited`. A catalog refresh stops there, and the next one tries again.
 
 ## Open questions
 

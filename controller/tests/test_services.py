@@ -1,7 +1,9 @@
 """services.py: the lifecycle, and no lost task errors (design.md § Stack)."""
 
 import asyncio
+from collections.abc import Awaitable, Callable
 
+import pytest
 from fastapi import FastAPI
 
 from spotivault.clock import SystemClock
@@ -48,6 +50,39 @@ async def test_background_tasks_are_cancelled_at_shutdown(services: Services, ap
         await asyncio.wait_for(started.wait(), 1)
     assert cancelled.is_set()
     assert services.fatal_errors == []
+
+
+async def test_the_http_ports_close_after_the_background_tasks_have_stopped(
+    services: Services, app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    order: list[str] = []
+    started = asyncio.Event()
+
+    async def refreshing() -> None:  # a catalog refresh still going at shutdown
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0)  # still finishing, after it was cancelled
+            order.append("task stopped")
+
+    async def hook() -> None:
+        order.append("shutdown hook")
+
+    def closing(name: str) -> Callable[[], Awaitable[None]]:
+        async def aclose() -> None:
+            order.append(f"{name} closed")
+
+        return aclose
+
+    monkeypatch.setattr(services.ports.webapi, "aclose", closing("webapi"))
+    monkeypatch.setattr(services.ports.cdn, "aclose", closing("cdn"))
+    services.add_background("refreshing", refreshing)
+    services.add_shutdown("hook", hook)
+    async with app.router.lifespan_context(app):
+        await asyncio.wait_for(started.wait(), 1)
+    assert order == ["shutdown hook", "task stopped", "webapi closed", "cdn closed"]
+    assert not services.store.is_open
 
 
 def test_ports_are_fake_in_fake_mode(services: Services) -> None:

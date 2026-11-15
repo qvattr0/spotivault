@@ -28,7 +28,8 @@ def test_every_table_in_the_schema_is_created() -> None:
     expected = set(re.findall(r"^CREATE TABLE (\w+)", schema, flags=re.MULTILINE))
     conn = sqlite3.connect(":memory:", autocommit=True)
     try:
-        assert migrate(conn, load_migrations()) == 1
+        migrations = load_migrations()
+        assert migrate(conn, migrations) == migrations[-1].version
         tables = {
             row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }

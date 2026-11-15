@@ -17,12 +17,14 @@ WebApi implementation, never by its callers).
 """
 
 import asyncio
+import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol
+from urllib.parse import urlsplit
 
 # ================================================================================================
 # Clock
@@ -578,6 +580,71 @@ class WebApi(Protocol):
         """PUT /me/player/repeat."""
         ...
 
+    async def aclose(self) -> None:
+        """Closes open connections. Awaited once, at shutdown; nothing is called after it."""
+        ...
+
+
+# ================================================================================================
+# Spotify's image CDN: cover thumbnails
+# ================================================================================================
+
+# The only hosts covers are downloaded from (design.md § Spotify's image CDN): uploaded covers and
+# album art on i.scdn.co (or image-cdn-ak / image-cdn-fa.spotifycdn.com, same path), and grids of
+# four album covers on mosaic.scdn.co. Anything else is refused before a request is made.
+SPOTIFY_IMAGE_HOSTS = ("i.scdn.co", "mosaic.scdn.co")
+SPOTIFY_IMAGE_CDN_HOST = re.compile(r"image-cdn-[a-z0-9]+\.spotifycdn\.com")
+MAX_IMAGE_BYTES = 4 * 1024 * 1024  # a 1280 px grid is about 300 KB; anything near this is wrong
+IMAGE_TIMEOUT_S = 15.0  # for the whole download
+
+
+def spotify_image_url_allowed(url: str) -> bool:
+    """True for an https URL on one of Spotify's image hosts, with no user, password or port
+    other than 443. Every ImageCdn implementation checks this before anything else."""
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:
+        return False
+    if parts.scheme != "https" or parts.username is not None or parts.password is not None:
+        return False
+    if port not in (None, 443):
+        return False
+    host = (parts.hostname or "").lower()
+    return host in SPOTIFY_IMAGE_HOSTS or SPOTIFY_IMAGE_CDN_HOST.fullmatch(host) is not None
+
+
+@dataclass(frozen=True, slots=True)
+class FetchedImage:
+    """A downloaded image. Its type is read from its first bytes, not from a header."""
+
+    content_type: Literal["image/jpeg", "image/png"]
+    data: bytes = field(repr=False)
+    width: int | None  # read from the image itself; None if its header couldn't be read
+    height: int | None
+
+
+class ImageCdn(Protocol):
+    """Spotify's image CDN, for cover thumbnails (design.md § Playlist covers). Not the Web API:
+    these requests aren't in the usage log or the request scheduler.
+
+    The real one (`imagecdn.HttpImageCdn`) downloads over https with a size cap and a timeout;
+    the fake one (`fake.cdn.FakeImageCdn`) makes images up and never touches the network.
+    """
+
+    async def fetch(self, url: str) -> FetchedImage:
+        """Downloads one image, as given: no rewriting happens here.
+
+        Raises ImageRefused when `spotify_image_url_allowed(url)` is false (nothing is sent),
+        ImageNotFound for a 404, and ImageFetchFailed for anything else: another status, a
+        redirect, a timeout, a network error, more than MAX_IMAGE_BYTES, or not a JPEG or PNG.
+        """
+        ...
+
+    async def aclose(self) -> None:
+        """Closes open connections. Awaited once, at shutdown."""
+        ...
+
 
 # ================================================================================================
 # Storage: the music and config volumes
@@ -725,6 +792,23 @@ class TokenExchangeFailed(WebApiError):
     """Spotify refused the authorization code (`exchange_code`)."""
 
 
+class ImageError(PortError):
+    """Base of the image CDN's errors."""
+
+
+class ImageRefused(ImageError):
+    """The URL isn't https on one of Spotify's image hosts, so nothing was requested."""
+
+
+class ImageNotFound(ImageError):
+    """404: no image at this URL (a size code the CDN doesn't have, say)."""
+
+
+class ImageFetchFailed(ImageError):
+    """Any other failure: a status other than 200, a timeout, a network error, a body over
+    MAX_IMAGE_BYTES, or one that isn't a JPEG or PNG."""
+
+
 # ================================================================================================
 # All of them together
 # ================================================================================================
@@ -741,3 +825,4 @@ class Ports:
     webapi: WebApi
     storage: StorageProbe
     desktop: Desktop
+    cdn: ImageCdn

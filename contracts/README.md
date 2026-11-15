@@ -6,7 +6,7 @@ The stack-neutral contracts for the M1 slice. The controller and the UI are buil
 |---|---|
 | [openapi.yaml](openapi.yaml) | Every REST endpoint the slice pages use, with schemas, enums, error codes and examples (OpenAPI 3.1). |
 | [events.md](events.md) | `WS /api/events`: the envelope, the `hello` snapshot, every event's payload, and `level` throttling. |
-| [schema.sql](schema.sql) | The SQLite tables, indexes and checks, with the rules some columns encode. |
+| [schema.sql](schema.sql) | The SQLite tables, indexes and checks, with the rules some columns encode. It's migration 1; later migrations live in `controller/src/spotivault/store/migrations/` (002, S5: `followed_playlists`, `api_warnings`, `items.full_path`). |
 | [vectors/](vectors/) | Language-neutral test cases: track keys, layouts, schedule windows, the backlog estimate. Each file says how its expected values were produced. |
 
 ## Checking them
@@ -23,16 +23,16 @@ CI runs both, and loads `schema.sql` into SQLite (`.github/workflows/contracts.y
 
 **Regenerating the vectors:** `python3 contracts/vectors/generate.py --write`. Add `--recorded` and `--runs` to rebuild the track-key cases from the prototype's gitignored data, and `--go <spytify-2.0.2-src>` to add Spytify's own answers (it runs [vectors/tools/spytify_vectors_test.go](vectors/tools/spytify_vectors_test.go) in a `golang:1.26` container). The `--go` step hasn't been run yet.
 
-## Pending S0
+## S0's answers
 
-Step S0 answered all five questions (web-ui.md § Open questions). Where an answer could still change a shape, the contract says "Pending S0" (`x-pending-s0` in the OpenAPI file) and keeps the cautious answer:
+Step S0 answered all five questions (web-ui.md § Open questions), and every shape now follows them. There's no `x-pending-s0` left in the OpenAPI file.
 
 | Question | Where | Shape now |
 |---|---|---|
 | Q2: login detection | `ClientStatus.logged_in`, `login_signals`; `client.status` | **Settled (S4):** a `Users/*-user/` folder **and** a window title other than plain "Spotify". `login_signals` adds `window_title`; MPRIS is reported but isn't a signal. |
 | Q3: reading client settings | `ChecklistRow.check`; `POST /api/setup/checklist/confirm`; `checklist` table | **Settled (S4):** six Auto rows from the prefs file; crossfade, gapless and autoplay are Confirm rows. |
-| Q9: Liked Songs playback | `LibraryItem.playback_note`; `items.playback_note` | Still the cautious shape: `liked_not_playable` if it can't play as a context. S0 found it plays, so S5 can drop it. |
-| Q10: linked playlists | `PlaylistPreview` and `LibraryItem.name`; `items.name` | Still the cautious shape: name, owner and cover may be unknown. S0 found `GET /playlists/{id}` gives them; S5 settles it. |
+| Q9: Liked Songs playback | `LibraryItem`; `items.playback_note` | **Settled (S5):** Liked Songs plays as a context, so `LibraryItem.playback_note` is gone. The `items.playback_note` column stays in migration 1, always NULL. |
+| Q10: linked playlists | `PlaylistPreview` and `LibraryItem.name`; `items.name` | **Settled (S5):** `GET /playlists/{id}` gives the name, owner, cover and `snapshot_id`, with no total, so `PlaylistPreview.name` and `owner` are never null; `total` is null for a linked playlist. |
 | Q13: client install timing | `ClientInstall`; `client.install`; `client_install` table | **Settled (S4):** about 18 s, so it's a wizard step with the six phases and progress. |
 
 ## Decisions made here
