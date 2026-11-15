@@ -263,10 +263,9 @@ Step S0 of the M1 plan settled these (2026-11-15, Spytify 2.0.2):
 - **Field names:** checked against live responses; see [Web API usage](#web-api-usage).
 - **Liked Songs** plays as a context, and a playlist with unplayable entries records with offsets by URI.
 - **Login detection**, the **runtime client install** and **`--disable-dev-shm-usage`** work as described in web-ui.md (Q2, Q13).
+- **Linked playlists** (public, not followed) give their name, owner, cover and `snapshot_id`, and play by `context_uri` (Q10).
 
 Spytify's own bugs, and what the controller does about them, are in [upstream/spytify-bugs.md](upstream/spytify-bugs.md).
-
-- **Linked playlists** (public, not followed) give their name, owner, cover and `snapshot_id`, and play by `context_uri` (Q10).
 
 Still to validate:
 - **Cover sizes on the CDN:** the size rewrites in [Spotify's image CDN](#spotifys-image-cdn) rely on undocumented naming. Tested on public playlists on 2026-11-15; re-check before release, and whenever the fallback warning starts showing up.
