@@ -47,7 +47,7 @@ One container, with s6-overlay supervising:
 | PulseAudio | A null sink at 44.1 kHz. Spytify records from it. |
 | Spotify client | Installed from Spotify's apt repo on first start into `/config`, not baked into the public image. |
 | `spytifyd` | The recorder. The controller starts it for each item (`--once --serve --idle-exit 20s`), so it is not a long-running service, and the controller passes the recorder settings in at the start. |
-| controller | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. |
+| controller | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. Python; see [Stack](#stack). |
 
 **UGOS configuration:**
 - `EXPOSE 8080`.
@@ -65,6 +65,51 @@ One container, with s6-overlay supervising:
 - `recorder.duplicates=skip`
 - `recorder.skip_duplicates_forward`: off for items played as missing tracks only, on for items played whole (see [Run flow](#run-flow-per-playlist-or-album))
 - File naming from Settings › Files › Layout, passed in with the other recorder settings. The default is `{album_artist}/{album}/{track} - {title}`. How Spytify takes it is [open question 16](web-ui.md#open-questions).
+
+## Stack
+
+Chosen at Gate A of the M1 plan (2026-11-15). The sizes were measured on test builds on top of the S2 image, which is 274 MB without a controller.
+
+| Part | Choice | Why |
+|---|---|---|
+| Controller | Python 3.12, from Ubuntu's `python3` package, on asyncio | The maintainer reads Python. probe.py's tested logic carries over. |
+| Controller libraries | FastAPI (with pydantic), uvicorn (no extras), httpx, jeepney (D-Bus) and the stdlib `sqlite3` | About +62 MB on the image, worked out from the measured parts. FastAPI is used for its request validation and typed models. Starlette on its own measured about +48 MB. Any other library must be worth its size, measured as in S2. |
+| Web UI | React 19, TypeScript, Vite | Built in a Node builder stage. Only the built files ship in the image, and the controller serves them. |
+| UI packages | `openapi-typescript` (the typed client, from `contracts/openapi.yaml`), `lucide-react`, `@novnc/novnc`, self-hosted Figtree | |
+| Tests | pytest for the controller, with the simulated player and recorder; Playwright for the UI, against fake mode | |
+
+Go was the other finalist. It measured +11 MB and matches Spytify's track keys by construction, but Python is the language the maintainer can edit.
+
+**Track keys:**
+- **The rule:** Spytify lowercases with Go's `strings.ToLower` and trims with `strings.TrimSpace`. The controller uses probe.py's `go_lower` and `go_trim`, which match Go on every Unicode code point under Python 3.12 (all 1,112,064 checked at Gate A).
+- **Python upgrades:** Python 3.13 and later use a newer Unicode version and would drift. `ubuntu:24.04` stays on 3.12. If the Python version ever changes, switch to a lowercase table generated from Go.
+- **CI:** checks `contracts/vectors/track-keys.json` against Spytify's own Go code (`generate.py --go`; 34 of 34 agreed at Gate A), so the vectors aren't only checked against our own port.
+
+**The contract stays the source:** FastAPI builds its API description from the code, but `contracts/openapi.yaml` is the spec. The pydantic models are generated from the contract (with `datamodel-code-generator`, at development time only), and a test compares FastAPI's `/openapi.json` with the contract, so the code can't drift from it.
+
+**Spytify's protocol:** Python can't import Spytify's Go package `pkg/proto`. The controller's types follow `pkg/proto/schema.json`, and integration tests run against `spytifyd --fake`.
+
+### asyncio: never block the event loop
+
+The controller runs on one asyncio event loop: the REST API, both WebSockets, the `/vnc` bridge, the run engine and the scheduler. **One blocking call freezes all of them** until it returns. That's easy to miss in review, because the code still works in quick tests.
+
+**Why it matters here:** the engine steers playback within about 2 s of a track starting. A stall of a few seconds can let the wrong track play or miss a pause, and the live UI and the VNC view freeze meanwhile.
+
+| Blocks the loop, never use it there | Use instead |
+|---|---|
+| `requests`, `urllib`, a sync `httpx.Client` | `httpx.AsyncClient` |
+| `subprocess.run`, `os.system`, `dbus-send` (as probe.py does) | `asyncio.create_subprocess_exec`; jeepney's asyncio router for D-Bus |
+| `time.sleep` | `await asyncio.sleep` |
+| `sqlite3` queries, folder walks, large file reads | One worker thread for the database; `asyncio.to_thread` for files |
+
+**In FastAPI routes:** a route written as `def` runs in a worker thread, so blocking there is safe. A route written as `async def` runs on the loop itself, so one blocking call inside it freezes everything. Routes are `async def` and follow the table above.
+
+**Checks:**
+- **Lint:** ruff's `ASYNC` rules run in CI and flag blocking calls inside `async def`.
+- **Tests:** run in asyncio debug mode, and a callback slower than 100 ms fails the test.
+- **At runtime:** a watchdog measures how late the loop runs. Over 250 ms, it logs a warning, and the lag goes into the run metrics.
+
+**A related trap, lost task errors:** an exception in a task that nobody awaits disappears silently. Every task starts in a `TaskGroup`, or has a done-callback that logs its exception.
 
 ## Run flow, per playlist or album
 
