@@ -5,7 +5,7 @@
 -- The file is mode 0600: it holds the Web API tokens.
 --
 -- This is migration 1. Later migrations bump meta.schema_version and never edit this file's
--- tables in place. Shapes the open questions could change are marked "Pending S0 (Qn)".
+-- tables in place. Shapes open questions Q9 and Q10 could still change are marked "Pending S0 (Qn)".
 --
 -- Conventions:
 --   * Times are TEXT, RFC 3339 in UTC with milliseconds: '2026-11-15T00:42:10.512Z'.
@@ -95,7 +95,7 @@ CREATE TABLE pkce_pending (
 ) STRICT;
 
 -- Spotify client installs into /config/spotify/versions/<version>. One row per attempt.
--- Pending S0 (Q13): the phases may change with the install timing results.
+-- Q13, resolved in S0: the install takes about 18 s, so it's a wizard step with these phases.
 CREATE TABLE client_install (
   id               INTEGER PRIMARY KEY,
   started_at       TEXT NOT NULL,
@@ -114,8 +114,8 @@ CREATE TABLE client_install (
 CREATE UNIQUE INDEX client_install_one_current ON client_install (is_current) WHERE is_current = 1;
 
 -- Step 4's checklist: the Confirm ticks, and the last reading of each Auto row.
--- Pending S0 (Q3): which rows are 'auto' and which are 'confirm'. Plan D3's M1 default: crossfade and
--- gapless are 'confirm'; streaming_quality and auto_adjust_quality are 'auto', read from the prefs file.
+-- Q3, resolved in S0: crossfade, gapless and autoplay are 'confirm' (stored on Spotify's servers); automix,
+-- normalization, equalizer, mono, streaming_quality and auto_adjust_quality are 'auto', read from the prefs file.
 CREATE TABLE checklist (
   row_id       TEXT PRIMARY KEY CHECK (row_id IN ('crossfade', 'gapless', 'automix', 'autoplay', 'normalization',
                                                   'equalizer', 'mono', 'streaming_quality', 'auto_adjust_quality', 'volume')),

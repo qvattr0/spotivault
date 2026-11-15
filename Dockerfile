@@ -7,9 +7,15 @@
 # it in /config at runtime. See docs/design.md § Container.
 #
 #   docker build -t spotivault:dev .
+#   docker build --build-arg IMAGE_VERSION=0.1.0 -t spotivault:0.1.0 .
 
 ARG UBUNTU=ubuntu:24.04
 ARG GOLANG=golang:1.26.11-trixie
+# uv builds the controller's venv from controller/uv.lock. Keep it at the version that wrote the
+# lock file (a newer lock format fails with --frozen on an older uv).
+ARG UV=ghcr.io/astral-sh/uv:0.11.28@sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa
+
+FROM ${UV} AS uv
 
 # --- Spytify source, at a pinned tag, with our local patches ----------------------------------
 FROM ${GOLANG} AS spytify-src
@@ -62,20 +68,52 @@ RUN cd /tmp \
     && tar -C /out -Jxpf s6-overlay-noarch.tar.xz \
     && tar -C /out -Jxpf s6-overlay-x86_64.tar.xz
 
-# --- Stub controller (throwaway, replaced in S4), with noVNC's core bundled in -----------------
-FROM ${GOLANG} AS stub
+# --- noVNC's core, for the controller's web root ------------------------------------------------
+# The controller serves files from SPOTIVAULT_WEB_ROOT (/usr/local/share/spotivault/web). Its own
+# /vnc.html page (controller/src/spotivault/web/static/) imports novnc/core/rfb.js from there.
+FROM cbuild AS web
 ARG NOVNC_VERSION=1.7.0
 ARG NOVNC_SHA256=32689f18d6abe96bc6530828a6bd0b9ae33bda07c083a6575ed255b5a8f2e903
-WORKDIR /src
-COPY image/stub/go.mod image/stub/go.sum ./
-RUN go mod download
-COPY image/stub/ ./
 RUN curl -fsSL -o /tmp/novnc.tgz "https://registry.npmjs.org/@novnc/novnc/-/novnc-$NOVNC_VERSION.tgz" \
     && echo "$NOVNC_SHA256  /tmp/novnc.tgz" | sha256sum -c \
-    && mkdir -p web/novnc \
-    && tar -C web/novnc --strip-components=1 -xzf /tmp/novnc.tgz --wildcards \
+    && mkdir -p /out/novnc \
+    && tar -C /out/novnc --strip-components=1 -xzf /tmp/novnc.tgz --wildcards \
          'package/core' 'package/vendor' 'package/LICENSE.txt' 'package/docs/LICENSE.*' \
-    && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/spotivault-controller .
+    && chmod -R a+rX,go-w /out
+
+# --- The controller: a venv with the locked dependencies, byte-compiled -----------------------
+# Built on the same Ubuntu Python the image runs. The venv's python links to /usr/bin/python3.12,
+# which the final stage installs too. Only /opt/spotivault/venv leaves this stage: no uv, no pip,
+# no caches, no sources but the installed package.
+FROM ${UBUNTU} AS controller
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_PYTHON=/usr/bin/python3.12 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/spotivault/venv \
+    UV_FROZEN=1 \
+    UV_NO_CACHE=1 \
+    UV_LINK_MODE=copy
+WORKDIR /src/controller
+# The dependencies first, in their own cached step: they change less often than the code.
+COPY controller/pyproject.toml controller/uv.lock ./
+RUN uv sync --no-dev --no-install-project
+# Then the package itself, as a wheel (not a link back to /src). pyproject.toml's readme is
+# ARCHITECTURE.md, so the build needs it.
+COPY controller/ARCHITECTURE.md ./
+COPY controller/src/ src/
+# Byte-compiled here, because the app user can't write to /opt/spotivault. Timestamp pycs: COPY
+# keeps the files' mtimes, so they stay valid in the final stage (smoke.sh checks it).
+RUN uv sync --no-dev --no-editable \
+    && venv=/opt/spotivault/venv \
+    && test ! -e "$venv/bin/pip" \
+    && find "$venv" -name '*.pyc' -delete \
+    && "$venv/bin/python" -m compileall -q -j 0 "$venv/lib/python3.12/site-packages" \
+    && "$venv/bin/python" -c 'import spotivault.app, spotivault.__main__' \
+    && test -f "$venv/lib/python3.12/site-packages/spotivault/store/migrations/001_initial.sql"
 
 # --- Placeholder packages for hard Depends that nothing here loads ----------------------------
 # Empty packages that stand in for real ones, so apt doesn't pull what no program here links:
@@ -129,6 +167,16 @@ RUN set -eux \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/debconf/*-old /var/lib/dpkg/*-old /var/log/apt /var/log/dpkg.log
 
+# The controller's runtime, in its own layer:
+#   python3    Ubuntu's Python 3.12 (docs/design.md § Stack). Not python3-minimal: that lacks
+#              asyncio and sqlite3.
+#   x11-utils  xwininfo, which reads the client's window title for login detection (web-ui.md step 3).
+RUN set -eux \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends python3 x11-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/debconf/*-old /var/lib/dpkg/*-old /var/log/apt /var/log/dpkg.log
+
 # The app user (uid 1000) replaces the base image's "ubuntu" user. /config/home is its home.
 # /etc/machine-id follows /config/machine-id, which init-spotivault keeps for the life of /config.
 RUN userdel --remove ubuntu \
@@ -167,5 +215,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --start-interval=2s -
     CMD curl -fsS -o /dev/null http://127.0.0.1:8080/api/health || exit 1
 ENTRYPOINT ["/init"]
 
-# Last, in its own layer: the stub controller. S4 replaces it with the real one.
-COPY --from=stub /out/spotivault-controller /usr/local/bin/spotivault-controller
+# Last, as they change most: noVNC's core in the web root, and the controller's venv. s6 runs
+# /opt/spotivault/venv/bin/python -m spotivault (image/rootfs/etc/s6-overlay/s6-rc.d/controller).
+COPY --from=web /out/ /usr/local/share/spotivault/web/
+COPY --from=controller /opt/spotivault/venv/ /opt/spotivault/venv/
+# The image's version, for Settings › Container (GET /api/container).
+ARG IMAGE_VERSION=dev
+ENV SPOTIVAULT_IMAGE_VERSION=$IMAGE_VERSION

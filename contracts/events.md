@@ -2,16 +2,18 @@
 
 One WebSocket carries every live update, for every page. This file is its contract. The REST side is [openapi.yaml](openapi.yaml), and schema names below (`RunSummary`, `QueueItem` and so on) point into its `components.schemas`.
 
-**Pending S0:** where an answer to Q2, Q3, Q9, Q10 or Q13 would change a payload, the event says "Pending S0". The payloads take the cautious answer until then.
+**Pending S0:** step S0 answered Q2, Q3, Q9, Q10 and Q13. The client payloads follow the answers. Where Q9 or Q10 would still change a payload, the event says "Pending S0" and takes the cautious answer until S5 builds the Library.
 
 ## Connection
 
 - **URL:** `ws://<host>:8080/api/events`. No subprotocol, no auth in M1 (plan D11).
+- **Origin:** a browser page from another site is refused before the handshake (HTTP 403). Allowed: no `Origin` header, the same host and port, or both on loopback (`localhost`, `127.0.0.1`, `[::1]`, any port), which covers a Vite dev server proxying to a local controller.
 - **Direction:** server to client only. Messages the client sends are ignored, except WebSocket pings.
 - **Frames:** one JSON text frame per event.
 - **Keep-alive:** the server sends a WebSocket ping every 20 s. A client that hears nothing for 45 s reconnects.
 - **Reconnecting:** with backoff, 1 s doubling to 15 s at most. Every new connection starts with a fresh `hello`, so there's no replay and no `since`.
 - **Slow clients:** the server keeps up to 256 unsent events per connection. If that fills, it closes the socket with code `1013` ("try again later"), and the client reconnects and gets a new `hello`. The one exception is `level`, which is dropped instead (see [Level throttling](#level-throttling)).
+- **Close codes:** `1013` for a slow client, `1011` when the `hello` snapshot fails or a ping goes unanswered, and `1012` when the controller is stopping. The client reconnects on all three. (`WS /vnc` closes with `1013` while there's no screen yet.)
 
 ## Envelope
 
@@ -179,13 +181,13 @@ Pending S0 (Q9): if Liked Songs can't be played as a context, its `library.item`
 |---|---|---|
 | `setup.state` | `Setup` | A step changes state. |
 | `client.install` | `ClientInstall`, plus `log_line` | Install progress: each phase change, each new log line, and download progress at most twice a second. `log_line` is the new line, or null. |
-| `client.status` | `ClientStatus` | The client starts, stops, finishes installing, or logs in or out. |
+| `client.status` | `ClientStatus` | Any field changes, except install progress (`client.install` carries that) and the window title alone (it changes with every track): the client is installed, starts or stops, logs in or out, an install starts or ends, or a run starts or ends (`restartable`). |
 | `connection` | `Connection` | The Web API connection changes: connected, disconnected, `expiring` (4 weeks before), `expired`, or `invalid_grant`. The banner follows it. |
 
-**Pending S0:**
-- **Q13** (client install timing): the `client.install` phases and progress fields may change if the runtime install doesn't work as a wizard step.
-- **Q2** (login detection): `client.status.logged_in` follows plan D4's cautious rule (MPRIS name present **and** a `Users/*-user/` folder). S0 may change which signals count; `login_signals` carries them.
-- **Q3** (reading client settings): there's no checklist event. The UI re-reads `GET /api/client/checklist`, so a row's `check` moving between `auto` and `confirm` changes no event.
+**Settled in S0:**
+- **Q13** (client install timing): the install takes about 18 s, so `client.install` follows it as a wizard step.
+- **Q2** (login detection): `client.status.logged_in` is true when a `Users/*-user/` folder exists and the client's window has a title other than plain "Spotify". MPRIS isn't a signal. `login_signals` carries all three readings.
+- **Q3** (reading client settings): there's no checklist event. The UI re-reads `GET /api/client/checklist`, which also serves Re-check.
 
 ```json
 {"seq": 12, "type": "client.install", "at": "2026-11-15T09:13:40.250Z", "data": {

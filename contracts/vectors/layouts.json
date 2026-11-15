@@ -11,6 +11,7 @@
     "unknown_placeholder: web-ui.md: only {album_artist}, {artists}, {title}, {album}, {track} and {year} are accepted. Spytify's old name {artist} is refused too. details.placeholder names the first one.",
     "stray_brace: extra: a { or } that isn't part of a placeholder. Spytify would keep it as text; refused as a likely typo.",
     "backslash: extra: Spytify refuses a template with \\ ('folders come from output.group_by').",
+    "control_character: extra: no control character (U+0000 to U+001F, or U+007F). A NUL can't be passed in --set at all (the recorder would never start), and Spytify would drop the others from the name anyway.",
     "bad_folder: web-ui.md: the folder part, before the last /, must be none, {album_artist} or {album_artist}/{album}, exactly.",
     "empty_file_name: web-ui.md: the file name, after the last /, can't be empty or only spaces.",
     "no_placeholder: extra: Spytify refuses a template with no placeholder; {year} alone doesn't count, since it's always empty on Linux.",
@@ -18,7 +19,7 @@
     "Spytify's naming then: {track} is two digits and empty without a number; {year} is empty (none on Linux); empty () is dropped and the name trimmed of ' -_'; characters / \\ : * ? \" < > | and controls are removed; the album folder gets ' (YYYY)' only if the player sends a year.",
     "The counter prefix is three digits ('001 ') and continues across items (Spytify's output.counter_next)."
   ],
-  "extra_rules_note": "stray_brace, backslash and no_placeholder aren't in web-ui.md § Edit layout modal yet. They're the cautious reading: backslash and no_placeholder would make Spytify refuse its settings at the start of every item (exit 2). web-ui.md should list them.",
+  "extra_rules_note": "stray_brace, backslash, control_character and no_placeholder go beyond web-ui.md's first list; web-ui.md § Edit layout modal now lists them. They're the cautious reading: backslash and no_placeholder would make Spytify refuse its settings at the start of every item (exit 2), and a NUL can't be passed to the recorder at all.",
   "sample_tracks": {
     "elsewhere": {
       "artists": [
@@ -354,6 +355,61 @@
       "expected": {
         "valid": false,
         "reason": "backslash"
+      }
+    },
+    {
+      "id": "nul-in-name",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{title}\u0000",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "A NUL would make every recorder start fail.",
+      "expected": {
+        "valid": false,
+        "reason": "control_character"
+      }
+    },
+    {
+      "id": "newline-in-name",
+      "layout": {
+        "pattern": "{album_artist}/{album}/{track} - {title}\n",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "expected": {
+        "valid": false,
+        "reason": "control_character"
+      }
+    },
+    {
+      "id": "tab-in-folder",
+      "layout": {
+        "pattern": "{album_artist}\t/{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "Checked before the folder part.",
+      "expected": {
+        "valid": false,
+        "reason": "control_character"
+      }
+    },
+    {
+      "id": "delete-in-name",
+      "layout": {
+        "pattern": "{title}",
+        "prefix": "none",
+        "underscores": false,
+        "strip_accents": false
+      },
+      "note": "A DEL (U+007F) after {title}. JSON doesn't escape it, so it's invisible in this file.",
+      "expected": {
+        "valid": false,
+        "reason": "control_character"
       }
     },
     {

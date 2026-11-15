@@ -1,3 +1,10 @@
-# Only image/ is needed to build; everything else stays out of the build context.
+# Only image/ and controller/ are needed to build; everything else stays out of the build context.
 *
 !image/
+!controller/
+# The controller's local venv, fake-mode data and tool caches.
+controller/.venv
+controller/.dev
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache

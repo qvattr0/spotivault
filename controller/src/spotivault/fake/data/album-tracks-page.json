@@ -1,0 +1,66 @@
+{
+ "href": "https://api.spotify.com/v1/albums/2CmcfbEF5FiI1h7J1F1ast/tracks?offset=0&limit=2&market=from_token",
+ "items": [
+  {
+   "artists": [
+    {
+     "external_urls": {
+      "spotify": "https://open.spotify.com/artist/TaQh9F3Fw5x7D7YUbYO95Q"
+     },
+     "href": "https://api.spotify.com/v1/artists/TaQh9F3Fw5x7D7YUbYO95Q",
+     "id": "TaQh9F3Fw5x7D7YUbYO95Q",
+     "name": "Artist 1",
+     "type": "artist",
+     "uri": "spotify:artist:TaQh9F3Fw5x7D7YUbYO95Q"
+    }
+   ],
+   "disc_number": 1,
+   "duration_ms": 172941,
+   "explicit": false,
+   "external_urls": {
+    "spotify": "https://open.spotify.com/track/NE5BR7rDcG0PAgPVeHwIvL"
+   },
+   "href": "https://api.spotify.com/v1/tracks/NE5BR7rDcG0PAgPVeHwIvL",
+   "id": "NE5BR7rDcG0PAgPVeHwIvL",
+   "is_playable": true,
+   "name": "Track 1",
+   "track_number": 1,
+   "type": "track",
+   "uri": "spotify:track:NE5BR7rDcG0PAgPVeHwIvL",
+   "is_local": false
+  },
+  {
+   "artists": [
+    {
+     "external_urls": {
+      "spotify": "https://open.spotify.com/artist/TaQh9F3Fw5x7D7YUbYO95Q"
+     },
+     "href": "https://api.spotify.com/v1/artists/TaQh9F3Fw5x7D7YUbYO95Q",
+     "id": "TaQh9F3Fw5x7D7YUbYO95Q",
+     "name": "Artist 1",
+     "type": "artist",
+     "uri": "spotify:artist:TaQh9F3Fw5x7D7YUbYO95Q"
+    }
+   ],
+   "disc_number": 1,
+   "duration_ms": 322191,
+   "explicit": false,
+   "external_urls": {
+    "spotify": "https://open.spotify.com/track/m45SF0tsJZ56sblz46Gaot"
+   },
+   "href": "https://api.spotify.com/v1/tracks/m45SF0tsJZ56sblz46Gaot",
+   "id": "m45SF0tsJZ56sblz46Gaot",
+   "is_playable": true,
+   "name": "Track 2",
+   "track_number": 2,
+   "type": "track",
+   "uri": "spotify:track:m45SF0tsJZ56sblz46Gaot",
+   "is_local": false
+  }
+ ],
+ "limit": 2,
+ "next": "https://api.spotify.com/v1/albums/2CmcfbEF5FiI1h7J1F1ast/tracks?offset=2&limit=2&market=from_token",
+ "offset": 0,
+ "previous": null,
+ "total": 8
+}

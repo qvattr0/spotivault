@@ -16,7 +16,9 @@
 <div id="status">Connecting…</div>
 <div id="screen"></div>
 <script type="module">
-  // Throwaway stub page (S2). The real UI embeds the same noVNC core.
+  // The client's screen at full size: the S2 stub's page, kept by the controller (web/spa.py) as a
+  // fallback that works without the web UI. The UI's Player page embeds noVNC itself.
+  // noVNC's core comes from the web root: <web root>/novnc/core/rfb.js.
   import RFB from './novnc/core/rfb.js';
 
   const status = document.getElementById('status');
