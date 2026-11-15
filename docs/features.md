@@ -86,7 +86,7 @@ Each phase needs the one before it. Within a phase, the order is a suggestion.
 | Shell: sidebar, bottom bar, expiry banner | [web-ui.md § Navigation](web-ui.md#navigation) | Specified | | |
 | Setup wizard, steps 1–8 | [web-ui.md § Setup wizard](web-ui.md#setup-wizard) | Specified | | Step 8 is Albums. |
 | Setup wizard, step 9 (Done) and its backup length | [web-ui.md § 9. Done](web-ui.md#9-done) | Needs review | | The backup-length line isn't drawn yet. |
-| Library: list, grid, detail, + modal | [web-ui.md § Library](web-ui.md#library) | Specified | Q10 | |
+| Library: list, grid, detail, + modal | [web-ui.md § Library](web-ui.md#library) | Specified | | Followed playlists show "n / total"; linked ones "n recorded". |
 | Library: custom playlist covers | [web-ui.md § Detail view](web-ui.md#detail-view) | Needs review | | |
 | Albums | [web-ui.md § Albums](web-ui.md#albums) | Specified | | |
 | Dashboard: idle and running | [web-ui.md § Dashboard](web-ui.md#dashboard) | Specified | | |
