@@ -93,7 +93,7 @@ It prints one JSON object per line (`{"stage":"download","percent":42,…}`), wh
 
 ### What's in the image
 
-The image is 281 MB uncompressed (98 MB compressed). The feasibility prototype was 1.43 GB (1.95 GB as Docker Desktop counts it, with the compressed copy).
+The image is 281 MB uncompressed (95 MB compressed). The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
 
 | Part | How it's kept small |
 |---|---|
