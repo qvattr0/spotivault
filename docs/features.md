@@ -35,12 +35,16 @@ Each phase needs the one before it. Within a phase, the order is a suggestion.
 
 | Feature | Spec | Status | Waits on | Notes |
 |---|---|---|---|---|
-| Base image: Ubuntu 24.04 or Debian 13, amd64 | [design.md § Feasibility summary](design.md#feasibility-summary) | Specified | | glibc 2.38+ for the client. |
-| s6-overlay services: Xvfb and window manager, x11vnc and noVNC, D-Bus, PulseAudio null sink | [design.md § Container](design.md#container) | Specified | | |
+| Base image: Ubuntu 24.04 or Debian 13, amd64 | [design.md § Feasibility summary](design.md#feasibility-summary) | Built | | `ubuntu:24.04`: [Dockerfile](../Dockerfile). glibc 2.39, which client 1.3.4 needs. |
+| Lean image: static `spytifyd` 2.0.2, minimal ffmpeg, the client's libraries without the client, trimmed packages | [design.md § What's in the image](design.md#whats-in-the-image) | Built | | [Dockerfile](../Dockerfile), [image/](../image/). 281 MB uncompressed; the prototype was 1.43 GB. |
+| s6-overlay services: Xvfb and window manager, x11vnc and noVNC, D-Bus, PulseAudio null sink | [design.md § Container](design.md#container) | Built | | [image/rootfs/etc/s6-overlay/](../image/rootfs/etc/s6-overlay/). matchbox-window-manager instead of openbox, for size. noVNC is served by the stub controller ([image/stub/](../image/stub/)) until S4. |
+| Startup checks for `UMASK`, `TZ` and `DEVICE_NAME` | [design.md § Startup checks](design.md#startup-checks) | Built | | [init-spotivault](../image/rootfs/etc/s6-overlay/scripts/init-spotivault). |
+| Client install script: checked download, versions, `ldd` check, JSON progress | [design.md § The Spotify client](design.md#the-spotify-client) | Built | | [spotify-install](../image/rootfs/usr/local/bin/spotify-install). About 20 s on Docker Desktop. |
 | Spotify client installed into `/config` on first start | [design.md § Container](design.md#container), [web-ui.md § 2. Spotify client](web-ui.md#2-spotify-client) | Specified | Q13 | |
-| `DEVICE_NAME` preload library and a stable `/config/machine-id` | [design.md § Container](design.md#container) | Specified | | |
-| UGOS setup: port 8080, volumes, env vars, `docker-compose.yml` | [design.md § Container](design.md#container) | Specified | | Avoid host ports 9999 and 9443. |
-| GitHub Actions image build to Docker Hub | [design.md § Distribution](design.md#distribution) | Specified | | |
+| `DEVICE_NAME` preload library and a stable `/config/machine-id` | [design.md § Container](design.md#container) | Built | | [hostname-shim.c](../image/hostname-shim.c), [init-spotivault](../image/rootfs/etc/s6-overlay/scripts/init-spotivault). The device kept its name and ID across `--force-recreate` and an image update. |
+| UGOS setup: port 8080, volumes, env vars, `docker-compose.yml` | [design.md § Container](design.md#container) | Specified | | Avoid host ports 9999 and 9443. Port, volumes and env vars are in the image; the local [docker-compose.yml](../docker-compose.yml) is for Docker Desktop. The UGOS compose file is M2. |
+| CI: image build and smoke test | [design.md § Distribution](design.md#distribution) | Built | | [ci.yml](../.github/workflows/ci.yml), [smoke.sh](../image/test/smoke.sh). Pushes nothing. |
+| Image publishing to Docker Hub | [design.md § Distribution](design.md#distribution) | Specified | | M3. |
 
 ### Phase 2: Controller core
 

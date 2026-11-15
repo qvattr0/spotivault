@@ -9,6 +9,8 @@ A throwaway image for testing the risky parts of the spotivault design before bu
 
 This is not the production image. It bakes in the Spotify client and uses supervisord to keep iteration fast. Results go in [FINDINGS.md](FINDINGS.md).
 
+The production image supersedes it: the [Dockerfile](../Dockerfile) and [image/](../image/) at the repository root ([design.md § Container](../docs/design.md#container)).
+
 ## Run it (Docker Desktop through WSL)
 
 Docker Desktop must be running on Windows first.

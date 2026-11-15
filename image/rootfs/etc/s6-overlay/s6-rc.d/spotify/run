@@ -1,0 +1,4 @@
+#!/command/with-contenv sh
+# The Spotify client. It isn't in the image: spotify-install puts it in /config/spotify/current.
+umask 077
+exec s6-setuidgid app /etc/s6-overlay/scripts/run-spotify 2>&1

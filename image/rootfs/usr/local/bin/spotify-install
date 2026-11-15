@@ -1,0 +1,225 @@
+#!/bin/sh
+# Installs the Spotify client from Spotify's apt repository into /config/spotify, without apt and
+# without root. Run it as the app user:
+#
+#   spotify-install [--version VERSION] [--force] [--check]
+#
+#   --version  install this version instead of the newest (with or without the "1:" epoch)
+#   --force    install again even if that version is already current
+#   --check    only report the installed and the available version
+#
+# Every step is checked: InRelease against the keyring baked into the image (gpgv), Packages and
+# the .deb by sha256 and size. The client is unpacked into versions/<version>, `current` is
+# switched to it in one rename, and one previous version is kept. The client's libraries come
+# with the image, so a library missing after an update fails with "update the image".
+#
+# Progress goes to stdout as one JSON object per line, for the controller to relay:
+#   {"stage":"download","message":"Downloading the client","percent":42,"bytes":75000000,"total":179241028}
+# The last line has stage "done" (exit 0) or "error" (exit 1, with "step").
+#
+# Settings from the environment: SPOTIFY_REPO, SPOTIFY_KEYRING, SPOTIFY_ROOT.
+set -eu
+
+repo="${SPOTIFY_REPO:-https://repository.spotify.com}"
+keyring="${SPOTIFY_KEYRING:-/usr/share/keyrings/spotify.gpg}"
+root="${SPOTIFY_ROOT:-/config/spotify}"
+suite=stable
+packages_path=non-free/binary-amd64/Packages
+loader=/lib64/ld-linux-x86-64.so.2
+
+pin=""
+force=0
+check=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version) [ $# -ge 2 ] || { echo "spotify-install: --version needs a value" >&2; exit 2; }; pin="$2"; shift 2 ;;
+        --force) force=1; shift ;;
+        --check) check=1; shift ;;
+        -h | --help) sed -n '2,20s/^# \{0,1\}//p' "$0"; exit 0 ;;
+        *) echo "spotify-install: unknown option $1" >&2; exit 2 ;;
+    esac
+done
+
+# --- Output -------------------------------------------------------------------------------------
+
+step=start
+
+# JSON string contents: control characters become spaces, then \ and " are escaped.
+jstr() {
+    printf '%s' "$1" | tr '\000-\037' ' ' | sed 's/[\\"]/\\&/g'
+}
+
+# emit STAGE MESSAGE [EXTRA], where EXTRA is more JSON members, such as "percent":5
+emit() {
+    printf '{"stage":"%s","message":"%s"%s}\n' "$1" "$(jstr "$2")" "${3:+,$3}"
+}
+
+fail() {
+    emit error "$1" "\"step\":\"$step\""
+    exit 1
+}
+
+# --- Helpers ------------------------------------------------------------------------------------
+
+fetch() { # URL FILE
+    curl -fsSL --retry 3 --connect-timeout 20 -o "$2" "$1" 2>"$tmp/curl.log" ||
+        fail "download failed: $1: $(tail -n 1 "$tmp/curl.log")"
+}
+
+check_file() { # FILE SHA256 SIZE NAME
+    [ "$(stat -c %s "$1")" = "$3" ] || fail "$4: wrong size ($(stat -c %s "$1") bytes, expected $3)"
+    [ "$(sha256sum "$1" | cut -d' ' -f1)" = "$2" ] || fail "$4: sha256 doesn't match"
+}
+
+installed_version() {
+    t="$(readlink "$root/current" 2>/dev/null)" || return 0
+    printf '%s' "${t#versions/}"
+}
+
+# --- Lock and scratch folder --------------------------------------------------------------------
+
+[ "$(id -u)" != 0 ] || { step=start; fail "run this as the app user, not root (docker exec -u app ...)"; }
+mkdir -p "$root/versions"
+exec 9>"$root/.lock"
+flock -n 9 || fail "another spotify-install is running"
+tmp="$root/.tmp"
+rm -rf "$tmp"
+mkdir -p "$tmp"
+trap 'rm -rf "$tmp"' EXIT
+
+# --- Repository metadata ------------------------------------------------------------------------
+
+step=release
+emit release "Checking Spotify's repository"
+fetch "$repo/dists/$suite/InRelease" "$tmp/InRelease"
+# Only the signed text gpgv writes out is trusted from here on.
+gpgv --keyring "$keyring" --output "$tmp/Release" "$tmp/InRelease" 2>"$tmp/gpgv.log" ||
+    fail "InRelease signature check failed ($(grep -v '^gpgv: using' "$tmp/gpgv.log" | tail -n 1)); the repository key may have changed: update the image"
+
+step=packages
+# shellcheck disable=SC2046 # split into sha256 and size
+set -- $(awk -v p="$packages_path" '
+    /^[A-Za-z0-9]+:/ { section = $1 }
+    section == "SHA256:" && NF == 3 && $3 == p { print $1, $2; exit }
+' "$tmp/Release")
+[ $# -eq 2 ] || fail "InRelease doesn't list $packages_path"
+fetch "$repo/dists/$suite/$packages_path" "$tmp/Packages"
+check_file "$tmp/Packages" "$1" "$2" Packages
+
+# Every spotify-client stanza as "version filename sha256 size".
+awk -v RS= '
+    {
+        pkg = ver = file = sha = size = ""
+        n = split($0, lines, "\n")
+        for (i = 1; i <= n; i++) {
+            if (lines[i] ~ /^Package: /) pkg = substr(lines[i], 10)
+            else if (lines[i] ~ /^Version: /) ver = substr(lines[i], 10)
+            else if (lines[i] ~ /^Filename: /) file = substr(lines[i], 11)
+            else if (lines[i] ~ /^SHA256: /) sha = substr(lines[i], 9)
+            else if (lines[i] ~ /^Size: /) size = substr(lines[i], 7)
+        }
+        if (pkg == "spotify-client" && ver != "" && file != "" && sha != "" && size != "")
+            print ver, file, sha, size
+    }
+' "$tmp/Packages" > "$tmp/candidates"
+
+best=""
+while read -r v f s z; do
+    if [ -n "$pin" ]; then
+        [ "$v" = "$pin" ] || [ "${v#*:}" = "$pin" ] || continue
+    elif [ -n "$best" ] && ! dpkg --compare-versions "$v" gt "${best%% *}"; then
+        continue
+    fi
+    best="$v $f $s $z"
+done < "$tmp/candidates"
+[ -n "$best" ] || fail "no spotify-client${pin:+ $pin} in the repository"
+# shellcheck disable=SC2086 # split into its four fields
+set -- $best
+version="$1" filename="$2" sha256="$3" size="$4"
+ver="${version#*:}"
+case "$ver" in
+    *[!A-Za-z0-9.+~-]* | "" | .*) fail "unexpected version string: $version" ;;
+esac
+case "$filename" in
+    pool/*.deb) ;;
+    *) fail "unexpected file name: $filename" ;;
+esac
+
+current="$(installed_version)"
+if [ "$check" = 1 ]; then
+    emit check "Installed: ${current:-none}. Available: $ver." "\"installed\":\"$(jstr "$current")\",\"available\":\"$ver\""
+    exit 0
+fi
+if [ "$current" = "$ver" ] && [ "$force" = 0 ] && [ -x "$root/current/spotify" ]; then
+    emit "done" "Spotify $ver is already installed" "\"version\":\"$ver\",\"previous\":\"\",\"changed\":false"
+    exit 0
+fi
+
+# --- Download -----------------------------------------------------------------------------------
+
+step=space
+# The .deb, plus the client unpacked (about twice its size), plus some room.
+need_kb=$((size * 4 / 1024))
+free_kb="$(df -Pk "$root" | awk 'NR == 2 { print $4 }')"
+[ "$free_kb" -ge "$need_kb" ] ||
+    fail "not enough free space in $root: $((free_kb / 1024)) MB free, $((need_kb / 1024)) MB needed"
+
+step=download
+emit download "Downloading Spotify $ver" "\"percent\":0,\"bytes\":0,\"total\":$size"
+deb="$tmp/spotify.deb"
+curl -fsSL --retry 3 --connect-timeout 20 -o "$deb" "$repo/$filename" 2>"$tmp/curl.log" &
+pid=$!
+last=0
+while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    bytes="$(stat -c %s "$deb" 2>/dev/null || echo 0)"
+    pct=$((bytes * 100 / size))
+    if [ "$pct" -ne "$last" ] && [ "$pct" -lt 100 ]; then
+        last=$pct
+        emit download "Downloading Spotify $ver" "\"percent\":$pct,\"bytes\":$bytes,\"total\":$size"
+    fi
+done
+wait "$pid" || fail "download failed: $(tail -n 1 "$tmp/curl.log")"
+emit download "Downloaded Spotify $ver" "\"percent\":100,\"bytes\":$size,\"total\":$size"
+
+step=verify
+emit verify "Checking the download"
+check_file "$deb" "$sha256" "$size" "$(basename "$filename")"
+
+# --- Unpack and check ---------------------------------------------------------------------------
+
+step=unpack
+emit unpack "Unpacking"
+dpkg-deb -x "$deb" "$tmp/root" 2>"$tmp/dpkg.log" || fail "unpacking failed: $(tail -n 1 "$tmp/dpkg.log")"
+rm -f "$deb"
+new="$tmp/root/usr/share/spotify"
+[ -x "$new/spotify" ] || fail "the package has no usr/share/spotify/spotify"
+
+step=libraries
+emit libraries "Checking the client's libraries"
+missing="$("$loader" --list "$new/spotify" 2>&1 | awk '/not found/ { print $1 }' | sort -u | tr '\n' ' ')"
+[ -z "$missing" ] || fail "Spotify $ver needs libraries this image doesn't have (${missing% }): update the image"
+
+# --- Switch -------------------------------------------------------------------------------------
+
+step=switch
+emit switch "Switching to Spotify $ver"
+if [ -e "$root/versions/$ver" ]; then
+    # A forced reinstall: move the old copy aside. A client still running from it keeps its files.
+    mv "$root/versions/$ver" "$tmp/replaced"
+fi
+mv "$new" "$root/versions/$ver"
+ln -s "versions/$ver" "$root/current.new"
+mv -T "$root/current.new" "$root/current"
+
+# Keep the new version and the one it replaced.
+step=cleanup
+for d in "$root"/versions/*; do
+    [ -e "$d" ] || continue
+    v="$(basename "$d")"
+    [ "$v" = "$ver" ] || [ "$v" = "$current" ] || rm -rf "$d"
+done
+
+previous=""
+[ "$current" = "$ver" ] || previous="$current"
+emit "done" "Installed Spotify $ver" "\"version\":\"$ver\",\"previous\":\"$(jstr "$previous")\",\"changed\":true"

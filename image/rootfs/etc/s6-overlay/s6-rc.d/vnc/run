@@ -1,0 +1,4 @@
+#!/command/with-contenv sh
+# VNC on 127.0.0.1:5900 only. The controller bridges it to the browser at WS /vnc.
+umask 077
+exec s6-setuidgid app x11vnc -display "$DISPLAY" -localhost -rfbport 5900 -forever -shared -nopw -quiet 2>&1

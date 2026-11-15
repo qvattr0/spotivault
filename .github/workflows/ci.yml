@@ -1,0 +1,46 @@
+# Builds the image and runs the container smoke test. Nothing is pushed: publishing to Docker Hub
+# comes in M3. To run the same checks locally:
+#
+#   docker build -t spotivault:ci .
+#   image/test/smoke.sh spotivault:ci --install
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck
+        run: |
+          shellcheck --shell=sh \
+            image/rootfs/usr/local/bin/spotify-install \
+            image/rootfs/etc/s6-overlay/scripts/* \
+            image/rootfs/etc/s6-overlay/s6-rc.d/*/run
+          shellcheck image/test/smoke.sh
+
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: spotivault:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: image/test/smoke.sh spotivault:ci --install
