@@ -1,0 +1,26 @@
+# Local development on Docker Desktop: builds the image from source and keeps its data in ./data
+# (git-ignored). The NAS compose file for the UGOS Docker app comes in M2.
+#
+#   docker compose up -d --build
+#   docker exec -u app spotivault-m1 spotify-install
+#
+# Then open http://localhost:8080/vnc.html to log the client in.
+services:
+  spotivault:
+    build: .
+    image: spotivault:dev
+    container_name: spotivault-m1
+    # The client is Chromium, which passes data through /dev/shm. Docker's default 64 MB is too small.
+    shm_size: 1g
+    # On SIGTERM the controller stops a run and marks the current item Interrupted.
+    stop_grace_period: 60s
+    environment:
+      DEVICE_NAME: spotivault-dev   # the Spotify Connect device name ("Playing on ...")
+      TZ: UTC
+      UMASK: "000"                  # applies to /music only
+    ports:
+      - "127.0.0.1:8080:8080"       # web UI; LAN only, there's no password yet
+    volumes:
+      - ./data/config:/config
+      - ./data/music:/music
+    restart: unless-stopped

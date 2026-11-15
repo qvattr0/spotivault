@@ -1,0 +1,4 @@
+#!/command/with-contenv sh
+# The null sink Spytify records from (/etc/pulse/spotivault.pa).
+umask 077
+exec s6-setuidgid app /etc/s6-overlay/scripts/pulseaudio 2>&1
