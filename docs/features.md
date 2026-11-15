@@ -60,7 +60,7 @@ Each phase needs the one before it. Within a phase, the order is a suggestion.
 | Web API client: one request at a time, retries, request counting | [design.md § Web API usage](design.md#web-api-usage) | Specified | | Read only the 2026 field names; library endpoints kept `track` and `album`. |
 | Catalog refresh: playlists by `snapshot_id`, Liked Songs, saved albums | [design.md § Web API usage](design.md#web-api-usage) | Specified | | |
 | Client login detection | [web-ui.md § 3. Log in to Spotify](web-ui.md#3-log-in-to-spotify) | Specified | | Q2 resolved: `Users/*-user/` plus the window title, not MPRIS. |
-| Client settings checklist and pre-run check | [web-ui.md § 4. Spotify client settings](web-ui.md#4-spotify-client-settings) | Specified | Q3 | Rows that can't be read become Confirm rows. |
+| Client settings checklist and pre-run check | [web-ui.md § 4. Spotify client settings](web-ui.md#4-spotify-client-settings) | Specified | | Q3 resolved: 7 Auto rows from the prefs file; crossfade, gapless and autoplay are Confirm rows. |
 | `spytifyd` per item: JSON-RPC over the Unix socket | [design.md § Feasibility summary](design.md#feasibility-summary) | Specified | | |
 
 ### Phase 4: Run engine
@@ -84,7 +84,7 @@ Each phase needs the one before it. Within a phase, the order is a suggestion.
 |---|---|---|---|---|
 | Design system: tokens and components | [web-ui.md § Design language](web-ui.md#design-language), [design.md § Component Rules](design.md#component-rules) | Specified | | Built from the `.pen` component set. |
 | Shell: sidebar, bottom bar, expiry banner | [web-ui.md § Navigation](web-ui.md#navigation) | Specified | | |
-| Setup wizard, steps 1–8 | [web-ui.md § Setup wizard](web-ui.md#setup-wizard) | Specified | Q3 | Step 8 is Albums. |
+| Setup wizard, steps 1–8 | [web-ui.md § Setup wizard](web-ui.md#setup-wizard) | Specified | | Step 8 is Albums. |
 | Setup wizard, step 9 (Done) and its backup length | [web-ui.md § 9. Done](web-ui.md#9-done) | Needs review | | The backup-length line isn't drawn yet. |
 | Library: list, grid, detail, + modal | [web-ui.md § Library](web-ui.md#library) | Specified | Q10 | |
 | Library: custom playlist covers | [web-ui.md § Detail view](web-ui.md#detail-view) | Needs review | | |

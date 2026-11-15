@@ -96,14 +96,15 @@ Rows are grouped as they are in the client's Settings. Each row shows the requir
 | Playback | Automix | Off | Blends and alters transitions. | Auto (prefs `audio.automix`) |
 | Playback | Autoplay | Off | Stops similar songs from playing after the playlist. It may be hidden for some accounts. **Not a blocker:** the controller also stops when the playing context changes. | Confirm |
 | Playback | Volume normalization | Off | Alters levels, and "Loud" compresses. Use ReplayGain at playback instead. | Auto (prefs `audio.normalize_v2`) |
-| Playback | Equalizer | Off | Colours the recording. | Confirm |
-| Playback | Mono audio | Off | Would record mono. | Confirm |
+| Playback | Equalizer | Off | Colours the recording. | Auto (prefs `audio.equalizer_v2`) |
+| Playback | Mono audio | Off | Would record mono. | Auto (prefs `audio.downmixer_v2`) |
 | Audio quality | Streaming quality | Very high (the highest offered) | It is the quality that gets recorded. | Auto (prefs `audio.play_bitrate_enumeration` = 4) |
 | Audio quality | Auto adjust quality | Off | Spotify buffers instead of silently lowering quality. | Auto (prefs `audio.allow_downgrade`) |
 | Player | Volume | 100% | Spytify marks takes below full volume as "(low volume)" and doesn't count them. | Set for you: `player.control full_volume` before every run |
 
 - **Notes:**
   - "Auto" rows read Spotify's local prefs file (`/config/home/.config/spotify/Users/*-user/prefs`). Crossfade and gapless aren't in it: they're stored on Spotify's servers (the file only says `audio.crossfade_migrated_to_ps=true`). Spytify's `core.info` always prints "turn crossfade and gapless playback off in the player", whatever the settings, so it can't check them either. Both are Confirm rows.
+  - A setting at its default isn't written: the client drops `audio.equalizer_v2` and `audio.downmixer_v2` when they're turned off again, so a missing key means off. The client saves the file a moment after a change, so Re-check can lag by a second or two.
   - Pill states: OK, Needs change, or Unknown (it can't be read).
   - **Re-check** reads every Auto row again.
 - **Continue:** allowed when every Auto row is OK and every Confirm row is ticked. Autoplay can be left unticked, with a note.
@@ -892,7 +893,7 @@ The feasibility prototype (`prototype/`) and step S0 of the M1 plan settle these
 
 1. ~~**Login in Xvfb:** does the client's login work inside Xvfb through noVNC?~~ **Resolved:** yes, by QR code scanned with the phone app. No browser hand-off. See step 3.
 2. ~~**Detecting login:**~~ **Resolved** (S0, 2026-11-15): a logged-out client still publishes MPRIS, so MPRIS is no signal. Logged in means the `Users/*-user/` folder exists and the client's window is titled something other than plain "Spotify". The Web API device list confirms it. See step 3.
-3. **Reading client settings:** **Partly resolved** (S0): streaming quality, Auto adjust, Automix and normalization are in the prefs file, so they're Auto rows. Crossfade and gapless are stored on Spotify's servers, and Spytify's warning about them is always printed, so they're Confirm rows. Still open: whether autoplay, equalizer and mono write a prefs key once changed. Until then they stay Confirm rows.
+3. ~~**Reading client settings:**~~ **Resolved** (S0, 2026-11-15): streaming quality, Auto adjust, Automix, normalization, equalizer (`audio.equalizer_v2`) and mono (`audio.downmixer_v2`) are in the prefs file, so they're Auto rows. Crossfade, gapless and autoplay are stored on Spotify's servers (toggling autoplay writes nothing locally), and Spytify's crossfade/gapless warning is always printed, so those three are Confirm rows.
 4. ~~**OAuth redirect:**~~ **Resolved:** PKCE with `http://127.0.0.1:8888/callback`. You paste the error page's address back. Refresh tokens expire 6 months after you authorize, so there's a Reconnect flow.
 5. ~~**Container client as a device:**~~ **Resolved:** yes. It's a Connect "Computer" named after the container's hostname, set by the `DEVICE_NAME` env var (default `spotivault`).
 6. ~~**Lossless:**~~ **Resolved:** not available. The client tops out at Ogg Vorbis 320, so FLAC and WAV are marked "no benefit".
