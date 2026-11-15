@@ -209,11 +209,13 @@ NAMING = ("album_artist", "artists", "title", "album", "track")  # Spytify's "ne
 FOLDERS = {"{album_artist}": "artist", "{album_artist}/{album}": "artist/album"}
 PREFIX = {"none": "none", "counter": "counter", "track_number": "album_track"}
 BRACED = re.compile(r"\{[^{}]*\}")
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 REASONS = [
     ("unknown_placeholder", "web-ui.md: only {album_artist}, {artists}, {title}, {album}, {track} and {year} are accepted. Spytify's old name {artist} is refused too. details.placeholder names the first one."),
     ("stray_brace", "extra: a { or } that isn't part of a placeholder. Spytify would keep it as text; refused as a likely typo."),
     ("backslash", "extra: Spytify refuses a template with \\ ('folders come from output.group_by')."),
+    ("control_character", "extra: no control character (U+0000 to U+001F, or U+007F). A NUL can't be passed in --set at all (the recorder would never start), and Spytify would drop the others from the name anyway."),
     ("bad_folder", "web-ui.md: the folder part, before the last /, must be none, {album_artist} or {album_artist}/{album}, exactly."),
     ("empty_file_name", "web-ui.md: the file name, after the last /, can't be empty or only spaces."),
     ("no_placeholder", "extra: Spytify refuses a template with no placeholder; {year} alone doesn't count, since it's always empty on Linux."),
@@ -229,6 +231,8 @@ def validate_layout(pattern):
         return "stray_brace", None
     if "\\" in pattern:
         return "backslash", None
+    if CONTROL.search(pattern):
+        return "control_character", None
     folder, sep, name = pattern.rpartition("/")
     if sep and folder not in FOLDERS:
         return "bad_folder", None
@@ -272,6 +276,10 @@ LAYOUT_CASES = [
     ("stray-open", L("{album_artist}/{title"), None),
     ("stray-close", L("{title}}"), None),
     ("backslash-in-name", L("{album_artist}/{album}/{track}\\{title}"), None),
+    ("nul-in-name", L("{album_artist}/{album}/{title}\x00"), "A NUL would make every recorder start fail."),
+    ("newline-in-name", L("{album_artist}/{album}/{track} - {title}\n"), None),
+    ("tab-in-folder", L("{album_artist}\t/{title}"), "Checked before the folder part."),
+    ("delete-in-name", L("{title}\x7f"), "A DEL (U+007F) after {title}. JSON doesn't escape it, so it's invisible in this file."),
     ("folder-album-only", L("{album}/{title}"), None),
     ("folder-three-levels", L("{album_artist}/{album}/{track}/{title}"), None),
     ("folder-all-artists", L("{artists}/{title}"), "Spytify can group by all artists; the UI doesn't offer it."),
@@ -326,7 +334,7 @@ def layout_doc(old, go):
             "Spytify's naming then: {track} is two digits and empty without a number; {year} is empty (none on Linux); empty () is dropped and the name trimmed of ' -_'; characters / \\ : * ? \" < > | and controls are removed; the album folder gets ' (YYYY)' only if the player sends a year.",
             "The counter prefix is three digits ('001 ') and continues across items (Spytify's output.counter_next).",
         ],
-        "extra_rules_note": "stray_brace, backslash and no_placeholder aren't in web-ui.md § Edit layout modal yet. They're the cautious reading: backslash and no_placeholder would make Spytify refuse its settings at the start of every item (exit 2). web-ui.md should list them.",
+        "extra_rules_note": "stray_brace, backslash, control_character and no_placeholder go beyond web-ui.md's first list; web-ui.md § Edit layout modal now lists them. They're the cautious reading: backslash and no_placeholder would make Spytify refuse its settings at the start of every item (exit 2), and a NUL can't be passed to the recorder at all.",
         "sample_tracks": SAMPLE_TRACKS,
         "cases": cases,
     }
@@ -364,7 +372,7 @@ def go_layout_requests():
                                  "underscores": m["output.underscores"], "ascii_filenames": m["output.ascii_filenames"],
                                  "extension": "m4a", "counter": 1, "track": tr})
             index.append((cid, "valid", s0, len(settings), e0, len(examples)))
-        elif reason in ("backslash", "no_placeholder", "stray_brace", "unknown_placeholder"):
+        elif reason in ("backslash", "control_character", "no_placeholder", "stray_brace", "unknown_placeholder"):
             name = layout["pattern"].rpartition("/")[2]
             s0 = len(settings)
             settings.append({"key": "output.template", "value": name})

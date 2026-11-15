@@ -48,7 +48,7 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 | `dbus` | The D-Bus session bus, for MPRIS and the client's IPC. |
 | `pulseaudio` | A null sink at 44.1 kHz ([spotivault.pa](../image/rootfs/etc/pulse/spotivault.pa)). Spytify records from it with `parec`. |
 | `spotify` | The Spotify client. It isn't in the image: `spotify-install` puts it in `/config`, and the service waits until it's there. |
-| `controller` | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. Python; see [Stack](#stack). Until S4 it's a stub: `/api/health`, `/vnc.html` and `WS /vnc` ([image/stub/](../image/stub/)). |
+| `controller` | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. Python ([controller/](../controller/)); see [Stack](#stack). s6 runs `/opt/spotivault/venv/bin/python -m spotivault`. It also serves the `/vnc.html` page, with noVNC's core from its web root, `/usr/local/share/spotivault/web`. |
 
 `spytifyd` is not a service. The controller starts it for each item (`--once --serve --idle-exit 20s`) and passes the recorder settings in at the start.
 
@@ -58,6 +58,8 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 - **Root:** only s6's own supervision tree, which `/init` starts (`s6-svscan`, `s6-supervise`, the s6-rc fd holder), and the `init-spotivault` oneshot.
 - **Logs:** each service has an `s6-log` that writes to docker's stdout, prefixed with the service name, and to `/config/logs/<service>/current` with timestamps. It keeps 10 files of 1 MB.
 - **Shutdown:** the client ignores SIGTERM, SIGINT and SIGHUP. Its service quits it over MPRIS (`org.mpris.MediaPlayer2.Quit`) and kills it after 15 s. A clean quit also writes the client's `prefs` file. s6 gives the services 50 s to stop, inside the compose file's `stop_grace_period: 60s`.
+- **Restarting the client** (wizard step 3's Reset login screen, the Player's Restart client): s6's control pipes belong to root, so the controller, as `app`, can't use `s6-svc`. It does what the service does on a stop: MPRIS Quit, then a kill after 15 s if the client is still there. s6 then starts the client again, in a few seconds.
+- **Login detection:** the controller reads the client's main window title with `xwininfo -root -tree` (x11-utils). The logged-out client's window is `"Spotify": ("spotify" "Spotify")`, 1280 × 800.
 - **Health check:** `curl http://127.0.0.1:8080/api/health`, every 30 s.
 
 ### Startup checks
@@ -93,7 +95,7 @@ It prints one JSON object per line (`{"stage":"download","percent":42,…}`), wh
 
 ### What's in the image
 
-The image is 281 MB uncompressed (95 MB compressed). The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
+The image is 336 MB uncompressed (111 MB compressed). The controller is 62 MB of it: 39 MB of Python and 23 MB of venv. Without one, the S2 image was 274 MB. The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
 
 | Part | How it's kept small |
 |---|---|
@@ -107,6 +109,9 @@ The image is 281 MB uncompressed (95 MB compressed). The feasibility prototype w
 | Placeholders | Two empty packages stand in for hard Depends that nothing here loads: `libasound2-plugins` (pulseaudio's; it pulls libavcodec, about 97 MB) and `tk` (x11vnc's, for its unused `-gui`). |
 | Files | `dpkg` path-excludes for docs, man pages, translations, desktop icon themes (cursors kept) and GStreamer's ISO code tables. |
 | Fonts | `fonts-dejavu-core`, which GTK pulls anyway. |
+| Controller runtime | Ubuntu's `python3` (3.12): 24 MB installed, plus 12 MB of byte-compiled standard library. `python3-minimal` would be smaller, but it lacks `asyncio` and `sqlite3`. `x11-utils` adds `xwininfo`, for the client's window title (0.8 MB). |
+| Controller venv | Built in a builder stage with uv, from `controller/uv.lock`, at `/opt/spotivault/venv` (23 MB, 8 MB of it bytecode). It's byte-compiled there, because the `app` user can't write to it. No pip, uv or caches ship. pydantic and pydantic-core are 9.6 MB of it. |
+| noVNC | Only its `core` and `vendor` folders (0.8 MB), pinned by sha256, in the controller's web root. No websockify: the controller bridges `WS /vnc`. |
 
 The excludes are in [spotivault-excludes](../image/rootfs/etc/dpkg/dpkg.cfg.d/spotivault-excludes).
 
@@ -120,6 +125,7 @@ The excludes are in [spotivault-excludes](../image/rootfs/etc/dpkg/dpkg.cfg.d/sp
   - `UI_PASSWORD` (optional): requires a password for the web UI. It can also be set in Settings.
   - `DEVICE_NAME` (default `spotivault`): the name of the Spotify Connect device ("Playing on …"). A small preloaded library ([hostname-shim.c](../image/hostname-shim.c)) sets it, because the client takes its name from `gethostname()`. Recreating the container keeps the login: tested with `--force-recreate` and with an image update, and the device kept its name and ID. That relies on a stable `/config/machine-id` and an unchanged `DEVICE_NAME`. Changing `DEVICE_NAME` is untested.
 - `shm_size: 1g`: the client is Chromium, which passes data through `/dev/shm`.
+- **The controller's own variables** (`SPOTIVAULT_*`: port, folders, log level, fake mode) are for development and tests. They're listed in [controller/ARCHITECTURE.md § Environment](../controller/ARCHITECTURE.md#environment); the image needs none of them. One is for users: `SPOTIVAULT_ALLOWED_HOSTS`, to reach the UI by a name other than an IP address or a home-network name ([web-ui.md § Security](web-ui.md#security)).
 - **Compose files:** [docker-compose.yml](../docker-compose.yml) builds from source for Docker Desktop, with data in `./data`. The one for the UGOS Docker app's Project feature comes in M2.
 - Avoids host ports 9999 and 9443, which UGOS uses.
 
@@ -136,7 +142,7 @@ Chosen at Gate A of the M1 plan (2026-11-15). The sizes were measured on test bu
 | Part | Choice | Why |
 |---|---|---|
 | Controller | Python 3.12, from Ubuntu's `python3` package, on asyncio | The maintainer reads Python. probe.py's tested logic carries over. |
-| Controller libraries | FastAPI (with pydantic), uvicorn (no extras), httpx, jeepney (D-Bus) and the stdlib `sqlite3` | About +62 MB on the image, worked out from the measured parts. FastAPI is used for its request validation and typed models. Starlette on its own measured about +48 MB. Any other library must be worth its size, measured as in S2. |
+| Controller libraries | FastAPI (with pydantic), uvicorn (no extras) with wsproto, httpx, jeepney (D-Bus) and the stdlib `sqlite3` | About +62 MB on the image, worked out from the measured parts; the S4 image measured +62 MB (Python 39 MB, the venv 23 MB). FastAPI is used for its request validation and typed models. Starlette on its own measured about +48 MB. uvicorn without extras has no WebSocket support, so `WS /api/events` and `WS /vnc` need wsproto (92 KB, pure Python, on the h11 uvicorn already uses; uvicorn sends the 20 s pings with it). Any other library must be worth its size, measured as in S2. |
 | Web UI | React 19, TypeScript, Vite | Built in a Node builder stage. Only the built files ship in the image, and the controller serves them. |
 | UI packages | `openapi-typescript` (the typed client, from `contracts/openapi.yaml`), `lucide-react`, `@novnc/novnc`, self-hosted Figtree | |
 | Tests | pytest for the controller, with the simulated player and recorder; Playwright for the UI, against fake mode | |
@@ -151,6 +157,21 @@ Go was the other finalist. It measured +11 MB and matches Spytify's track keys b
 **The contract stays the source:** FastAPI builds its API description from the code, but `contracts/openapi.yaml` is the spec. The pydantic models are generated from the contract (with `datamodel-code-generator`, at development time only), and a test compares FastAPI's `/openapi.json` with the contract, so the code can't drift from it.
 
 **Spytify's protocol:** Python can't import Spytify's Go package `pkg/proto`. The controller's types follow `pkg/proto/schema.json`, and integration tests run against `spytifyd --fake`.
+
+### Fake mode
+
+`python -m spotivault --fake` runs the controller against a simulated outside world instead of the container's. The tests use it, and so does the UI's development. The simulators follow the prototype's tested behaviour ([FINDINGS.md](../prototype/FINDINGS.md)) and the [Spytify bugs](upstream/spytify-bugs.md), so the run engine can be tested on them.
+
+| Part | What it simulates |
+|---|---|
+| Player | The client's player and its MPRIS view. Tracks end in clock time. At the end of an album, track 1 loads paused. Another device can take playback over. The Web API reports relinked IDs and the Liked Songs alias. |
+| Recorder | `spytifyd --once`: takes, duplicates, the idle exit with its phantom take, already-playing tracks, SIGTERM and SIGKILL, capture problems. It writes sparse files and Spytify's index into the music folder. |
+| Client | The install, with `spotify-install`'s own progress lines (about 18 s), the login and the prefs file. |
+| Web API | The S0 captures in `prototype/fixtures/webapi/`, filled out to their real totals, with the 2026 access rules. |
+| Screen | A small VNC server behind `WS /vnc`. A click on its login screen stands in for scanning the QR code. |
+
+- **Scenarios:** tests start from a fresh container. The dev server starts set up: the client installed and logged in, the Web API connected, and a library. `SPOTIVAULT_FAKE_SCENARIO=wizard` starts it fresh instead, for walking the setup wizard, with a client that logs itself in.
+- **Time:** the simulators run on the controller's clock, so a test moves time by hand. `SPOTIVAULT_FAKE_SPEED` makes the dev server's world run faster, to watch whole runs.
 
 ### asyncio: never block the event loop
 

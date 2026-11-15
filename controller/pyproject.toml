@@ -1,0 +1,61 @@
+[project]
+name = "spotivault"
+version = "0.1.0"
+description = "The spotivault controller: web UI and REST/WS API, run engine and scheduler."
+readme = "ARCHITECTURE.md"
+# Python 3.12 only: track keys rely on its Unicode tables (docs/design.md § Stack).
+requires-python = ">=3.12,<3.13"
+# Pinned exactly; uv.lock pins everything they pull in. Gate A's choices (design.md § Stack), plus
+# wsproto: uvicorn without extras has no WebSocket support, and wsproto is the small, pure-Python one.
+dependencies = [
+    "fastapi==0.163.1",
+    "httpx==0.28.1",
+    "jeepney==0.9.0",
+    "uvicorn==0.54.0",
+    "wsproto==1.3.2",
+]
+
+[project.scripts]
+spotivault = "spotivault.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "datamodel-code-generator==0.96.0",  # api/models.py from contracts/openapi.yaml
+    "jsonschema==4.26.0",                # contract tests: responses against openapi.yaml
+    "pytest==9.2.0",
+    "pytest-asyncio==1.5.0",
+    "pyyaml==6.0.3",                     # reading openapi.yaml in tests
+    "rfc3339-validator==0.1.4",          # lets jsonschema check `format: date-time`
+    "ruff==0.17.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+# Generated from the contract by scripts/gen_models.py; a test checks it's up to date.
+extend-exclude = ["src/spotivault/api/models.py"]
+
+[tool.ruff.lint]
+# ASYNC flags blocking calls inside `async def` (design.md § Stack).
+select = ["E", "F", "I", "B", "UP", "ASYNC"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["spotivault"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+asyncio_mode = "auto"
+# Every test's event loop runs in debug mode; tests/conftest.py fails a test whose loop ran a
+# callback for more than 100 ms (design.md § Stack).
+asyncio_debug = true
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+markers = [
+    "allow_slow_callbacks: the test blocks the event loop on purpose, so slow callbacks don't fail it",
+]

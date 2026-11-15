@@ -67,6 +67,7 @@ On first start, the container installs the Spotify Linux client from Spotify's a
   - **Installed:** shows the version, with a Continue button.
   - **Failed:** shows the error and the last log lines, with a Retry button.
 - If the client is already installed, the step is ticked off on its own.
+- **Retry** starts the install again (`POST /api/client/install`). One install runs at a time, and none during a run.
 
 ### 3. Log in to Spotify
 The prototype found that the Linux client (1.3.4) logs in by QR code. Its login screen shows "Scan code to log in", which you scan with the Spotify phone app. The client's other button, "Log in", opens an external browser, and the image has none, so the wizard never uses it.
@@ -80,7 +81,7 @@ The prototype found that the Linux client (1.3.4) logs in by QR code. Its login 
 - **Completion:**
   - The controller polls for login, and the step turns green by itself. There is no "I'm logged in" button.
   - **Logged in** means the client's `Users/*-user/` folder exists **and** its window has a title other than plain "Spotify" ("Spotify Premium" when idle, "Artist - Title" while playing). The client publishes MPRIS even when logged out, so MPRIS alone isn't a signal ([open question 2](#open-questions)).
-- **Code expired, or the client showing something else:** a "Reset login screen" button restarts the client.
+- **Code expired, or the client showing something else:** a "Reset login screen" button restarts the client. The controller quits it over MPRIS, kills it after 15 s if it's still there, and s6 starts it again, which takes a few seconds.
 - **Larger view:** the same view is available full size on the Player page.
 
 ### 4. Spotify client settings
@@ -107,6 +108,8 @@ Rows are grouped as they are in the client's Settings. Each row shows the requir
 - **Notes:**
   - "Auto" rows read Spotify's local prefs file (`/config/home/.config/spotify/Users/*-user/prefs`). Crossfade and gapless aren't in it: they're stored on Spotify's servers (the file only says `audio.crossfade_migrated_to_ps=true`). Spytify's `core.info` always prints "turn crossfade and gapless playback off in the player", whatever the settings, so it can't check them either. Both are Confirm rows.
   - A setting at its default isn't written: the client drops `audio.equalizer_v2` and `audio.downmixer_v2` when they're turned off again, so a missing key means off. The client saves the file a moment after a change, so Re-check can lag by a second or two.
+  - For the other four Auto rows, a missing key means **Needs change**: Automix, normalization and Auto adjust are on by default, and streaming quality is Automatic, which is why the client writes their keys when you change them. Streaming quality is OK only at exactly `4`.
+  - With no `Users/*-user/` folder yet (not logged in), every Auto row is Unknown.
   - Pill states: OK, Needs change, or Unknown (it can't be read).
   - **Re-check** reads every Auto row again.
 - **Continue:** allowed when every Auto row is OK and every Confirm row is ticked. Autoplay can be left unticked, with a note.
@@ -142,6 +145,8 @@ Scopes requested:
 
 ### 6. Output
 - **Music folder check:** confirms `/music` is a mounted volume and writable, and shows the free space.
+  - **Mounted** means something is mapped there. An anonymous Docker volume, which Docker creates when nothing is mapped, doesn't count: the files would stay in Docker's own storage.
+  - **Free space:** a run needs at least 2 GB; under 5 GB, the controller logs a warning.
   - If it isn't, a red alert explains how to map `/music` to a shared folder in the UGOS Docker app, with a Re-check button.
 - **Format:** the prototype found that the Linux client (1.3.4) offers "Very high" (Ogg Vorbis 320 kbps) at most, with no Lossless. The source is always lossy, so:
   - **Offered:**
@@ -188,6 +193,7 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 - **Backup length:** how long the first full backup takes, since recording is real time: "About 298 h of music to record". While the track lists load, it shows "Measuring…". Followed playlists add "+ 2 followed playlists (unknown length)". The figure comes from the [backlog estimate](design.md#backlog-estimate).
 - **Primary:** "Open Library".
 - **Secondary:** "Back up now". It starts a first run of everything tracked and opens the Dashboard.
+- **Both buttons finish setup** (`POST /api/setup/complete`), which needs steps 1 to 6 done. Steps 7 and 8 keep their defaults if you skipped them, so "I'll choose in Albums" needs nothing else.
 
 ### Setup endpoints
 
@@ -195,11 +201,12 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 |---|---|---|---|
 | GET | `/api/setup` | all steps | Each step's state (`todo`, `active`, `done`, `failed`), plus the first unfinished step. |
 | POST | `/api/setup/tos` | 1 | Stores the acknowledgement and its timestamp. |
+| POST | `/api/setup/complete` | 9 | Finishes setup: steps 7 to 9 done, and `completed` true. Refused with `409 setup_incomplete`, listing the steps, while a step from 1 to 6 isn't done. |
 | GET | `/api/client/status` | 2, 3 | Client installed, its version, install progress and whether it's logged in. |
 | POST | `/api/client/install` | 2 | Retries the install. |
 | GET | `/api/client/checklist` | 4 | Each setting: `ok`, `needs_change` or `unknown`. |
 | POST | `/api/setup/checklist/confirm` | 4 | Manual "I've set these". |
-| WS | `/vnc` | 3, 4, Player | noVNC websockify proxy. |
+| WS | `/vnc` | 3, 4, Player | noVNC websockify proxy. Closes with `1013` while the screen isn't up yet. |
 | POST | `/api/client/restart` | 3 | Resets the login screen when the QR code has expired. |
 | POST | `/api/spotify/app` | 5 | Stores the Client ID. |
 | POST | `/api/spotify/auth/start` | 5 | Returns the authorize URL. The PKCE verifier stays on the server. |
@@ -728,7 +735,11 @@ One scrolling page, like the client's Settings: section headings, with rows of l
   - **Validation, as you type:**
     - only those six placeholders are accepted;
     - the folder part must be none, `{album_artist}`, or `{album_artist}/{album}`;
-    - the file name, after the last `/`, can't be empty or contain `/`.
+    - the file name, after the last `/`, can't be empty or contain `/`;
+    - no stray `{` or `}`, no `\`, and no control characters (a tab, a line break);
+    - the file name needs a placeholder other than `{year}`, which is always empty on Linux.
+
+    Spytify refuses a `\` and a file name without a placeholder at the start of every item, so they're checked here instead.
 
     An error replaces the hint under the field, in red, and **Apply** stays disabled until the layout is valid.
   - **Rules shown under the field:**
@@ -748,6 +759,7 @@ One scrolling page, like the client's Settings: section headings, with rows of l
   - Each playlist's cover is saved next to its `.m3u` as `Music/Playlists/<name>.jpg`, at the largest size Spotify has (640 px, or 1280 px for a grid of album covers).
   - The description says: "Custom covers you upload in the Library are always saved, and replace Spotify's." Turning the toggle off doesn't delete covers already saved.
 - **Music folder:** read-only. It shows `/music → /volume6/Music`, the free space, and a "Check access" button that re-runs the wizard's step-6 check.
+  - **What the arrow can show:** the container sees the shared folder only as a path inside its volume, so on the NAS `/volume6/Music` may read `/Music` (`GET /api/container`'s `music_source`). The same goes for step 9's summary and Settings › Container. Not yet checked on the NAS (M2).
 
 ### Library
 - **Automatically track playlists I create:** a toggle. It's the same setting as in the Library's ⋯ menu and wizard step 7.
@@ -781,6 +793,11 @@ Two channels share one event table.
   - **Change** and **Remove** need the current password.
 - **Env var:** if `UI_PASSWORD` is set in the UGOS Docker app, this row is read-only: "Set by the Docker app (`UI_PASSWORD`)".
 - **Storage:** only a hash of the password is stored, in `/config`.
+- **Other sites' pages:** with or without a password, the controller refuses what another site's page could do from your browser.
+  - **The address:** every request must name the NAS by an IP address, `localhost`, a name without a dot (`nas`), or one ending in `.local`, `.lan`, `.internal` or `.home.arpa`. Those are names the public DNS can't hand out, so a page can't point its own name at the NAS (DNS rebinding).
+  - **Another name,** such as your own domain or a reverse proxy's, goes in the `SPOTIVAULT_ALLOWED_HOSTS` env var, separated by commas.
+  - **Changes:** a request that changes something (POST, PUT, PATCH, DELETE) from another site's page is refused, as are both WebSockets.
+  - **The answer** is 403 `forbidden`, and the log says which setting would allow it.
 
 ### Spotify account (Web API)
 - **Connection:** "Connected as Lorne · authorized 12 Nov 2026 · expires 12 May 2027", with a status pill: OK, Expiring or Expired.
@@ -789,7 +806,7 @@ Two channels share one event table.
 - **Disconnect:** deletes the token. Scheduled runs are held until you reconnect.
 
 ### Spotify client
-- **Client:** its version, and its login state ("Logged in", detected by MPRIS).
+- **Client:** its version, and its login state ("Logged in", detected as in [step 3](#3-log-in-to-spotify): the user folder and the window title).
 - **Settings checklist:** the same as wizard step 4, with each row's pill and a **Re-check** button. It links to Player to change anything.
 - **Open Player:** opens the full-size noVNC view.
 
@@ -845,7 +862,7 @@ A slim bar across the top, with icon buttons and tooltips:
 ### Status strip
 One line under the toolbar:
 - the client version;
-- "Logged in" (detected by MPRIS) or "Not logged in", which links to wizard step 3;
+- "Logged in" (detected as in [step 3](#3-log-in-to-spotify)) or "Not logged in", which links to wizard step 3;
 - the VNC connection state: Connected, Reconnecting… or Disconnected, the last with a Retry button.
 
 ### During a run: view-only

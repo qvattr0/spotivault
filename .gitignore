@@ -4,6 +4,8 @@
 
 # Backup output
 data/
+# ...but not fake mode's Web API fixtures, which the tests and `--fake` load.
+!controller/src/spotivault/fake/data/
 backups/
 *.mp3
 *.flac

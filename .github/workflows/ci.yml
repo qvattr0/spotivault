@@ -1,6 +1,7 @@
-# Builds the image and runs the container smoke test. Nothing is pushed: publishing to Docker Hub
-# comes in M3. To run the same checks locally:
+# Lints the scripts, tests the controller, builds the image and runs the container smoke test.
+# Nothing is pushed: publishing to Docker Hub comes in M3. To run the same checks locally:
 #
+#   (cd controller && uv sync --frozen && uv run ruff check && uv run ruff format --check && uv run pytest)
 #   docker build -t spotivault:ci .
 #   image/test/smoke.sh spotivault:ci --install
 name: ci
@@ -27,6 +28,35 @@ jobs:
             image/rootfs/etc/s6-overlay/s6-rc.d/*/run
           shellcheck image/test/smoke.sh
 
+  # The Python controller (controller/): lint, format and tests, on the locked dependencies and
+  # Python 3.12, as in the image. The tests run on fake ports: no network, no Docker.
+  controller:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: controller
+    env:
+      UV_PYTHON_DOWNLOADS: never  # the runner's own Python 3.12, like the image's
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        # The version that wrote uv.lock; the Dockerfile pins the same one.
+        run: pipx install uv==0.11.28
+      - name: uv sync
+        run: uv sync --locked
+      - name: ruff check
+        run: uv run ruff check
+      - name: ruff format
+        run: uv run ruff format --check
+      - name: pytest
+        run: uv run pytest
+      # The smoke test's helpers run inside the container with the controller's venv.
+      - name: ruff on the smoke test's helpers
+        run: |
+          uv run ruff check --config pyproject.toml ../image/test/
+          uv run ruff format --config pyproject.toml --check ../image/test/
+
   image:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -40,6 +70,7 @@ jobs:
           load: true
           push: false
           tags: spotivault:ci
+          build-args: IMAGE_VERSION=ci-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Smoke test
