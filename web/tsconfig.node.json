@@ -1,0 +1,28 @@
+// Files that run in Node: the Vite and Playwright configs, the mock backend, scripts and e2e tests.
+// Node 22.18+ runs .ts files directly (type stripping), so only erasable syntax is allowed:
+// no enums, no namespaces, and relative imports keep their .ts extension.
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    // DOM: e2e tests run callbacks in the page (page.evaluate), and mock tests use the live store.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "mock", "e2e", "scripts"]
+}

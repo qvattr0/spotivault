@@ -1,0 +1,150 @@
+/* The gallery's "Shell, live" view: a control bar over the app in a scaled 1440 × 960 frame.
+   Developer chrome, styled like the sheet's chips (Chip and Chip/On) so it reads as tooling. */
+
+.page {
+  display: grid;
+  align-content: start;
+  gap: var(--s-4);
+  min-height: 100%;
+  padding: var(--s-6) var(--s-8) var(--s-8);
+  background: var(--bg-base);
+}
+
+.header {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-2);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--type-caption);
+  color: var(--text-sub);
+}
+
+.back:hover {
+  color: var(--text);
+}
+
+.title {
+  font: var(--type-title);
+}
+
+.lede {
+  max-width: 960px;
+  color: var(--text-sub);
+}
+
+.lede code {
+  font: var(--type-mono);
+  color: var(--text);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.groupLabel {
+  width: 72px;
+  font: var(--type-caption);
+  color: var(--text-muted);
+}
+
+.button {
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  font: var(--type-small);
+  font-weight: 500;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--bg-press);
+}
+
+.button[aria-pressed='true'] {
+  background: var(--text);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.button:disabled {
+  color: var(--text-muted);
+}
+
+.node {
+  font: var(--type-mono);
+  color: inherit;
+  opacity: 0.6;
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: var(--type-caption);
+  color: var(--text-sub);
+}
+
+.select {
+  height: 30px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+}
+
+.status {
+  min-height: 18px;
+  font: var(--type-small);
+  color: var(--text-sub);
+}
+
+.readouts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-6);
+}
+
+.readout {
+  font: var(--type-mono);
+  color: var(--text-sub);
+}
+
+/* ScaledFrame: the outer box takes the width it's given; the inner one is laid out at the
+   drawing's size and scaled from its top-left corner. */
+.fit {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  outline: 1px solid var(--border);
+}
+
+.scaled {
+  position: relative;
+  transform-origin: 0 0;
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg-app);
+}
+
+.reference {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  max-width: none;
+  pointer-events: none;
+}

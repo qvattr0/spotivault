@@ -1,0 +1,59 @@
+/* `Stepper/Done` (Ksmqr), `/Active` (v0fEXW), `/Todo` (uGokU): 88 wide, vertical, gap 8, centred.
+   It sits above the bars the shell draws between the dots. */
+
+.step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  width: 88px;
+  text-align: center;
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.label {
+  font: var(--type-caption);
+}
+
+/* Done: a green dot with a black 16 px tick; label 12/700 $text. */
+.done .dot {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Active: a white dot with a 10 px green dot in it; label 12/700 $text. */
+.active .dot {
+  background: var(--text);
+}
+
+.active .dot::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.done .label,
+.active .label {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* To do: a hollow 2 px $border-strong ring; label 12/500 $text-muted. */
+.todo .dot {
+  border: 2px solid var(--border-strong);
+}
+
+.todo .label {
+  color: var(--text-muted);
+}

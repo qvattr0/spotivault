@@ -1,0 +1,164 @@
+/* The list rows (components.md § List row) and their header rows. One file, so the header's columns
+   always match its rows'. Row/Playlist and Row/Album: 60 tall; Row/Track: 52. All: 6 px corners,
+   padding 0 16, gap 16, centred. */
+
+.row,
+.header {
+  display: grid;
+  align-items: center;
+  column-gap: var(--s-4);
+  padding: 0 var(--s-4);
+}
+
+.row {
+  height: 60px;
+  border-radius: 6px;
+}
+
+.header {
+  height: 36px;
+  color: var(--text-sub);
+  font: var(--type-small);
+  font-weight: 500;
+}
+
+/* Column widths. Cover and name share the first wide cell. */
+.playlist {
+  grid-template-columns: 40px minmax(0, 1fr) 170px 120px 140px 36px;
+}
+
+.album {
+  grid-template-columns: minmax(0, 1fr) 70px 90px 120px 140px 36px;
+}
+
+.track {
+  grid-template-columns: 28px minmax(0, 1fr) 240px 60px 220px;
+}
+
+.track.row {
+  height: 52px;
+}
+
+/* Hover, selected, or its menu open: $bg-highlight (row "Indie Finds", A5OYe). */
+.row:hover,
+.row.selected,
+.row[data-state='hover'],
+.row:has([aria-haspopup='menu'][aria-expanded='true']) {
+  background: var(--bg-highlight);
+}
+
+/* Track rows hover in the darker $bg-elevated (measured in l9Wn7L). */
+.track.row:hover,
+.track.row.selected,
+.track.row[data-state='hover'] {
+  background: var(--bg-elevated);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+/* A not-tracked playlist: its cover and text at 60 % (measured in ZGPGu, "Old Uni Playlist"). */
+.muted .item,
+.muted .text {
+  opacity: 0.6;
+}
+
+/* --- Cells ----------------------------------------------------------------------------------- */
+
+/* The cover and the name with its line below. */
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.coverBox {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* "Back up now" over the cover. It shows on hover or keyboard focus, and stays in the tab order. */
+.action {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.1s;
+}
+
+.row:hover .action,
+.row:focus-within .action,
+.row[data-state='hover'] .action {
+  opacity: 1;
+}
+
+.names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--text);
+  font: var(--type-row-title);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Track titles and modal rows: 15/500, not 600. */
+.medium {
+  font-weight: 500;
+}
+
+/* The title as a button that opens the detail view. */
+button.title {
+  max-width: 100%;
+  border-radius: var(--r-sm);
+}
+
+button.title:hover {
+  text-decoration: underline;
+}
+
+.sub {
+  overflow: hidden;
+  color: var(--text-sub);
+  font: var(--type-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tracks, Last backup, Year, Recorded, Album, Duration: 14/400 $text-sub. */
+.text {
+  overflow: hidden;
+  color: var(--text-sub);
+  font: var(--type-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.now {
+  color: var(--accent);
+}
+
+/* The # column: right-aligned. */
+.number {
+  text-align: right;
+}
+
+.end {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Header labels that line up with the name, past the 44 px cover and its 16 px gap (wwJXz). */
+.pastCover {
+  padding-left: 60px;
+}

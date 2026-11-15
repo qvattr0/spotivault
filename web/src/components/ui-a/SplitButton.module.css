@@ -1,0 +1,67 @@
+/* Button/Split (components.md § Buttons, RRyRZ): 36 tall.
+   Main: bg-highlight, radius 999 0 0 999, padding 9 16 9 18, gap 8, a 14 px icon and a 14/700
+   label, both text. Divider: 1 px, bg-base. Menu: bg-highlight, radius 0 999 999 0, padding
+   9 12 9 10, a 16 px chevron-down.
+   Hover (bg-press), pressed and disabled are ours (§ Differences, row 5). */
+
+.split {
+  display: inline-flex;
+  height: 36px;
+}
+
+.main,
+.arrow {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-highlight);
+  color: var(--text);
+  transition: background-color 100ms ease;
+}
+
+.main {
+  gap: 8px;
+  padding: 9px 16px 9px 18px;
+  border-radius: var(--r-pill) 0 0 var(--r-pill);
+  font: var(--type-button-sm);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  background: var(--bg-base);
+}
+
+.arrow {
+  padding: 9px 12px 9px 10px;
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.main:not(:disabled):hover,
+.main[data-state='hover'],
+.arrow:not(:disabled):hover,
+.arrow[aria-expanded='true'] {
+  background: var(--bg-press);
+}
+
+.main:not(:disabled):active,
+.main[data-state='active'],
+.arrow:not(:disabled):active {
+  background: var(--border-strong);
+}
+
+.main[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.main:disabled,
+.arrow:disabled {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main,
+  .arrow {
+    transition: none;
+  }
+}
