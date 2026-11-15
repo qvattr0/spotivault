@@ -13,6 +13,13 @@ client's MPRIS interface, to check each risky piece of the design. Stdlib only.
     probe mpris                     what the client publishes over MPRIS
     probe record URI [--via mpris]  record one playlist/album end to end, with a --once recorder
     probe record URI --only-missing play only the tracks Spytify's index doesn't have yet
+
+  M1 step S0 (live validation):
+    probe liked                     Liked Songs as a playback context (Q9) + MPRIS trackid vs Web API id
+    probe offsets URI               does `offset.position` match the Web API list with unplayable entries?
+    probe playlists                 snapshot_id / items.total per playlist kind (owned, collaborative, followed)
+    probe linked URL                a playlist you don't follow: metadata, /items status, playback (Q10)
+    probe prefs                     the client prefs keys the settings checklist can read (Q3)
 """
 import argparse
 import base64
@@ -528,9 +535,12 @@ def cmd_record(a):
     if a.via == "webapi":
         start_at = plan[0] if plan else 0
         jumped.add(start_at)
+        # `offset.position` counts only playable entries, so with unplayable entries in the list
+        # a position lands on a later track (S0, 2026-11-15). Offsetting by the entry's URI doesn't.
+        offset = {"uri": tracks[start_at]["uri"]} if plan else {"position": 0}
         st, js = api.req("PUT", "/me/player/play", {"device_id": device["id"]},
-                         {"context_uri": uri, "offset": {"position": start_at}, "position_ms": 0})
-        log(f"PUT /me/player/play offset={start_at} -> {st} {js or ''}")
+                         {"context_uri": uri, "offset": offset, "position_ms": 0})
+        log(f"PUT /me/player/play offset={offset} -> {st} {js or ''}")
     else:
         ok, out = mpris_call("OpenUri", f"string:{uri}")
         log(f"MPRIS OpenUri -> ok={ok} {out[:200]}")
@@ -551,15 +561,15 @@ def cmd_record(a):
     deadline = time.time() + a.max_minutes * 60
 
     def loaded_positions(title):
-        """Which of the item's positions is loaded: the Web API's item once its name agrees
-        with the event's title (it can lag a moment), else the tracks with that title."""
+        """Which of the item's positions is loaded: MPRIS mpris:trackid, once its title agrees
+        with the event's, names the context's own entry. GET /me/player can report a relinked
+        ID instead, and `linked_from` is gone (S0, 2026-11-15). Else the tracks with that title."""
         want = go_lower(title or "")
         for _ in range(6):
-            st, js = api.req("GET", "/me/player", {"market": "from_token"})
-            it = (js or {}).get("item") or {}
-            if st == 200 and go_lower(it.get("name") or "") == want:
-                uris = {it.get("uri"), (it.get("linked_from") or {}).get("uri")} - {None}
-                hits = [t["position"] for t in tracks if t["uri"] in uris or t["linked_from"] in uris]
+            tid, _url, mtitle = mpris_track()
+            if go_lower(mtitle or "") == want:
+                tid = spotify_id(tid)
+                hits = [t["position"] for t in tracks if tid and t["uri"].endswith(tid)]
                 if hits:
                     return hits
             time.sleep(0.5)
@@ -587,7 +597,7 @@ def cmd_record(a):
             return
         jumped.add(nxt)
         st, js = api.req("PUT", "/me/player/play", {"device_id": device["id"]},
-                         {"context_uri": uri, "offset": {"position": nxt}, "position_ms": 0})
+                         {"context_uri": uri, "offset": {"uri": tracks[nxt]["uri"]}, "position_ms": 0})
         log(f"plan: {where} is not on the plan: jump to track {nxt + 1} -> {st}")
         jumps.append({"t": time.time(), "at": hits, "action": f"jump {nxt + 1}", "status": st})
 
@@ -708,6 +718,221 @@ def cmd_record(a):
     log(f"summary: expected={total} finished={counts['finished']} skipped={counts['skipped']}; log: {path}")
 
 
+# --------------------------------------------------------------------------- S0: live validation
+
+def save_fixture(name, data):
+    """Raw responses, kept under PROBE_STATE (gitignored); sanitized before they go in the repo."""
+    d = os.path.join(STATE_DIR, "fixtures")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, name + ".json"), "w") as f:
+        json.dump(data, f, indent=1)
+
+
+def spotify_id(s):
+    """The 22-character base62 ID at the end of a Spotify URI, URL or MPRIS track path."""
+    m = re.search(r"([A-Za-z0-9]{22})(?:\?.*)?$", s or "")
+    return m.group(1) if m else None
+
+
+def mpris_track():
+    """(mpris:trackid, xesam:url, xesam:title) from the client's MPRIS metadata."""
+    out = mpris_get("Metadata") or ""
+
+    def field(key):
+        m = re.search(r'"' + re.escape(key) + r'"\s+variant\s+(?:object path|string)\s+"([^"]*)"', out)
+        return m.group(1) if m else None
+    return field("mpris:trackid"), field("xesam:url"), field("xesam:title")
+
+
+def need_device(api, name=None):
+    device, st = pick_device(api, name)
+    if not device:
+        raise SystemExit(f"the container's client is not listed as a Web API device (devices -> {st})")
+    return device
+
+
+def play_and_read(api, device, body, settle=10, market=None):
+    """Start playback, then wait until MPRIS reports Playing with the same track twice in a row,
+    and read GET /me/player once more; then pause. MPRIS names the context's own entry, while
+    GET /me/player with `market` can report a relinked track ID (and `linked_from` is gone).
+    Returns (play status, play body, GET /me/player or None, (trackid, url, title))."""
+    st, js = api.req("PUT", "/me/player/play", {"device_id": device["id"]}, body)
+    seen, mp, last = None, (None, None, None), None
+    time.sleep(1.5)
+    for _ in range(settle * 2):
+        mp = mpris_track()
+        if mpris_status() == "Playing" and mp[0] and mp[0] == last:
+            s2, pl = api.req("GET", "/me/player", {"market": market} if market else None)
+            seen = pl if s2 == 200 else None
+            break
+        last = mp[0]
+        time.sleep(0.5)
+    api.req("PUT", "/me/player/pause", {"device_id": device["id"]})
+    return st, js, seen, mp
+
+
+def cmd_liked(a):
+    """Q9: can Liked Songs be started as a context, and does `offset.position` follow /me/tracks?
+    Also D10: does MPRIS mpris:trackid name the same track as the Web API?"""
+    api = WebAPI()
+    device = need_device(api, a.device)
+    st, me = api.req("GET", "/me")
+    uid = (me or {}).get("id")
+    st, lk = api.req("GET", "/me/tracks", {"limit": 5, "market": "from_token"})
+    save_fixture("me-tracks-page", lk)
+    entries = (lk or {}).get("items") or []
+    log(f"GET /me/tracks -> {st}, total={(lk or {}).get('total')}, "
+        f"entry keys={sorted(entries[0].keys()) if entries else None}")
+    liked = [(e.get("item") or e.get("track") or {}) for e in entries]
+    results = []
+    for ctx in (f"spotify:user:{uid}:collection", "spotify:collection:tracks", f"spotify:user:{uid}:collection:tracks"):
+        for off in (0, 2):
+            want = liked[off] if off < len(liked) else {}
+            pst, pjs, seen, (tid, url, title) = play_and_read(
+                api, device, {"context_uri": ctx, "offset": {"position": off}, "position_ms": 0})
+            item = (seen or {}).get("item") or {}
+            r = {"context": ctx.replace(uid or "-", "<user>"), "offset": off, "play_status": pst,
+                 "play_error": (pjs or {}).get("error"), "playing": bool(seen),
+                 "reported_context": (((seen or {}).get("context") or {}).get("uri") or "").replace(uid or "-", "<user>"),
+                 "item_matches_me_tracks": bool(item) and item.get("id") == want.get("id"),
+                 "mpris_trackid": tid, "mpris_id_matches_webapi": bool(item) and spotify_id(tid) == item.get("id"),
+                 "mpris_url_matches_webapi": bool(item) and spotify_id(url) == item.get("id")}
+            results.append(r)
+            log(json.dumps(r))
+            time.sleep(1)
+    save_fixture("liked-results", results)
+
+
+def cmd_offsets(a):
+    """Does a context `offset.position` count entries the way the Web API list does, when the list
+    has unplayable entries? Plays each test position briefly and compares the track that loads."""
+    api = WebAPI()
+    device = need_device(api, a.device)
+    kind, cid, uri = parse_uri(a.uri)
+    st, tracks = context_tracks(api, kind, cid)
+    if st != 200:
+        raise SystemExit(f"track list -> {st}")
+    unplayable = [t["position"] for t in tracks if not t["playable"]]
+    log(f"{len(tracks)} entries, unplayable at positions (0-based) {unplayable[:20]}"
+        f"{' …' if len(unplayable) > 20 else ''}")
+    tests = a.positions or sorted({p for k in unplayable[:3] for p in (k - 1, k + 1)
+                                   if 0 <= p < len(tracks) and tracks[p]["playable"]}
+                                  | ({unplayable[-1] + 1} if unplayable and unplayable[-1] + 1 < len(tracks) else set()))
+    results = []
+    for p in tests:
+        before = sum(1 for k in unplayable if k < p)
+        offset = {"uri": tracks[p]["uri"]} if a.by_uri else {"position": p}
+        pst, pjs, seen, (tid, url, title) = play_and_read(
+            api, device, {"context_uri": uri, "offset": offset, "position_ms": 0}, market=a.market)
+        item = (seen or {}).get("item") or {}
+        got = [t["position"] for t in tracks if t["uri"].endswith(spotify_id(tid) or "-")]
+        r = {"position": p, "by": "uri" if a.by_uri else "position", "unplayable_before": before,
+             "play_status": pst, "play_error": (pjs or {}).get("error"),
+             "matches": p in got, "loaded_positions (MPRIS)": got,
+             "webapi_id_is_mpris_id": bool(item) and item.get("id") == spotify_id(tid),
+             "webapi_context_ok": ((seen or {}).get("context") or {}).get("uri") == uri}
+        results.append(r)
+        log(json.dumps(r))
+        time.sleep(1)
+    save_fixture(f"offsets-{cid}", {"unplayable": unplayable, "results": results})
+
+
+def cmd_playlists(a):
+    """snapshot_id and items.total per playlist kind, and which field names the 2026 API uses."""
+    api = WebAPI()
+    st, me = api.req("GET", "/me")
+    uid = (me or {}).get("id")
+    url, params, rows, first = "/me/playlists", {"limit": 50}, [], None
+    while url:
+        st, js = api.req("GET", url, params)
+        if st != 200:
+            raise SystemExit(f"GET /me/playlists -> {st} {js}")
+        first = first or js
+        for p in js.get("items", []):
+            if not p:
+                continue
+            owned = (p.get("owner") or {}).get("id") == uid
+            kind = "owned" if owned else ("collaborative" if p.get("collaborative") else "followed")
+            counts = p.get("items") if isinstance(p.get("items"), dict) else p.get("tracks")
+            rows.append({"kind": kind, "has_snapshot": bool(p.get("snapshot_id")),
+                         "total": (counts or {}).get("total"), "keys": sorted(p.keys()),
+                         "image_hosts": sorted({urllib.parse.urlparse(i.get("url", "")).netloc
+                                                for i in p.get("images") or []})})
+        url, params = js.get("next"), None
+    save_fixture("me-playlists-page", first)
+    for kind in ("owned", "collaborative", "followed"):
+        rs = [r for r in rows if r["kind"] == kind]
+        if rs:
+            log(f"{kind}: {len(rs)} playlists, snapshot_id on {sum(r['has_snapshot'] for r in rs)}, "
+                f"total given on {sum(r['total'] is not None for r in rs)}, "
+                f"image hosts {sorted({h for r in rs for h in r['image_hosts']})}")
+    log(f"playlist object keys: {rows[0]['keys'] if rows else None}")
+
+
+def cmd_linked(a):
+    """Q10: a playlist you don't follow. Does GET /playlists/{id} give name, owner and cover when
+    /items is 403, and does it play by context_uri?"""
+    api = WebAPI()
+    device = need_device(api, a.device)
+    kind, cid, uri = parse_uri(a.url)
+    st, pl = api.req("GET", f"/playlists/{cid}", {"market": "from_token"})
+    save_fixture(f"playlist-{cid}", pl)
+    log(f"GET /playlists/{{id}} -> {st}: keys={sorted((pl or {}).keys())}, "
+        f"name={'yes' if (pl or {}).get('name') else 'no'}, owner={'yes' if (pl or {}).get('owner') else 'no'}, "
+        f"images={len((pl or {}).get('images') or [])}, snapshot_id={'yes' if (pl or {}).get('snapshot_id') else 'no'}, "
+        f"items in body={'items' in (pl or {}) or 'tracks' in (pl or {})}")
+    st2, it = api.req("GET", f"/playlists/{cid}/items", {"limit": 1, "market": "from_token"})
+    log(f"GET /playlists/{{id}}/items -> {st2} {(it or {}).get('error') or ''}")
+    pst, pjs, seen, (tid, url, title) = play_and_read(api, device, {"context_uri": uri, "position_ms": 0})
+    log(f"PUT /me/player/play context -> {pst} {(pjs or {}).get('error') or ''}; playing={bool(seen)}, "
+        f"reported context matches={((seen or {}).get('context') or {}).get('uri') == uri}")
+
+
+PREF_KEYS = re.compile(r"audio\.|autoplay|crossfade|gapless|normaliz|automix|equali|mono|bitrate|downgrade|storage\.")
+
+
+def prefs_files():
+    base = os.path.join(os.environ.get("HOME", "/config/home"), ".config", "spotify")
+    files = [os.path.join(base, "prefs")]
+    users = os.path.join(base, "Users")
+    if os.path.isdir(users):
+        files += [os.path.join(users, u, "prefs") for u in sorted(os.listdir(users)) if u.endswith("-user")]
+    return [f for f in files if os.path.exists(f)]
+
+
+def read_prefs():
+    out = {}
+    for f in prefs_files():
+        scope = "global" if os.path.basename(os.path.dirname(f)) == "spotify" else "user"
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if "=" in line:
+                    k, v = line.rstrip("\n").split("=", 1)
+                    out[f"{scope}:{k}"] = v
+    return out
+
+
+def cmd_prefs(a):
+    """Q3: which client settings the prefs files show. --save, toggle settings in the client, --diff."""
+    snap = os.path.join(STATE_DIR, "prefs-snapshot.json")
+    now = read_prefs()
+    if a.save:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        with open(snap, "w") as f:
+            json.dump(now, f, indent=1)
+        log(f"saved {len(now)} keys from {len(prefs_files())} prefs files")
+    elif a.diff:
+        with open(snap) as f:
+            old = json.load(f)
+        for k in sorted(set(old) | set(now)):
+            if old.get(k) != now.get(k):
+                print(f"{k}: {old.get(k)!r} -> {now.get(k)!r}")
+    else:
+        for k, v in sorted(now.items()):
+            if PREF_KEYS.search(k):
+                print(f"{k}={v}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -737,6 +962,26 @@ def main():
     p.add_argument("--positions", type=lambda s: [int(x) for x in s.split(",")],
                    help="with --only-missing, consider only these 1-based track numbers (for tests)")
     p.set_defaults(fn=cmd_record)
+    p = sub.add_parser("liked")
+    p.add_argument("--device")
+    p.set_defaults(fn=cmd_liked)
+    p = sub.add_parser("offsets")
+    p.add_argument("uri")
+    p.add_argument("--device")
+    p.add_argument("--positions", type=lambda s: [int(x) for x in s.split(",")],
+                   help="0-based positions to test (default: around the first unplayable entries)")
+    p.add_argument("--by-uri", action="store_true", help="offset by the track's URI instead of its position")
+    p.add_argument("--market", help="market for GET /me/player (default: none; from_token relinks)")
+    p.set_defaults(fn=cmd_offsets)
+    sub.add_parser("playlists").set_defaults(fn=cmd_playlists)
+    p = sub.add_parser("linked")
+    p.add_argument("url", help="a playlist link you don't follow")
+    p.add_argument("--device")
+    p.set_defaults(fn=cmd_linked)
+    p = sub.add_parser("prefs")
+    p.add_argument("--save", action="store_true", help="snapshot every prefs key")
+    p.add_argument("--diff", action="store_true", help="show what changed since --save")
+    p.set_defaults(fn=cmd_prefs)
     a = ap.parse_args()
     a.fn(a)
 

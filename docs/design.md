@@ -63,19 +63,32 @@ One container, with s6-overlay supervising:
 **Spytify defaults:**
 - `privacy.bug_tracker=off`
 - `recorder.duplicates=skip`
-- `recorder.skip_duplicates_forward=on`
+- `recorder.skip_duplicates_forward`: off for items played as missing tracks only, on for items played whole (see [Run flow](#run-flow-per-playlist-or-album))
 - File naming from Settings › Files › Layout, passed in with the other recorder settings. The default is `{album_artist}/{album}/{track} - {title}`. How Spytify takes it is [open question 16](web-ui.md#open-questions).
 
 ## Run flow, per playlist or album
 
-1. Fetch the track list through the Web API. Skip the item if every file already exists. A playlist without item access (see [Web API usage](#web-api-usage)) has no track list, so it is always played.
-2. Pause the player and turn shuffle and repeat off.
-3. Start `spytifyd` for this item with the current recorder settings, then call `session.start`.
-4. `PUT /me/player/play` with the container's `device_id` and the item's `context_uri`.
-5. Follow Spytify's events. Spotify pauses at the end of an album or playlist. After 20 s of silence, `spytifyd` saves the last track and exits (`--idle-exit 20s`), about 25–30 s after the pause.
+Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implications for the design" and the S0 section). An item is played one of two ways:
+- **Missing tracks only:** albums, Liked Songs and playlists you own or collaborate on. The controller has the track list, so it plays only what isn't recorded yet.
+- **Whole:** followed and linked playlists, which have no track list (see [Web API usage](#web-api-usage)).
+
+1. **Plan.**
+   - **Missing tracks only:** fetch the track list with `market=from_token`. Leave out entries with `is_playable: false`, local files, episodes and empty entries. Look each one up in Spytify's duplicate index (`/music/.spytify/recorded.jsonl`) by Spytify's own key: the first artist and the title, trimmed and lowercased the Go way. An entry counts only while its file exists. **Nothing missing:** the item is Up to date, and no recorder starts.
+   - **Whole:** the item is Up to date without playing if its `snapshot_id` is the one from its last clean full pass **and** every track seen in that pass is still in the index. A deleted file forces a full pass. A clean full pass is one that ended normally, with no failed track and no interruption.
+2. **Prepare the player:** pause, seek to 0, and turn shuffle and repeat off. Spytify won't record a track the player is paused on more than 300 ms in, and it misses a restart within 2 s of that point, so seeking to 0 first matters ([Spytify bugs](upstream/spytify-bugs.md) #2).
+3. **Start the recorder:** `spytifyd --once --serve --idle-exit 20s` for this item, with every recorder setting passed as `--set` (see [Container](#container)). `recorder.skip_duplicates_forward` is **off** for missing-tracks-only items and **on** for whole items. With it on, Spytify presses Next on the paused track 1 at the end of an album ([Spytify bugs](upstream/spytify-bugs.md) #1), so whole items get a loop guard (a track seen twice in one item pauses the player). Then `player.control full_volume`.
+4. **Play:** `PUT /me/player/play` with the container's `device_id`, the item's `context_uri` and an `offset`.
+   - **The offset is by URI**, at the first missing track. `offset.position` counts only playable entries, so after an unplayable entry it lands on a later track.
+   - **Liked Songs** is the context `spotify:user:<id>:collection`. The Web API then reports it as a playlist URI (`spotify:playlist:37i9dQZF1F…`), and the controller treats that as the same context.
+5. **Steer:** on each `track.started`, identify the loaded track by MPRIS `mpris:trackid`, which names the context's own entry. `GET /me/player` can report a relinked track ID, and `linked_from` is gone. If the track is planned, it plays. If not, the controller jumps to the next missing track (another play with an `offset` by URI) or, when none is left, pauses. A jump costs about 2 s of a track that's never saved.
+6. **End:** Spotify pauses at the end of an album or playlist, and the controller pauses when the plan is done. After 20 s of silence, `spytifyd` saves the last track and exits (`--idle-exit 20s`), about 20–27 s after the pause.
    - **No client restart is needed.**
-   - **A pause of more than 20 s in the middle of an item** ends it early. This happens when another device takes over or the network stalls. The controller re-queues the item, and the tracks already recorded are skipped as duplicates.
-6. Write a `.m3u` for the playlist, in the Web API's track order. For a playlist without item access, use the order the tracks were recorded in. Save its cover next to it (see [Playlist covers](#playlist-covers)).
+   - **Read every event**, including those written as the process exits. The last take's `track.finished` arrives then, and the `--events` file holds it too.
+   - **Pause the player** in case it started again, and recompute what's missing from the index. **Count distinct tracks, not events:** a phantom `track.started` + `track.skipped` for the paused track 1 is normal at the idle exit.
+   - **A pause of more than 20 s in the middle of an item** ends it early. This happens when another device takes over or the network stalls. The controller re-queues the item once, and the tracks already recorded are skipped. A second interruption in the same run ends the item as Partial.
+   - **The context moves on** (autoplay): the controller stops the session at once and ends the item.
+   - **Timeouts:** if playback never starts, or the recorder outlives the end, the controller sends SIGTERM (finish the current track), then a second one (stop at once). Restarting the client is the fallback.
+7. **Files:** write a `.m3u` for the playlist, in the Web API's track order, with paths relative to the `.m3u`. For a whole item, use the order the tracks were recorded in. Save its cover next to it (see [Playlist covers](#playlist-covers)).
 
 The scheduler queues items. An item forced from the UI goes right after the current item. One item records at a time.
 
@@ -95,8 +108,10 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 | `GET /me/player/devices` and the player controls (`play`, `pause`, `shuffle`, `repeat`) | Finding the container's device and starting each item. | — |
 
 **The 2026 rules that shape the design:**
-- **Item access:** `/items` returns tracks only for playlists you own or collaborate on. Any other playlist returns 403, and `/me/playlists` leaves out its `items` total. So followed and linked playlists have no track list or total until they're recorded. A followed playlist you collaborate on has access and behaves like your own.
-- **Renamed fields:** a playlist's contents moved from `tracks` to `items`, and each entry's track from `track` to `item`. The controller reads only the new names.
+- **Item access:** `/items` returns tracks only for playlists you own or collaborate on. Any other playlist returns 403. So followed and linked playlists have no track list until they're recorded. `/me/playlists` still gives a followed playlist's `items.total` (tested 2026-11-15, although the migration guide says it's left out). A linked playlist has no total: `GET /playlists/{id}` returns its name, owner, images and `snapshot_id`, with no `items`. A followed playlist you collaborate on has access and behaves like your own.
+- **Renamed fields:** a playlist's contents moved from `tracks` to `items`, and each playlist entry's track from `track` to `item`. The controller reads only the new names there. **Library endpoints kept theirs:** `/me/tracks` entries still use `track`, and `/me/albums` entries use `album`, with the album's tracks under `album.tracks.items`.
+- **Relinked tracks:** `GET /me/player` can report a relinked track ID instead of the playlist entry's own, and `linked_from` is gone. The controller identifies the loaded track by MPRIS `mpris:trackid`, and uses the player state only for the context and the device.
+- **Offsets:** `offset.position` counts only playable entries, so the controller starts and jumps with `offset.uri`.
 - **No batch lookups:** `GET /tracks?ids=` and `GET /albums?ids=` are gone. Everything the controller needs, `duration_ms` included, comes with the listings above, so it's stored when it's fetched.
 - **Removed fields:** among others, `popularity` and `linked_from` on tracks, and `label` on albums. spotivault uses none of them.
 - **Rate limits:** Spotify publishes no Development Mode numbers. Limits apply over a rolling 30 s window, plus quota buckets shared by every app on the developer account. A `429` carries `Retry-After`; see Requests below for how the controller handles it.
@@ -133,7 +148,7 @@ Recording happens in real time, so a backup takes about as long as the music sti
   - plus about 35 s for each item with something to record: a few seconds to start, and the 25–30 s Finishing tail;
   - local files (`is_local`) and entries with no `item` are left out, because they can't be played.
 - **Finish date:** the controller walks the schedule's active hours forward from now until the time left is used up. With Manual only, there's no date.
-- **Unknown items:** followed and linked playlists have no track list, so they're left out of the figure and counted separately.
+- **Unknown items:** followed and linked playlists have no track list, so their length is unknown. They're left out of the figure and counted separately, unless they're Up to date by their `snapshot_id` (see [Run flow](#run-flow-per-playlist-or-album) step 1). A followed playlist's track count is known from `/me/playlists`, so the UI can show it, but not its duration.
 - **Accuracy:** duplicates are skipped in seconds, so they barely count. The same song can have a different track ID on a single and on its album; it's counted twice but recorded once, so the estimate leans slightly high.
 
 ## Playlist covers
@@ -241,11 +256,18 @@ The prototype settled these (details in `prototype/FINDINGS.md`):
 - The container is a Connect device.
 - The end of an item is handled by Spytify's `--idle-exit 20s`: the last track is saved about 27 s after the pause.
 - Recording works end to end.
+- Followed playlists play by `context_uri`, although `/items` returns 403.
+
+Step S0 of the M1 plan settled these (2026-11-15, Spytify 2.0.2):
+- **Saved albums:** `/me/albums` and `/albums/{id}/tracks` answer 200.
+- **Field names:** checked against live responses; see [Web API usage](#web-api-usage).
+- **Liked Songs** plays as a context, and a playlist with unplayable entries records with offsets by URI.
+- **Login detection**, the **runtime client install** and **`--disable-dev-shm-usage`** work as described in web-ui.md (Q2, Q13).
+- **Linked playlists** (public, not followed) give their name, owner, cover and `snapshot_id`, and play by `context_uri` (Q10).
+
+Spytify's own bugs, and what the controller does about them, are in [upstream/spytify-bugs.md](upstream/spytify-bugs.md).
 
 Still to validate:
-- **Saved albums:** Spotify's February 2026 changelog lists `/me/albums` and `/albums/{id}/tracks` as still available. Needs a live test.
-- **Followed playlists:** Spotify documents the 403 on `/items`. Whether they still play by `context_uri` needs a live test.
-- **Field names:** Spotify's reference pages still show some fields the changelog removed, so the fields the controller reads need checking against a live response.
 - **Cover sizes on the CDN:** the size rewrites in [Spotify's image CDN](#spotifys-image-cdn) rely on undocumented naming. Tested on public playlists on 2026-11-15; re-check before release, and whenever the fallback warning starts showing up.
 
 ## Component Rules
