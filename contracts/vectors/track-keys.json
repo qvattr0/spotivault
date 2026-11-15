@@ -1,0 +1,287 @@
+{
+  "about": "Spytify's duplicate key (internal/core/records.go trackKey): lower(trim(artist)) + U+001F + lower(trim(title)), with Go's strings.ToLower and strings.TrimSpace. The controller matches the Web API's artists[0].name and name against Spytify's index with it.",
+  "generator": {
+    "script": "contracts/vectors/generate.py",
+    "how": "expected = track_key(artist, title), and for web_cases web_track_key({artists, name}), both from prototype/probe.py, which mirror Go's rules (go_lower, go_trim). The recorded cases are every line of the prototype's recorded.jsonl; their artist and title were recovered from the probe run logs by file path.",
+    "cross_checks": [
+      "Each recorded case's expected key equals spytify_index_key, the key Spytify itself wrote to its index.",
+      "Not cross-checked against Go yet."
+    ],
+    "regenerate": "python3 contracts/vectors/generate.py --write --recorded prototype/data/music/.spytify/recorded.jsonl --runs prototype/data/config/probe/runs --go <spytify-2.0.2-src>"
+  },
+  "rules": [
+    "Trim: Go's unicode.IsSpace at both ends: \\t \\n \\v \\f \\r, space, U+0085, U+00A0, U+1680, U+2000–U+200A, U+2028, U+2029, U+202F, U+205F, U+3000. Not U+001C–U+001F.",
+    "Lower: per rune, Unicode simple case mapping. U+0130 İ → i; Σ → σ everywhere (no final-sigma rule).",
+    "No normalization (no NFC), and nothing stripped from titles.",
+    "Join: artist + U+001F + title.",
+    "From the Web API: artist = artists[0].name, or '' when there are none; title = name."
+  ],
+  "cases": [
+    {
+      "id": "recorded-01",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 1",
+      "artist": "ZØMB",
+      "title": "I'M A STAR!",
+      "spytify_index_key": "zømb\u001fi'm a star!",
+      "expected": "zømb\u001fi'm a star!"
+    },
+    {
+      "id": "recorded-02",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 2",
+      "artist": "ZØMB",
+      "title": "I'M A STAR! - SLOWED",
+      "spytify_index_key": "zømb\u001fi'm a star! - slowed",
+      "expected": "zømb\u001fi'm a star! - slowed"
+    },
+    {
+      "id": "recorded-03",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 3",
+      "artist": "Ozoyo",
+      "title": "Panspermia",
+      "spytify_index_key": "ozoyo\u001fpanspermia",
+      "expected": "ozoyo\u001fpanspermia"
+    },
+    {
+      "id": "recorded-04",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 4",
+      "artist": "fakename",
+      "title": "Passage",
+      "spytify_index_key": "fakename\u001fpassage",
+      "expected": "fakename\u001fpassage"
+    },
+    {
+      "id": "recorded-05",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 5",
+      "artist": "fakename",
+      "title": "Distant Peak",
+      "spytify_index_key": "fakename\u001fdistant peak",
+      "expected": "fakename\u001fdistant peak"
+    },
+    {
+      "id": "recorded-06",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 6",
+      "artist": "fakename",
+      "title": "Now And Then",
+      "spytify_index_key": "fakename\u001fnow and then",
+      "expected": "fakename\u001fnow and then"
+    },
+    {
+      "id": "recorded-07",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 7",
+      "artist": "fakename",
+      "title": "Seaside Stillness",
+      "spytify_index_key": "fakename\u001fseaside stillness",
+      "expected": "fakename\u001fseaside stillness"
+    },
+    {
+      "id": "recorded-08",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 8",
+      "artist": "fakename",
+      "title": "Last Hours",
+      "spytify_index_key": "fakename\u001flast hours",
+      "expected": "fakename\u001flast hours"
+    },
+    {
+      "id": "recorded-09",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 9",
+      "artist": "fakename",
+      "title": "Last Hours",
+      "spytify_index_key": "fakename\u001flast hours",
+      "expected": "fakename\u001flast hours"
+    },
+    {
+      "id": "recorded-10",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 10",
+      "artist": "fakename",
+      "title": "Distant Peak",
+      "spytify_index_key": "fakename\u001fdistant peak",
+      "expected": "fakename\u001fdistant peak"
+    },
+    {
+      "id": "recorded-11",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 11",
+      "artist": "fakename",
+      "title": "Seaside Stillness",
+      "spytify_index_key": "fakename\u001fseaside stillness",
+      "expected": "fakename\u001fseaside stillness"
+    },
+    {
+      "id": "recorded-12",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 12",
+      "artist": "fakename",
+      "title": "Last Hours",
+      "spytify_index_key": "fakename\u001flast hours",
+      "expected": "fakename\u001flast hours"
+    },
+    {
+      "id": "recorded-13",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 13",
+      "artist": "fakename",
+      "title": "Now And Then",
+      "spytify_index_key": "fakename\u001fnow and then",
+      "expected": "fakename\u001fnow and then"
+    },
+    {
+      "id": "recorded-14",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 14",
+      "artist": "fakename",
+      "title": "Last Hours",
+      "spytify_index_key": "fakename\u001flast hours",
+      "expected": "fakename\u001flast hours"
+    },
+    {
+      "id": "recorded-15",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 15",
+      "artist": "Erik Satie",
+      "title": "Cinq Grimaces pour le songe d'une nuit d'été: IV. Fanfaronnade",
+      "spytify_index_key": "erik satie\u001fcinq grimaces pour le songe d'une nuit d'été: iv. fanfaronnade",
+      "expected": "erik satie\u001fcinq grimaces pour le songe d'une nuit d'été: iv. fanfaronnade"
+    },
+    {
+      "id": "recorded-16",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 16",
+      "artist": "Jaeden Camstra",
+      "title": "Open Window",
+      "spytify_index_key": "jaeden camstra\u001fopen window",
+      "expected": "jaeden camstra\u001fopen window"
+    },
+    {
+      "id": "recorded-17",
+      "source": "prototype/data/music/.spytify/recorded.jsonl line 17",
+      "artist": "Phlocalyst",
+      "title": "Primitivo",
+      "spytify_index_key": "phlocalyst\u001fprimitivo",
+      "expected": "phlocalyst\u001fprimitivo"
+    },
+    {
+      "id": "edge-dotted-capital-i",
+      "artist": "İstanbul Trio",
+      "title": "İnce",
+      "note": "U+0130 lowercases to plain 'i' in Go; Python's lower() gives 'i' + U+0307.",
+      "expected": "istanbul trio\u001fince"
+    },
+    {
+      "id": "edge-final-sigma",
+      "artist": "ΟΔΥΣΣΕΑΣ",
+      "title": "ΧΟΡΟΣ",
+      "note": "A final capital sigma lowercases to σ in Go; Python's lower() gives ς at the end of a word.",
+      "expected": "οδυσσεασ\u001fχοροσ"
+    },
+    {
+      "id": "edge-sigma-mid-and-final",
+      "artist": "Σ Σ",
+      "title": "ΣΑΣ",
+      "note": "Every Σ becomes σ, wherever it is.",
+      "expected": "σ σ\u001fσασ"
+    },
+    {
+      "id": "edge-unit-separators-kept",
+      "artist": "\u001cArtist\u001d",
+      "title": "\u001eTitle\u001f",
+      "note": "U+001C–U+001F are not white space to Go's TrimSpace, so they stay; Python's strip() removes them.",
+      "expected": "\u001cartist\u001d\u001f\u001etitle\u001f"
+    },
+    {
+      "id": "edge-nbsp-trimmed",
+      "artist": " Artist ",
+      "title": " Title ",
+      "note": "NBSP (U+00A0) is white space to Go and is trimmed.",
+      "expected": "artist\u001ftitle"
+    },
+    {
+      "id": "edge-ideographic-space-trimmed",
+      "artist": "　Artist　",
+      "title": "　Title　",
+      "note": "Ideographic space (U+3000) is trimmed.",
+      "expected": "artist\u001ftitle"
+    },
+    {
+      "id": "edge-nel-and-ascii-space",
+      "artist": " \tArtist \n",
+      "title": "\r\u000bTitle\f ",
+      "note": "ASCII white space and NEL (U+0085) are trimmed.",
+      "expected": "artist\u001ftitle"
+    },
+    {
+      "id": "edge-inner-space-kept",
+      "artist": "Artist  Name",
+      "title": "Title Two",
+      "note": "Only the ends are trimmed; inner spaces, NBSP included, stay.",
+      "expected": "artist  name\u001ftitle two"
+    },
+    {
+      "id": "edge-no-normalization",
+      "artist": "Beyoncé",
+      "title": "Café",
+      "note": "No Unicode normalization: a combining accent and a precomposed é stay as they are.",
+      "expected": "beyoncé\u001fcafé"
+    },
+    {
+      "id": "edge-feat-kept",
+      "artist": "Daft Punk",
+      "title": "Get Lucky (feat. Pharrell Williams) - Radio Edit",
+      "note": "No stripping of 'feat.' or ' - Radio Edit'.",
+      "expected": "daft punk\u001fget lucky (feat. pharrell williams) - radio edit"
+    },
+    {
+      "id": "edge-empty-artist",
+      "artist": "",
+      "title": "Untitled",
+      "note": "No artist: the key starts with the separator.",
+      "expected": "\u001funtitled"
+    },
+    {
+      "id": "edge-sharp-s",
+      "artist": "STRASSE",
+      "title": "ẞ",
+      "note": "Capital sharp s (U+1E9E) lowercases to ß.",
+      "expected": "strasse\u001fß"
+    },
+    {
+      "id": "edge-turkish-dotless-i",
+      "artist": "I",
+      "title": "ı",
+      "note": "Plain I lowercases to i; dotless ı stays.",
+      "expected": "i\u001fı"
+    }
+  ],
+  "web_cases": [
+    {
+      "id": "web-multi-artist",
+      "artists": [
+        "Erik Satie",
+        "Olga Scheps"
+      ],
+      "name": "Cinq Grimaces pour le songe d'une nuit d'été: IV. Fanfaronnade",
+      "note": "Only the first artist counts: Spotify's MPRIS xesam:artist holds just one name.",
+      "expected": "erik satie\u001fcinq grimaces pour le songe d'une nuit d'été: iv. fanfaronnade"
+    },
+    {
+      "id": "web-remaster-title",
+      "artists": [
+        "David Bowie"
+      ],
+      "name": "Ashes to Ashes - 2017 Remaster",
+      "note": "The title is the Web API name, character for character.",
+      "expected": "david bowie\u001fashes to ashes - 2017 remaster"
+    },
+    {
+      "id": "web-no-artists",
+      "artists": [],
+      "name": "Track With No Artist",
+      "note": "An empty artist list gives an empty artist.",
+      "expected": "\u001ftrack with no artist"
+    },
+    {
+      "id": "web-padded",
+      "artists": [
+        "  ZØMB  "
+      ],
+      "name": "  I'M A STAR!  ",
+      "note": "Trimmed and lowercased like the event's artist and title.",
+      "expected": "zømb\u001fi'm a star!"
+    }
+  ],
+  "recorded_lines_pending": [],
+  "recorded_lines_pending_note": "Index lines with no probe run log yet, so their original artist and title can't be recovered. S0 was recording while this file was generated; run the regenerate command again once its run logs are saved."
+}
