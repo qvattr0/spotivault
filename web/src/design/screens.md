@@ -14,11 +14,11 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
     ```
 - **Components:** see [components.md](components.md).
 
-## Routes are proposed
+## Routes
 
-**web-ui.md doesn't name any URL routes.** The routes below are a proposal, built from the page names and the API paths. Settle them when the UI stack is picked, then record them in web-ui.md.
+**The routes are settled** in [web-ui.md § Routes](../../../docs/web-ui.md#routes), with the UI stack. The tables below use them.
 
-- Before setup is complete, every route redirects to `/setup` (web-ui.md § Navigation).
+- Before setup is complete, every route redirects to the wizard (web-ui.md § Navigation).
 - After setup, `/` goes to `/dashboard`.
 - Modals, menus and hover states aren't routes. They're a state of the page under them.
 - The Library and Albums List / Grid choice is remembered per browser, so it isn't in the route.
@@ -34,7 +34,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 [web-ui.md § Setup wizard](../../../docs/web-ui.md#setup-wizard)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | Setup 1 · Welcome and Terms | `Oleh8` | `/setup/welcome` | "I understand" ticked, Continue | None found. |
 | Setup 2 · Spotify client · Installing | `h2Qgw` | `/setup/client` | Installing: 62 %, log lines | Continue is drawn enabled while installing. |
@@ -51,7 +51,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 [web-ui.md § Library](../../../docs/web-ui.md#library)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | Library · List | `ZGPGu` | `/library` | List view, All chip, sort "Recently backed up". One row hovered ("Indie Finds"), one row menu open | The open row menu has Back up now · Change cover… · Open in Spotify · Show files path; "Remove from Library" (added items only) isn't drawn. The hovered row has no round "Back up now" button. The header's ⋯ options menu isn't drawn open. |
 | Library · Grid | `GH52o` | `/library` | Grid view: tracked, not tracked and recording badges; "Late Night Drive" hovered with Back up now | None found. |
@@ -65,7 +65,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 [web-ui.md § Albums](../../../docs/web-ui.md#albums)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | Albums · Grid | `MX2OU` | `/albums` | Grid: corner pills Recording, Queued, Partial, Unavailable; recorded albums clean | None found. |
 | Albums · List | `wwJXz` | `/albums` | List, with a row menu open: Record again · Open in Spotify · Show files path · Remove from Albums | None found. |
@@ -77,7 +77,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 [web-ui.md § Dashboard](../../../docs/web-ui.md#dashboard)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | Dashboard · Idle (with expiry banner) | `fzNDm` | `/dashboard` | Idle; yellow expiry banner; Next backup with a small week strip; Last run "Completed with issues" | **The Full backup card isn't drawn.** web-ui.md § Idle has three cards: Next backup, Full backup, Last run. The Next backup variants (No schedule, Held) and "No backups yet" aren't drawn. |
 | Dashboard · Running | `t4YEY` | `/dashboard` | Running: header, counters, Stop split button, docked now-playing strip; queue with Done, Up to date, the current item expanded, Up next and "Interrupted · will retry" | The run header doesn't show the backlog's time left ("about 26 h left"). The Finishing and Carried over rows aren't drawn. |
@@ -87,7 +87,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 [web-ui.md § Schedule](../../../docs/web-ui.md#schedule)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | Schedule · Page | `IyhIV` | `/schedule` | Mon–Fri 01:00–07:00, Sat–Sun 00:00–09:00; run order; preview | The summary says "48 h a week". web-ui.md's example gives the same hours as "44 h a week", but 5 × 6 + 2 × 9 is 48, so it's the doc's example that's off. The empty grid ("No backups scheduled · Run now only") isn't drawn. |
 | Schedule · Week-grid modal | `gaqyw` | `/schedule` | Modal open, a cell hovered (tooltip "Tue 02:00–03:00"), live summary and preview line | The cells don't follow web-ui.md: inactive cells have no outline. See [components.md § Differences](components.md#differences-from-the-docs), row 2. The page under the scrim draws Run order differently from `IyhIV`: numbered 1–4, with no drag hint or Reset button. |
@@ -96,7 +96,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 [web-ui.md § History](../../../docs/web-ui.md#history)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | History · Runs | `o5vCh7` | `/history/runs` | Runs tab, All; rows for every outcome, plus Missed, Skipped and Held | None found. |
 | History · Run page | `bWcg0` | `/history/runs/:id` | "Tue 12 Nov", Completed with issues; Chill Mix expanded with Recorded, Skipped (duplicate), Skipped (ad) and Failed tracks | The "Interrupted twice: Partial" and "Stopped" badges aren't drawn. |
@@ -107,7 +107,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 [web-ui.md § Settings](../../../docs/web-ui.md#settings)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | Settings | `t6RqK` | `/settings` | The whole page, 2926 tall; browser notifications Unavailable (plain HTTP); no password; the "Unsaved changes" bar showing | Container › Versions shows "Spytify 1.2.0" as sample text; design.md uses Spytify 2.0. The `UI_PASSWORD` read-only state, the Set password dialog and the Enabled and Blocked notification states aren't drawn. |
 | Settings · Edit layout modal | `w1uXEY` | `/settings` | Modal open, default layout, "Valid" | The error state isn't drawn. A design note beside the frame (`LLJpU`) describes it, as web-ui.md does. |
@@ -118,7 +118,7 @@ The note `LLJpU` ("Note · layout validation") is a sticky note on the canvas, n
 
 [web-ui.md § Player](../../../docs/web-ui.md#player)
 
-| Frame | ID | Proposed route | State | Differences from web-ui.md |
+| Frame | ID | Route | State | Differences from web-ui.md |
 |---|---|---|---|---|
 | Player · Interactive | `ZQChN` | `/player` | Fit; logged in; VNC connected | None found. The "Restart the Spotify client?" confirm isn't drawn. |
 | Player · View-only (during a run) | `jh5YJ` | `/player` | Yellow banner with Take control; Restart disabled with its tooltip; global now-playing bar at the bottom | None found. The "Take control anyway?" confirm isn't drawn. |

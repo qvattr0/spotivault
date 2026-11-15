@@ -1,0 +1,121 @@
+/* The now-playing strip (components.md § Now-playing strip, zwk9M): 76 tall, padding 0 16, gap 24;
+   the track and the right side 340 wide, the centre fills. The sides share the width 1 : 2 : 1 up
+   to 340 each, so the centre stays centred at any width; the right side never squeezes its button. */
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  height: 76px;
+  flex-shrink: 0;
+  padding: 0 var(--s-4);
+  background: var(--bg-app);
+}
+
+/* Docked under the Dashboard's run header (t4YEY): a card on the page. */
+.docked {
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 340px;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title,
+.sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  font: 600 14px / normal var(--font);
+}
+
+.sub {
+  font: 400 12px / normal var(--font);
+  color: var(--text-sub);
+}
+
+.centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 2 1 0;
+  min-width: 0;
+}
+
+.stateRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.progress {
+  flex: 1;
+}
+
+.time {
+  font: var(--type-label);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* text-muted is 4.2:1 on the docked card's bg-elevated, under WCAG AA's 4.5:1 (web-ui.md
+   § What the drawings leave out). On the bar's bg-app it passes, so it stays as drawn there. */
+.docked .time {
+  color: var(--text-sub);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  flex: 1 1 0;
+  min-width: max-content;
+  max-width: 340px;
+}
+
+.itemCount {
+  font: var(--type-caption);
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+/* No phone layout is drawn: narrow windows drop the item count, then the track names. */
+@media (max-width: 1000px) {
+  .itemCount {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .titles {
+    display: none;
+  }
+
+  .track {
+    flex: none;
+  }
+}

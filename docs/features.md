@@ -52,7 +52,7 @@ Each phase needs the one before it. Within a phase, the order is a suggestion.
 |---|---|---|---|---|
 | SQLite store in `/config` | [design.md § Container](design.md#container) | Specified | | |
 | Settings store and `/api/settings` | [web-ui.md § Settings endpoints](web-ui.md#settings-endpoints) | Specified | | |
-| Live event stream `WS /api/events` | Endpoint tables in each [web-ui.md](web-ui.md) section | Specified | | One socket; every page's events go through it. |
+| Live event stream `WS /api/events` | Endpoint tables in each [web-ui.md](web-ui.md) section | Specified | | One socket; every page's events go through it. The UI's side is built: [web/src/state/](../web/src/state/). |
 | Optional UI password and sessions | [web-ui.md § Security](web-ui.md#security) | Specified | | |
 | Log collection, rotation and download | [web-ui.md § Logs tab](web-ui.md#logs-tab) | Specified | | |
 
@@ -86,8 +86,8 @@ Each phase needs the one before it. Within a phase, the order is a suggestion.
 
 | Feature | Spec | Status | Waits on | Notes |
 |---|---|---|---|---|
-| Design system: tokens and components | [web-ui.md § Design language](web-ui.md#design-language), [design.md § Component Rules](design.md#component-rules) | Specified | | Built from the `.pen` component set. |
-| Shell: sidebar, bottom bar, expiry banner | [web-ui.md § Navigation](web-ui.md#navigation) | Specified | | |
+| Design system: tokens and components | [web-ui.md § Design language](web-ui.md#design-language), [design.md § Component Rules](design.md#component-rules) | Built | | Tokens: [web/src/design/](../web/src/design/), [web/src/styles/](../web/src/styles/). Components: [web/src/components/](../web/src/components/). `/gallery` shows each one beside the `.pen` sheet. The undrawn states: [web-ui.md § What the drawings leave out](web-ui.md#what-the-drawings-leave-out). |
+| Shell: sidebar, bottom bar, expiry banner | [web-ui.md § Navigation](web-ui.md#navigation) | Built | | [web/src/shell/](../web/src/shell/), routes in [web/src/routes.tsx](../web/src/routes.tsx). Live state from [web/src/state/](../web/src/state/), REST from [web/src/api/](../web/src/api/). Tested against the mock backend in [web/mock/](../web/mock/); not yet against the controller. |
 | Setup wizard, steps 1–8 | [web-ui.md § Setup wizard](web-ui.md#setup-wizard) | Specified | | Step 8 is Albums. |
 | Setup wizard, step 9 (Done) and its backup length | [web-ui.md § 9. Done](web-ui.md#9-done) | Needs review | | The backup-length line isn't drawn yet. |
 | Library: list, grid, detail, + modal | [web-ui.md § Library](web-ui.md#library) | Specified | | Followed playlists show "n / total"; linked ones "n recorded". |

@@ -1,0 +1,84 @@
+/* Layout for ui-b's gallery entries, as on the component sheet (E3ZmN.png): items side by side,
+   40 apart, each under an 11/500 $text-muted spec label 8 above it. Gallery only. */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s-6) 40px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.spec {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.specLabel {
+  color: var(--text-muted);
+  font: var(--type-label);
+  white-space: nowrap;
+}
+
+/* Stepper steps sit 24 apart (components.md § Stepper). */
+.steps {
+  display: flex;
+  gap: var(--s-6);
+}
+
+/* Sheet widths. */
+.w176 {
+  width: 176px;
+}
+
+.w280 {
+  width: 280px;
+}
+
+.w600 {
+  width: 600px;
+}
+
+.w640 {
+  width: 640px;
+}
+
+.w900 {
+  width: 900px;
+}
+
+.w1100 {
+  width: 1100px;
+}
+
+.card {
+  width: 200px;
+}
+
+/* A box the toast demo's viewport sits at the bottom of, like the content area. */
+.toastStage {
+  position: relative;
+  width: 420px;
+  height: 140px;
+  padding: var(--s-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+}
+
+.note {
+  max-width: 640px;
+  color: var(--text-muted);
+  font: var(--type-small);
+}
+
+/* The sheet's two expiry banners sit 12 apart. */
+.gap12 {
+  gap: var(--s-3);
+}

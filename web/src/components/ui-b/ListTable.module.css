@@ -1,0 +1,23 @@
+/* Measured from ZGPGu, wwJXz and l9Wn7L: a 1 px $border line under the header, 20 px above the
+   first row; playlist and album rows 2 px apart, track rows touching. */
+
+.table {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.head {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dense {
+  gap: 0;
+}

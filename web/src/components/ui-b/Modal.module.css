@@ -1,0 +1,74 @@
+/* `Modal` (zYEVa): the modal surface (fixed.css), 12 px corners, padding 24, gap 20, over a full-screen $scrim. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--scrim);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 100%;
+  padding: var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--surface-modal);
+  box-shadow: var(--shadow-modal);
+}
+
+/* The dialog takes focus only so Tab starts inside it: no ring on the whole box. */
+.dialog:focus {
+  outline: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font: var(--type-modal-title);
+}
+
+/* The close button, drawn as a `Button/Icon` with `x`: 36 × 36, a 20 px $text-sub icon. */
+.close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  color: var(--text-sub);
+}
+
+/* Not drawn (components.md § Differences, row 5). Ours: the icon brightens, as Spotify's do. */
+.close:hover {
+  color: var(--text);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--s-3);
+}
