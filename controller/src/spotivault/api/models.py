@@ -760,6 +760,9 @@ class RunCreated(BaseModel):
     True when a new run started; false when the items joined the current run.
     """
     added: list[ItemId]
+    """
+    A new run: the `items` given, or empty for Run now. Joining a run: the items that now wait right after the current item, in the given order, both new ones and ones already waiting that moved there. The current item, and items that already ended or were removed in this run, are left out: a run has one row per item.
+    """
 
 
 class HistoryRowWindow(BaseModel):

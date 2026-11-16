@@ -778,6 +778,21 @@ async def test_snapshots_a_runs_refresh_could_not_read_are_reported(
     assert set(result.snapshots_unread) == {LINKED, FOLLOWED}
 
 
+async def test_untracked_playlists_snapshots_are_reported_unread_unless_listed(
+    services: Services, connected: FakeWorld
+) -> None:
+    """createRun with `items` runs an untracked playlist too. An untracked linked one is never
+    read, so its stored snapshot_id may be stale (D13 mustn't skip it); an untracked followed
+    one's comes with the listing."""
+    await services.catalog.refresh(trigger="setup")
+    await add_and_settle(services, LINKED, FOLLOWED)
+    await services.library.set_tracked(LINKED, False)
+    await services.library.set_tracked(FOLLOWED, False)
+    await services.catalog.wait_idle()
+    result = await services.catalog.refresh(trigger="run", run_id=await add_run(services))
+    assert result.snapshots_unread == (LINKED,)
+
+
 # --- auto_track_owned ---------------------------------------------------------------------------
 
 

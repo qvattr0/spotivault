@@ -13,6 +13,7 @@ Both run again at start-up on whatever fake ports the services hold then, so a t
 
 from typing import TYPE_CHECKING
 
+from spotivault.fake import demo
 from spotivault.fake.webapi import SCOPES
 from spotivault.fake.world import FakeWorld, world_of
 from spotivault.ports import TokenGrant
@@ -36,6 +37,7 @@ def attach(services: "Services") -> None:
         world.webapi.auth = services.auth
         if world.scenario == "demo":
             await seed_demo_connection(services, world)
+            demo.prepare(services, world)  # setup completed for Run now (fake/demo.py)
 
     services.add_startup("fake.attach", start)
 

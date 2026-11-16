@@ -246,7 +246,8 @@ class RecorderSpec:
 
 @dataclass(frozen=True, slots=True)
 class RecorderNotification:
-    """One JSON-RPC notification from spytifyd: `track.started`, `level`, `session.state`, …"""
+    """One JSON-RPC notification from spytifyd: `track.started`, `level`, `session.state`, …
+    `params` is the payload exactly as sent; recorder/protocol.parse_notification types it."""
 
     method: str
     params: Mapping[str, Any]
@@ -261,7 +262,8 @@ class RecorderSession(Protocol):
 
     @property
     def returncode(self) -> int | None:
-        """The exit code once the process has exited, else None."""
+        """The exit code once the process has exited (negative: killed by that signal), else
+        None."""
         ...
 
     async def call(
@@ -286,7 +288,9 @@ class RecorderSession(Protocol):
 
     async def terminate(self, *, first_grace_s: float = 45.0, second_grace_s: float = 15.0) -> int:
         """SIGTERM (finish the current take), then a second SIGTERM after `first_grace_s` (stop at
-        once), then SIGKILL after `second_grace_s`, to the process group. Returns the exit code."""
+        once), then SIGKILL after `second_grace_s`. SIGTERM goes to spytifyd alone (its parec and
+        ffmpeg children share its group and would be cut off), and the SIGKILL goes to its whole
+        process group. Returns the exit code."""
         ...
 
     async def kill(self) -> int:
@@ -295,7 +299,8 @@ class RecorderSession(Protocol):
 
     async def events_file(self) -> list[RecorderNotification]:
         """The records in the spec's `--events` file, read after the exit, to check against the
-        socket's notifications (it holds the last `track.finished` too)."""
+        socket's notifications (it holds the last `track.finished` too). The real port leaves
+        out `level` records: up to 10 a second, they'd fill memory on a long item."""
         ...
 
 
@@ -303,10 +308,14 @@ class Recorder(Protocol):
     """Starts spytifyd processes, and cleans up after ones a crash left behind."""
 
     async def start(self, spec: RecorderSpec) -> RecorderSession:
-        """Spawns spytifyd for one item and returns once its socket answers.
+        """Spawns spytifyd for one item and returns once its socket answers and its --once
+        session has started (`session.status` has a session id). The session waits up to
+        `wait_target_s` for the player, so this can take that long.
 
         Raises RecorderStartError when it exits first (2: a bad setting; 1: ffmpeg, the output
-        folder, or the socket in use) or the socket doesn't appear within `socket_timeout_s`.
+        folder, the socket in use, or no player within `wait_target_s`;
+        recorder/protocol.classify_exit reads which from `log_tail`) or the socket doesn't
+        appear within `socket_timeout_s`.
         """
         ...
 

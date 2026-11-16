@@ -50,7 +50,7 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 | `spotify` | The Spotify client. It isn't in the image: `spotify-install` puts it in `/config`, and the service waits until it's there. |
 | `controller` | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. Python ([controller/](../controller/)); see [Stack](#stack). s6 runs `/opt/spotivault/venv/bin/python -m spotivault`. It also serves the `/vnc.html` page, with noVNC's core from its web root, `/usr/local/share/spotivault/web`. |
 
-`spytifyd` is not a service. The controller starts it for each item (`--once --serve --idle-exit 20s`) and passes the recorder settings in at the start.
+`spytifyd` is not a service. The controller starts it for each item (`--once --serve --idle-exit 20s`) and passes the recorder settings in at the start. The full command is `--once --serve --idle-exit 20s --wait-target 60s --log-file … --events …`, with one `--set key=value` per recorder setting. Its own socket is per item, and its environment is fixed (`recorder/process.py`, `command_line`). Its log and events files are `/config/logs/spytify/<run>-<item>.log` and `.events.jsonl`, one pair per item, and a second attempt gets `-2` in its name.
 
 ### Users and processes
 
@@ -203,24 +203,78 @@ Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implicatio
 
 1. **Plan.**
    - **Missing tracks only:** fetch the track list with `market=from_token`. Leave out entries with `is_playable: false`, local files, episodes and empty entries. Look each one up in Spytify's duplicate index (`/music/.spytify/recorded.jsonl`) by Spytify's own key: the first artist and the title, trimmed and lowercased the Go way. An entry counts only while its file exists. **Nothing missing:** the item is Up to date, and no recorder starts.
-   - **Whole:** the item is Up to date without playing if its `snapshot_id` is the one from its last clean full pass **and** every track seen in that pass is still in the index. A deleted file forces a full pass. A clean full pass is one that ended normally, with no failed track and no interruption.
-     - **A fresh `snapshot_id`:** the run's own catalog refresh reads linked playlists' `snapshot_id` first, before any track list. If the refresh couldn't read an item's `snapshot_id` (the listing failed, or Spotify stopped answering), the stored one may be stale, so the item plays whole.
+   - **Whole:** the item is Up to date without playing if its `snapshot_id` is the one from its last clean full pass **and** every track seen in that pass is still in the index. A deleted file forces a full pass. A clean full pass is one that ended normally and was heard to its end (Spotify went back to the playlist's first track), with no failed track, no track skipped for a reason a later pass could fix (seeked, low quality, silent, incomplete), and no interruption. A pass the loop guard paused is never clean.
+     - **A fresh `snapshot_id`:** the run's own catalog refresh reads linked playlists' `snapshot_id` first, before any track list. If the refresh couldn't read an item's `snapshot_id` (the listing failed, Spotify stopped answering, or it's a linked playlist that isn't tracked: Back up now runs those too), the stored one may be stale, so the item plays whole.
 2. **Prepare the player:** pause, seek to 0, and turn shuffle and repeat off. Spytify won't record a track the player is paused on more than 300 ms in, and it misses a restart within 2 s of that point, so seeking to 0 first matters ([Spytify bugs](upstream/spytify-bugs.md) #2).
-3. **Start the recorder:** `spytifyd --once --serve --idle-exit 20s` for this item, with every recorder setting passed as `--set` (see [Container](#container)). `recorder.skip_duplicates_forward` is **off** for missing-tracks-only items and **on** for whole items. With it on, Spytify presses Next on the paused track 1 at the end of an album ([Spytify bugs](upstream/spytify-bugs.md) #1), so whole items get a loop guard (a track seen twice in one item pauses the player). Then `player.control full_volume`.
+3. **Start the recorder:** `spytifyd --once --serve --idle-exit 20s` for this item, with every recorder setting passed as `--set` (see [Container](#container)). `recorder.skip_duplicates_forward` is **off** for missing-tracks-only items and **on** for whole items. With it on, Spytify presses Next on the paused track 1 at the end of an album ([Spytify bugs](upstream/spytify-bugs.md) #1), and the whole playlist can play again, every track a duplicate. So whole items get a loop guard: two tracks in a row that come round again in the order they were first heard pause the player. One repeat alone doesn't: a playlist can list a track twice, and Spytify skips it and moves on. Then `player.control full_volume`.
 4. **Play:** `PUT /me/player/play` with the container's `device_id`, the item's `context_uri` and an `offset`.
    - **The offset is by URI**, at the first missing track. `offset.position` counts only playable entries, so after an unplayable entry it lands on a later track.
+   - **A 404 from the play:** Spotify answers 404 for a device it doesn't know, too. If our device isn't listed any more, the run fails (device missing). Otherwise the item is Unavailable in this run only; whether it's gone for good is the catalog refresh's to decide.
    - **Liked Songs** is the context `spotify:user:<id>:collection`. The Web API then reports it as a playlist URI (`spotify:playlist:37i9dQZF1F…`), and the controller treats that as the same context.
-5. **Steer:** on each `track.started`, identify the loaded track by MPRIS `mpris:trackid`, which names the context's own entry. `GET /me/player` can report a relinked track ID, and `linked_from` is gone. If the track is planned, it plays. If not, the controller jumps to the next missing track (another play with an `offset` by URI) or, when none is left, pauses. A jump costs about 2 s of a track that's never saved.
+5. **Steer:** on each `track.started`, identify the loaded track by MPRIS `mpris:trackid`, which names the context's own entry. `GET /me/player` can report a relinked track ID, and `linked_from` is gone. If the track is planned, it plays. If not, the controller jumps to the next missing track (another play with an `offset` by URI) or, when none is left, pauses. A jump costs about 2 s of a track that's never saved. A planned track that Spytify skips as a duplicate (it's listed twice, or the keys differ) is jumped over the same way: with skip-forward off, it would play to its end unrecorded.
 6. **End:** Spotify pauses at the end of an album or playlist, and the controller pauses when the plan is done. After 20 s of silence, `spytifyd` saves the last track and exits (`--idle-exit 20s`), about 20–27 s after the pause.
+   - **Telling the end from a stall:** Spotify ends a context by loading its first track and pausing within 1.5 s of its start. The controller checks the loaded track against MPRIS: the item's first playable track, or for a whole item the first track heard. A pause anywhere else is a stall, even at the start of a track.
+   - **Stop now while the item is finishing:** playback is already over, and the last track, often played in full, waits for the idle exit to be saved. A stop now would make Spytify reject it, so the controller stops after this track instead, and the track is saved at the idle exit, well inside the 40 s shutdown bound.
    - **No client restart is needed.**
    - **Read every event**, including those written as the process exits. The last take's `track.finished` arrives then, and the `--events` file holds it too.
    - **Pause the player** in case it started again, and recompute what's missing from the index. **Count distinct tracks, not events:** a phantom `track.started` + `track.skipped` for the paused track 1 is normal at the idle exit.
    - **A pause of more than 20 s in the middle of an item** ends it early. This happens when another device takes over or the network stalls. The controller re-queues the item once, and the tracks already recorded are skipped. A second interruption in the same run ends the item as Partial.
    - **The context moves on** (autoplay): the controller stops the session at once and ends the item.
-   - **Timeouts:** if playback never starts, or the recorder outlives the end, the controller sends SIGTERM (finish the current track), then a second one (stop at once). Restarting the client is the fallback.
-7. **Files:** write a `.m3u` for the playlist, in the Web API's track order, with paths relative to the `.m3u`. For a whole item, use the order the tracks were recorded in. Save its cover next to it (see [Playlist covers](#playlist-covers)).
+   - **Timeouts** (as built; the numbers are the defaults in `engine/types.py`, `Timeouts`):
+     - **Recorder socket:** it must answer within 15 s, or the start fails with the recorder's exit code (see [Exit codes](#exit-codes)).
+     - **Playback never starts:** after 30 s with no `track.started`, the controller plays the item again. After 90 s, it sends SIGTERM and the item fails (`recorder_timeout`).
+     - **Finishing:** the recorder must exit within 20 s (the idle exit) plus 40 s of the end. Otherwise, SIGTERM.
+     - **Whole item:** its time limit is 1.25 × its planned length + 10 min. The planned length is its last full pass, else its track count × 5 min, else 6 h. At the limit, the controller stops the recorder after this track (`session.stop {now: false}`): the take playing is finished, and the item ends Partial. If the recorder still runs 30 s after that take's end, SIGTERM.
+     - **Pause nobody here caused:** the item ends Interrupted when the recorder's idle exit ends the session. A recorder still running 60 s after the pause gets SIGTERM.
+     - **Stopping the recorder:** SIGTERM (it finishes the current take), then after 45 s SIGTERM again (it stops at once), then after 15 s SIGKILL. When SIGTERM stands in for a stop after this track (the socket didn't answer, or spytifyd dropped it), the first wait lasts at least until the take's end plus 30 s.
+     - **Web API checks:** `GET /me/player` every 60 s during an item, at each track start (at least 5 s apart) and on each pause.
+     - **Client restart as the fallback** (the spec above): not built. A timeout fails the item, and only the pre-run check restarts a client that isn't running. Open for the user: see [controller/ARCHITECTURE.md](../controller/ARCHITECTURE.md#whats-left-to-build).
+7. **Files:** write a `.m3u` for the playlist, in the Web API's track order, with paths relative to the `.m3u`. A recorded track that has since become unplayable stays listed while its file is there. For a whole item, use the order the tracks were recorded in: the last clean full pass's, then the tracks recorded since. A file with the playlist's name that the controller didn't write is never replaced: the playlist gets the name with " (<first 6 characters of its id>)". Save its cover next to it (see [Playlist covers](#playlist-covers)). After each item, its recorded files get the mode `UMASK` gives them, since Spytify leaves tagged files at 0600 ([Spytify bugs](upstream/spytify-bugs.md) #7).
 
 The scheduler queues items. An item forced from the UI goes right after the current item. One item records at a time.
+
+### Exit codes
+
+The controller reads a `spytifyd` exit as one cause, and each cause has one action (`recorder/protocol.py`, `classify_exit`):
+
+| Exit | Cause | What happens |
+|---|---|---|
+| 0 | `ok` | The session ended: an idle exit, a stop, or the player gone. |
+| 2 | `bad_setting` | The run fails. A `--set` or the environment was refused. |
+| 1, "another spytifyd is listening" on the socket | `socket_in_use` | Kill the leftover recorder, remove the socket and start once more. |
+| 1, `session.start` error -32007 | `output_dir` | The run fails: the music folder can't be written to. |
+| 1, `session.start` error -32002 | `ffmpeg` | The run fails: ffmpeg is missing. |
+| 1, the log, events or config file can't be opened | `files` | The run fails. |
+| 1, `session.start` error -32001 | `no_player` | The item fails: no player within 60 s (`--wait-target`). |
+| 1, any other reason | `other` | The item fails. |
+| Ended by a signal (SIGKILL) | `killed` | The item fails. |
+
+A start that gives no exit code, such as a missing binary, reads as `killed`, so it fails the item and not the run. A cause for "can't be run" would fix that. It's open ([controller/ARCHITECTURE.md](../controller/ARCHITECTURE.md#whats-left-to-build)).
+
+### Start-up recovery
+
+When the container starts, it cleans up what a stop or a crash left behind, in this order. Each step stands alone: one that fails is logged, and the others still run.
+1. **Unfinished runs** end `failed`, with reason `container_restarted`. Their counts are summed from their items. Their current item is Interrupted, their waiting items are Stopped, and a take still recording is failed `interrupted`. Nothing is published, since no client is connected yet.
+2. **Orphan `spytifyd` processes** are killed.
+3. **Stale sockets** under the runtime folder are removed.
+4. **Stale files** in the music folder are removed: WAVs in `.spytify/` and Spytify's own `.part` files (`.mp3.part`, `.m4a.part`, `.flac.part`, `.wav.part`), older than 60 s. Another program's partial downloads and another Spytify's `.spytify` folder deeper in the share are left alone. Between items, only `.spytify/` is tidied; after a recorder was killed, the next cleanup walks the whole music folder once.
+5. **The player** is paused, if it's playing.
+6. **The client** is told that no run is going, so its restart and install are allowed again.
+
+The scheduler starts after this. A window that a restart cut off starts again, unless its run was stopped by hand.
+
+### Run metrics
+
+While a run goes, one sample is written to `run_metrics` every 60 s (`metrics.py`). Each sample holds:
+- **Spotify:** the RSS of every Spotify process, summed, and their CPU % over the last interval (100 = one core).
+- **spytifyd:** its RSS and CPU %. NULL between items.
+- **The controller:** its RSS and CPU %.
+- **The client's cache:** the size of its cache folder.
+- **Free space:** on `/music` and on `/config`.
+- **Web API:** the requests in the last 30 s.
+- **Loop lag:** the worst event-loop lag since the last sample, in ms.
+
+A value that can't be read is NULL, and a failed sample is logged and skipped. The first sample of a run has no CPU figure.
 
 ## Web API usage
 

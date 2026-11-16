@@ -55,11 +55,12 @@ Frozen for other modules and S6: `RefreshTrigger`, `RefreshResult`, `refresh()`,
      `partial`, and the rest waits for the next one. Any other error fails that item only.
 6. **D13 bookkeeping:** keep `snapshot_id` current for items without item access (followed and
    linked). Don't touch `last_full_pass_snapshot`, `last_full_pass_at` or `observed_tracks`: S6
-   sets them after a clean full pass. `RefreshResult.snapshots_unread` lists the tracked items
-   without item access whose `snapshot_id` this refresh didn't read (the listing failed, a linked
-   read failed or was never reached, or every linked one outside a run's refresh). Their stored
-   snapshot_id may be stale, so D13 can't call them Up to date: S6 plays them whole (the
-   cautious answer).
+   sets them after a clean full pass. `RefreshResult.snapshots_unread` lists the items without
+   item access whose `snapshot_id` this refresh didn't read (the listing failed, a linked read
+   failed or was never reached, every linked one outside a run's refresh, and untracked linked
+   ones always: only tracked ones are read). Their stored snapshot_id may be stale, so D13 can't
+   call them Up to date: S6 plays them whole (the cautious answer). Untracked ones are listed
+   too, because createRun with `items` runs an item whatever its tracking.
 7. **The end:** `services.webapi_usage.finish_scope(scope)` gives the counts and logs the Web API
    line; log "Catalog: 3 changed" and the covers line ("Covers: 4 saved · 1 at the size
    returned"; `saved` counts both) when there were any; fill the row's outcome (`ok`, `partial`
@@ -145,8 +146,8 @@ class RefreshResult:
     covers_fallback: int
     api: ScopeSummary
     error: str | None = None
-    # Tracked playlists without item access (followed, linked) whose snapshot_id this refresh
-    # didn't read, so D13 can't call them Up to date (module docstring, step 6).
+    # Playlists without item access (followed, linked), tracked or not, whose snapshot_id this
+    # refresh didn't read, so D13 can't call them Up to date (module docstring, step 6).
     snapshots_unread: tuple[str, ...] = ()
 
 
@@ -734,10 +735,11 @@ class CatalogService:
             return _NO_API
 
     async def _snapshots_unread(self, read: set[str]) -> tuple[str, ...]:
-        """The tracked items without item access whose snapshot_id isn't in `read` (step 6)."""
+        """The items without item access, tracked or not, whose snapshot_id isn't in `read`
+        (step 6)."""
         rows = await self.services.store.fetchall(
             "SELECT id FROM items WHERE kind IN ('followed', 'linked') AND item_access = 0 "
-            "AND tracked = 1 AND removed_at IS NULL ORDER BY id"
+            "AND removed_at IS NULL ORDER BY id"
         )
         return tuple(row["id"] for row in rows if row["id"] not in read)
 
