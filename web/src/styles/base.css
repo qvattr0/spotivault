@@ -1,0 +1,143 @@
+/* Base styles for the whole app: a small reset, the page background, and the type scale.
+   Colours, spacing and radii come from ../design/tokens.css (generated from the .pen file). */
+
+/* --- Reset ------------------------------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-app);
+  color: var(--text);
+  font: var(--type-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+  padding: 0;
+}
+
+p,
+h1,
+h2,
+h3,
+h4 {
+  overflow-wrap: break-word;
+}
+
+/* Keyboard focus. The drawings show no focus state (components.md § Differences, row 5),
+   so this is ours: a white ring, only for keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Text only screen readers see. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Type scale --------------------------------------------------------------------------------
+   From components.md § Type scale. The .pen file draws these as specimens, not variables, so they
+   live here. Each is a `font` shorthand: use it as `font: var(--type-body)` in CSS, or the
+   matching class (`type-body`) in markup. Line height is the font's default (`normal`), as in
+   the drawings. */
+
+:root {
+  --type-display: 800 40px / normal var(--font);
+  --type-title: 700 28px / normal var(--font);
+  --type-heading: 700 20px / normal var(--font);
+  --type-subhead: 600 16px / normal var(--font);
+  --type-body: 400 14px / normal var(--font);
+  --type-small: 400 13px / normal var(--font);
+  --type-caption: 500 12px / normal var(--font);
+  --type-mono: 400 12px / normal var(--font-mono);
+
+  /* Sizes the components use that aren't on the scale (components.md § Type scale). */
+  --type-label: 500 11px / normal var(--font); /* spec labels, now-playing timestamps */
+  --type-row-title: 600 15px / normal var(--font); /* list row and card titles */
+  --type-button: 700 15px / normal var(--font); /* primary button label, nav labels */
+  --type-button-sm: 700 14px / normal var(--font); /* secondary, tertiary, danger, split labels */
+  --type-pill: 600 12px / normal var(--font); /* status pill label */
+  --type-wordmark-wizard: 800 18px / normal var(--font); /* "spotivault setup" */
+  --type-wordmark: 800 19px / normal var(--font); /* sidebar "spotivault" */
+  --type-modal-title: 800 22px / normal var(--font);
+  --type-page-title: 800 32px / normal var(--font); /* "Dashboard", "Library" */
+}
+
+.type-display { font: var(--type-display); }
+.type-title { font: var(--type-title); }
+.type-heading { font: var(--type-heading); }
+.type-subhead { font: var(--type-subhead); }
+.type-body { font: var(--type-body); }
+.type-small { font: var(--type-small); }
+.type-caption { font: var(--type-caption); }
+.type-mono { font: var(--type-mono); color: var(--text-sub); }
+.type-label { font: var(--type-label); }
+.type-page-title { font: var(--type-page-title); }
+
+/* Text colours, as classes for quick use in markup. */
+.text-sub { color: var(--text-sub); }
+.text-muted { color: var(--text-muted); }

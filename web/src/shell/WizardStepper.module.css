@@ -1,0 +1,32 @@
+/* The stepper row in the Wizard top: steps 88 wide and 116 apart, with 90 × 3 bars behind the
+   dots (components.md § Stepper). */
+
+.stepper {
+  display: flex;
+  gap: 28px;
+}
+
+.item {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* The bar into a step, from 1 px under the previous dot to 1 px under this one, at the dots'
+   middle. The step (z-index 1) sits on top of it. */
+.bar {
+  position: absolute;
+  top: 12.5px;
+  left: -59px;
+  width: 90px;
+  height: 3px;
+  background: var(--border-strong);
+}
+
+.barDone {
+  background: var(--accent);
+}
+
+.link {
+  display: block;
+  border-radius: var(--r-sm);
+}

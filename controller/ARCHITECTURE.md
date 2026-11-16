@@ -16,6 +16,8 @@ Everything runs from `controller/`. uv is at `~/.local/bin/uv`; the venv is `con
 | Format | `uv run ruff format` |
 | Dev server, fake mode | `uv run python -m spotivault --fake --port 8181`, then `curl http://127.0.0.1:8181/api/health` |
 | Dev server, walking the wizard | `SPOTIVAULT_FAKE_SCENARIO=wizard uv run python -m spotivault --fake --port 8181` |
+| Dev server with the web UI | Start the dev server above, then `cd web && SPOTIVAULT_BACKEND=http://localhost:8181 npm run dev`: the UI at http://localhost:5173, against this controller. The dev proxy sends the controller's Host, and rewrites Origin to the controller's only for the dev page's own requests, so the request guard lets the UI through and still refuses other sites ([web/README.md](../web/README.md)). |
+| The UI against fake mode, end to end | `cd web && npm run e2e:controller`: builds the UI, starts this controller on a free port, and runs [web/e2e-controller/](../web/e2e-controller/). |
 | Regenerate the API models | `uv run python scripts/gen_models.py` (`--check` only compares) |
 
 - **Fake mode** simulates the Spotify client, its player, the recorder, the Web API, the volumes and the screen. It keeps its data in `controller/.dev/` (git-ignored). It's what the UI is developed against (S7, S8).

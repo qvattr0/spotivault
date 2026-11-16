@@ -1,0 +1,47 @@
+/* `Progress` (mmhUz): 4 px tall, a $bg-press track and an $accent fill, both pill-shaped. */
+
+.track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--bg-press);
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+/* Not drawn. Ours: a short segment sweeping across, for Finishing and Measuring. */
+.indeterminate {
+  position: absolute;
+  width: 30%;
+  animation: sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  from {
+    left: -30%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+
+  /* No movement: a dimmed full bar says "working" instead. */
+  .indeterminate {
+    left: 0;
+    width: 100%;
+    opacity: 0.4;
+    animation: none;
+  }
+}

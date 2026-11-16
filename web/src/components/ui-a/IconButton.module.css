@@ -1,0 +1,57 @@
+/* Button/Icon (components.md § Buttons): 36 × 36, pill, a 20 px icon in text-sub, no fill.
+   `filled` is the Library header's + button (ZGPGu): bg-highlight with a white icon.
+   Hover, pressed and disabled are ours (§ Differences, row 5): the icon turns white on hover,
+   dims while pressed, and the button is 40 % opacity when disabled (Player's Restart, jh5YJ). */
+
+.iconButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  color: var(--text-sub);
+  transition:
+    color 100ms ease,
+    background-color 100ms ease,
+    transform 100ms ease;
+}
+
+.filled {
+  background: var(--bg-highlight);
+  color: var(--text);
+}
+
+.iconButton:not(:disabled, [aria-disabled='true']):hover,
+.iconButton[data-state='hover'] {
+  color: var(--text);
+}
+
+.filled:not(:disabled, [aria-disabled='true']):hover,
+.filled[data-state='hover'] {
+  background: var(--bg-press);
+  transform: scale(1.04);
+}
+
+.iconButton:not(:disabled, [aria-disabled='true']):active,
+.iconButton[data-state='active'] {
+  color: var(--text-sub);
+  transform: none;
+}
+
+.iconButton[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.iconButton:disabled,
+.iconButton[aria-disabled='true'] {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconButton {
+    transition: none;
+  }
+}

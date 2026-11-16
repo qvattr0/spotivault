@@ -1,7 +1,21 @@
-# Only image/ and controller/ are needed to build; everything else stays out of the build context.
+# Only image/, controller/ and the web UI's sources are needed to build; everything else stays out of
+# the build context.
 *
 !image/
 !controller/
+# The web UI (the webui stage): its sources, and docs/brand for the logo it imports. Not its
+# node_modules (npm ci runs in the image), the design drawings, or the output of tests and builds.
+!web/
+web/node_modules
+web/dist
+web/design-reference
+web/test-results*
+web/playwright-report
+web/blob-report
+web/e2e/screenshots
+!docs/
+docs/*
+!docs/brand/
 # The controller's local venv, fake-mode data and tool caches.
 controller/.venv
 controller/.dev

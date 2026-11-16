@@ -1,0 +1,75 @@
+/* The Card's corner badge (components.md § Card, Hq8n4): 24 × 24, at the art's top right.
+   Tracked: an accent circle, 2 px bg-elevated stroke, a 14 px check in on-accent.
+   Not tracked (gFhen): badge-untracked-fill, a 2 px white stroke, no tick.
+   Recording (A9DdzN): a 40 × 40 ring around it, 3 px wide (inner radius 0.85), the ring-track
+   colour, with the progress in accent from 12 o'clock, clockwise. The ring hangs 8 px outside
+   the badge, so the badge stays at the same place on the card in every state.
+   The 2 px stroke is the card's colour, so it follows the card's --card-bg when the card lightens
+   on hover (ui-b's Card sets it). Hover (grows 10 %) and focus are ours. */
+
+.badge {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--card-bg, var(--bg-elevated));
+  border-radius: var(--r-pill);
+  transition: transform 100ms ease;
+}
+
+.tracked {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.untracked {
+  border-color: var(--text);
+  background: var(--badge-untracked-fill);
+}
+
+.badge:not(:disabled):hover,
+.badge[data-state='hover'] {
+  transform: scale(1.1);
+}
+
+.badge[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.badge:disabled {
+  opacity: 0.4;
+}
+
+.ring {
+  position: absolute;
+  inset: -10px;
+  width: 40px;
+  height: 40px;
+  max-width: none;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.ringTrack,
+.ringFill {
+  fill: none;
+  stroke-width: 3;
+}
+
+.ringTrack {
+  stroke: var(--ring-track);
+}
+
+.ringFill {
+  stroke: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge {
+    transition: none;
+  }
+}

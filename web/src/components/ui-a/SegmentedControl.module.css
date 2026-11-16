@@ -1,0 +1,57 @@
+/* ViewSwitch (components.md § View switch, hGPWo): a bg-highlight pill track, padding 3, gap 2,
+   80 × 32. Segments: pill, padding 5 10, a 16 px icon. Selected: bg-press, icon text.
+   Unselected: no fill, icon text-sub.
+   Text segments are the Player's Scale toggle, "Fit · 100%" (ZQChN): the same track, 26 tall
+   segments with a 13/700 label. Hover and focus are ours (§ Differences, row 5). */
+
+.track {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  border-radius: var(--r-pill);
+  color: var(--text-sub);
+  transition:
+    color 100ms ease,
+    background-color 100ms ease;
+}
+
+.icon {
+  padding: 5px 10px;
+}
+
+.text {
+  padding: 0 12px;
+  font: var(--type-small);
+  font-weight: 700;
+}
+
+.selected {
+  background: var(--bg-press);
+  color: var(--text);
+}
+
+.segment:not(.selected):hover,
+.segment:not(.selected)[data-state='hover'] {
+  color: var(--text);
+}
+
+.segment[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment {
+    transition: none;
+  }
+}

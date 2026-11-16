@@ -25,6 +25,40 @@ The endpoint tables below summarize the API. The full request, response and even
   - navigation: sidebar nav, stepper;
   - lists and cards: list row (playlist, album or track), card with corner badge, modal;
   - feedback: progress bar, level meter, status pill, toast, inline alert.
+- **In code** (`web/src/components/`), the set also has parts the drawings use without naming them: the view switch, the expiry banner, the now-playing strip, tertiary, danger and play buttons, the drop-down menu, a select, the cover tile, an item row (the + modals and Up next), the empty state, a tooltip, a confirm dialog and the modal. `/gallery` shows every one in every state.
+
+### What the drawings leave out
+
+The `.pen` file draws most components in their default state only. The UI fills the gaps as below. These are cautious choices that haven't been reviewed yet: to change one, change it here first.
+
+**States**
+
+| State | Built as |
+|---|---|
+| Hover | Green and outlined buttons grow 4 %. Text buttons and nav items turn white. A menu item turns white at 10 % (`--menu-item-hover`). |
+| Pressed | `accent-press` on green buttons. |
+| Keyboard focus | A white 2 px ring. Text fields get the white outline drawn in Edit layout. The search box gets a 1 px ring inside it. A week cell looks hovered, since a ring would cover the next cell. |
+| Disabled | 40 % opacity, measured from the dimmed Continue on Setup 4 and 5. A button that explains itself in a tooltip, such as Player › Restart during a run, stays focusable. |
+| Busy | A spinner in the button. |
+
+**Components**
+
+| Component | Built as |
+|---|---|
+| Select (Library sort, Logs run filter) | The browser's own list, in dark colours. Only the closed box is drawn. |
+| Menu | Arrow keys, Home, End and Escape work. It closes on Tab or a click outside. In the bottom bar it opens upwards. |
+| Library ⋯ "Automatically track playlists I create" | A menu item with a small toggle at its end. |
+| Search box | A clear button; Escape clears it too. |
+| Logs filter chips | 24 tall, as measured in xRi3r. Several can be on at once. |
+| Settings › "Disconnect" | A tertiary button in `danger`, as drawn in t6RqK. |
+| Info alert | The warn alert's pattern in the info colours. |
+| Modal | Escape and × close it. A click on the scrim doesn't, because some modals hold unsaved edits. Focus stays inside, and goes back to the opener. |
+| Toast | Bottom centre of the page panel, for 5 s, at most 3 at once. Screen readers announce each one. |
+| Level meter | 24 segments, 2 dB each from −48 dBFS, read from `peak_dbfs`. Yellow from −18 dBFS, which gives the drawing's 15 green and 2 yellow. It falls silent 0.6 s after the last reading. |
+| A list row's Back up now | Over the cover, on hover or keyboard focus (components.md § Differences, row 6). |
+| A failed wizard step | Drawn in the stepper as the active step, as Setup 2 · Failed shows it. |
+| Narrow windows | Under 800 px the sidebar keeps its icons and hides its status card. The bottom bar drops "Item n of m" under 1000 px and the track names under 700 px. |
+| Small grey text on cards | `text-muted` on `bg-elevated` is 4.2:1, under WCAG AA's 4.5:1. Where the drawings put it there, the UI uses `text-sub`: the status card's connection line, and the docked strip's track times. The grey dot and the bottom bar's times (on `bg-app`) stay as drawn. |
 
 ## Navigation
 
@@ -42,6 +76,51 @@ The endpoint tables below summarize the API. The full request, response and even
 - **Expiry banner:** 4 weeks before the Web API connection expires, a yellow banner appears at the top: "Spotify connection expires on <date>", with a Reconnect button. Once it has expired, the banner turns red and scheduled runs are held.
 
 Schedule is its own page. Logs is a tab inside History.
+
+### Sidebar status card
+
+The card at the foot of the sidebar. Its first line is the status line, and the second is the Spotify connection.
+
+| State | First line |
+|---|---|
+| Idle, with a schedule | `moon` "Next backup · tonight 01:00" (drawn). "tonight" means today from 18:00, or before 06:00 seen from noon the day before. |
+| No schedule | "No backup scheduled". |
+| Inside a window, between runs | "Backup window open · until 07:00". |
+| Held | "Backups held · connection expired", in red. |
+| Starting | "Starting a backup…". |
+| Running | `audio-lines` "Backing up · item 3 of 7", in green (drawn). |
+| Paused | `circle-pause` "Paused · playback moved", in yellow (drawn). |
+| Stopping | "Stopping after this track…", or "Stopping…". |
+
+- **Connection line:** a green dot and "Connected as Lorne", also while the connection is expiring (as drawn; the banner gives the date). Once expired, a red dot and "Spotify connection expired". Otherwise a grey dot and "Not connected to Spotify".
+- **Controller out of reach:** an extra line, "Reconnecting to spotivault…", above the last known state.
+- **Times** are in the browser's time zone.
+
+### Routes
+
+Settled with the UI stack in M1. The code is `web/src/routes.tsx`.
+
+| Route | Page |
+|---|---|
+| `/` | Goes to `/dashboard`. |
+| `/dashboard` | Dashboard |
+| `/library`, `/library/:id` | Library, and a playlist's detail view. `:id` is the item's id in `/api/library/{id}`. |
+| `/albums`, `/albums/:id` | Albums, and an album's detail view. |
+| `/history` | Goes to `/history/runs`. |
+| `/history/runs`, `/history/runs/:id` | History › Runs, and a run page. |
+| `/history/tracks`, `/history/logs` | History › Tracks and Logs. |
+| `/schedule`, `/settings`, `/player` | Schedule, Settings and Player. |
+| `/setup` | Goes to the first unfinished step. |
+| `/setup/welcome`, `/setup/client`, `/setup/login`, `/setup/client-settings`, `/setup/web-api`, `/setup/output`, `/setup/playlists`, `/setup/albums`, `/setup/done` | Wizard steps 1 to 9. |
+| `/reconnect` | Step 5 on its own: the Reconnect flow, from Settings or the expiry banner. The wizard's frame with the logo, without the stepper. |
+| `/gallery` | A developer page: every component in every state, and the shell live against the mock. Outside the setup gate. |
+
+- **Not routes:** modals, menus, hover states, and the List / Grid choice, which each browser remembers.
+- **Before setup is complete:** every route except `/gallery` goes to the first unfinished step. Later steps can't be opened yet; finished ones can.
+- **After setup:** `/setup` goes to the Dashboard. `/setup/<step>` stays open, so step 9 isn't taken away the moment setup completes.
+- **Setup stays complete** once it's done, until "Run setup again". An expired connection shows the red banner and holds runs; it doesn't send you back to the wizard. `GET /api/setup`'s `completed` has to work this way.
+- **Before the first `hello`:** a "Connecting to spotivault…" screen. While the socket reconnects: "Can't reach spotivault. Trying again…".
+- **No sign-in route** in M1: the UI password comes later.
 
 ---
 
@@ -473,13 +552,14 @@ The item queue is the main element. A compact now-playing strip sits above it.
   - **Stop after this track** (the main action): nothing is lost. The header says "Stopping after this track…" until it ends.
   - **Stop now** (from the arrow): first a confirm, "The current track will be discarded and recorded next time."
   - Either way, the run ends as **Stopped**. Items left in the queue aren't recorded this time, and their rows in History carry the **Stopped** badge. Tracked playlists are picked up by the next run, and albums stay Queued.
+  - After **Stop after this track**, the main action is disabled, but **Stop now** stays in the arrow: it upgrades the stop (openapi.yaml). This also holds when the end of a window asked for the stop. Once Stop now is asked for, both are disabled.
 
 **Now-playing strip**
 Styled like the client's now-playing bar, docked under the header:
 - a small cover, title and artist;
 - a track progress bar (from `track.started`'s length);
 - a level meter (Spytify's `level` peaks, 10 times a second);
-- a session-state pill: Waiting, Recording, Paused or Stopping.
+- a session-state pill: Waiting, Recording, Paused or Stopping. Spytify's `idle` and `ad` states show Waiting.
 
 On other pages, the same strip is the global bottom bar. It's hidden on the Dashboard, where the strip sits at the top.
 
