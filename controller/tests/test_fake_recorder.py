@@ -20,13 +20,17 @@ from spotivault.config import Config
 from spotivault.fake import FakeWorld
 from spotivault.fake.catalog import CatalogAlbum
 from spotivault.fake.clock import FakeClock
-from spotivault.fake.recorder import SimRecorder, SimRecorderSession, read_index, track_key
+from spotivault.fake.recorder import SimRecorder, SimRecorderSession, read_index
+from spotivault.matching import track_key
 from spotivault.ports import (
     RecorderGone,
     RecorderNotification,
     RecorderRpcError,
     RecorderStartError,
 )
+from spotivault.recorder.protocol import classify_exit
+
+ZERO_COUNTERS = {"recorded": 0, "skipped": 0, "ads": 0, "bytes": 0, "overruns": 0}
 
 ELSEWHERE = [
     ("Passage", 87_000),
@@ -110,7 +114,9 @@ async def test_an_album_records_and_the_last_take_finishes_at_the_idle_exit(
     assert [started[n["id"]] for n in finished] == [title for title, _ in ELSEWHERE]
     assert all("title" not in n for n in finished)
     assert finished[-1]["duration_ms"] == 88_000 - 1_100
-    assert not any(n["low_volume"] or n["pause_fade"] or n["partial"] for n in finished)
+    # Go's omitempty: the flags are left out when false.
+    assert not any("low_volume" in n or "pause_fade" in n or "partial" in n for n in finished)
+    assert all(n["tagged"] is True for n in finished)
     # The S0 run: the last take is saved and the process exits 20–27 s after the pause.
     assert 20 <= exit_after <= 30
     assert notes.summary()[-5:] == [
@@ -253,7 +259,7 @@ async def test_a_track_the_player_is_paused_on(
     await notes.done()
     titles = [n["title"] for n in notes.of("track.started")]
     assert ("Last Hours" in titles) is recorded
-    already = [n for n in notes.of("log") if "already playing" in n["message"]]
+    already = [n for n in notes.of("log") if "already playing" in n["msg"]]
     assert bool(already) is (paused_at_ms > 300)
 
 
@@ -268,11 +274,12 @@ async def test_a_takeover_ends_the_session_with_the_take_incomplete(
     took = await fake_clock.advance_until(lambda: session.returncode is not None, within=60)
     await notes.done()
     assert 20 <= took <= 21
-    assert notes.of("track.skipped") == [
-        {"id": notes.of("track.started")[0]["id"], "reason": "incomplete", "path": None}
-    ]
+    take = notes.of("track.started")[0]["id"]
+    assert notes.of("track.skipped") == [{"id": take, "reason": "incomplete"}]
+    assert notes.of("track.keepable") == [{"id": take, "keepable": True}]  # held for track.keep
     assert notes.of("track.finished") == []
     assert read_index(world.config.music_dir) == {}
+    assert (world.config.music_dir / ".spytify" / f"{take}.wav").exists()  # bug 4
 
 
 async def test_a_pause_inside_a_take_saves_it_with_pause_fade(
@@ -304,12 +311,8 @@ async def test_a_take_below_full_volume(
     assert await session.call("player.control", {"cmd": "full_volume"}) == {}
     assert world.player.volume == 100
     await fake_clock.settle()
-    assert notes.of("error")[-1] == {
-        "code": "player_volume_low",
-        "message": "",
-        "fatal": False,
-        "facts": None,
-    }  # withdrawn
+    assert notes.of("error")[0]["volume"] == 40
+    assert notes.of("error")[-1] == {"code": "player_volume_low", "msg": "", "fatal": False}
     assert await run_out(session, fake_clock) == 0
     await notes.done()
     (finished,) = notes.of("track.finished")
@@ -346,7 +349,8 @@ async def test_a_second_sigterm_holds_the_take_and_leaves_its_wav(
     assert await stopping == 0 and session.sigterms == 2
     await notes.done()
     (held,) = notes.of("track.keepable")
-    assert held["id"] == notes.of("track.started")[0]["id"]
+    assert held == {"id": notes.of("track.started")[0]["id"], "keepable": True}
+    assert notes.of("track.skipped") == [{"id": held["id"], "reason": "incomplete"}]
     wav = world.config.music_dir / ".spytify" / f"{held['id']}.wav"
     assert wav.exists()  # bug 4
     assert notes.of("track.finished") == []
@@ -359,10 +363,13 @@ async def test_track_keep_saves_a_held_take_as_partial(
     notes = Notes(session)
     await play(world, album, 0)
     await fake_clock.advance(10)
-    assert await session.call("session.stop", {"now": True}) == {}
+    assert await session.call("session.stop", {"now": True}) == {"recorded": 0, "skipped": 0}
     take = notes.of("track.started")[0]["id"]
     await fake_clock.settle()
     assert await session.call("track.keep", {"id": take}) == {}
+    with pytest.raises(RecorderRpcError) as gone:
+        await session.call("track.keep", {"id": take})  # claimed already
+    assert gone.value.code == -32006
     assert await run_out(session, fake_clock) == 0
     await notes.done()
     (finished,) = notes.of("track.finished")
@@ -408,28 +415,33 @@ async def test_silent_capture_is_reported_and_withdrawn(
     assert notes.of("error") == []
     await fake_clock.advance(0.2)
     (error,) = notes.of("error")
-    assert (error["code"], error["fatal"]) == ("capture_silent", False) and error["message"]
+    assert (error["code"], error["fatal"]) == ("capture_silent", False) and error["msg"]
+    assert all(isinstance(value, str) for value in error["facts"].values())
     world.recorder.set_capture("ok")
     await fake_clock.settle()
-    assert notes.of("error")[-1]["message"] == ""  # withdrawn
+    assert notes.of("error")[-1] == {"code": "capture_silent", "msg": "", "fatal": False}
     await fake_clock.advance(80)
     assert notes.of("track.skipped")[0]["reason"] == "silent"
     await session.kill()
 
 
-async def test_a_stalled_capture_ends_the_session(
+async def test_a_stalled_capture_is_reported_and_the_session_carries_on(
     world: FakeWorld, album: CatalogAlbum, fake_clock: FakeClock, tmp_path: Path
 ) -> None:
+    """2.0.2 reports capture_stalled (not fatal) and keeps the session: the controller ends the
+    item (plan § Item states: capture_silent / capture_stalled → partial)."""
     world.recorder.set_capture("stalled")
     session = await world.recorder.start(recorder_spec(tmp_path, world))
     notes = Notes(session)
     await play(world, album, 0)
-    took = await fake_clock.advance_until(lambda: session.returncode is not None, within=30)
-    assert session.returncode == 1 and 10 <= took <= 11
-    await notes.done()
+    await fake_clock.advance(10.1)
     (error,) = notes.of("error")
-    assert (error["code"], error["fatal"]) == ("capture_stalled", True)
+    assert (error["code"], error["fatal"]) == ("capture_stalled", False)
+    await fake_clock.advance(80)  # Passage ends; Distant Peak starts
+    assert session.returncode is None
     assert notes.of("track.skipped")[0]["reason"] == "incomplete"
+    assert len(notes.of("error")) == 1  # reported once while it lasts
+    await session.kill()
 
 
 async def test_the_player_quitting_ends_the_session(
@@ -450,8 +462,10 @@ async def test_the_player_quitting_ends_the_session(
     [
         ([("encode.format", "ogg")], 2),
         ([("output.nonsense", "1")], 2),
-        ([("output.template", "{year}")], 2),
+        ([("output.template", "{nope}")], 2),  # unknown placeholders are dropped: none left
         ([("output.template", "a\\{title}")], 2),
+        ([("encode.bitrate_kbps", "192")], 2),
+        ([("recorder.duplicates", "keep")], 2),
     ],
 )
 async def test_a_bad_setting_exits_2(
@@ -460,6 +474,7 @@ async def test_a_bad_setting_exits_2(
     with pytest.raises(RecorderStartError) as failed:
         await world.recorder.start(recorder_spec(tmp_path, world, settings=settings))
     assert failed.value.exit_code == code and failed.value.log_tail
+    assert classify_exit(code, failed.value.log_tail).action == "fail_run"
 
 
 async def test_an_output_folder_it_cant_write_exits_1(world: FakeWorld, tmp_path: Path) -> None:
@@ -467,6 +482,8 @@ async def test_an_output_folder_it_cant_write_exits_1(world: FakeWorld, tmp_path
     with pytest.raises(RecorderStartError) as failed:
         await world.recorder.start(recorder_spec(tmp_path, world))
     assert failed.value.exit_code == 1
+    verdict = classify_exit(1, failed.value.log_tail)
+    assert (verdict.cause, verdict.action) == ("output_dir", "fail_run")
 
 
 async def test_a_socket_in_use_exits_1(world: FakeWorld, tmp_path: Path) -> None:
@@ -474,6 +491,8 @@ async def test_a_socket_in_use_exits_1(world: FakeWorld, tmp_path: Path) -> None
     with pytest.raises(RecorderStartError) as failed:
         await world.recorder.start(recorder_spec(tmp_path, world))
     assert failed.value.exit_code == 1
+    verdict = classify_exit(1, failed.value.log_tail)
+    assert (verdict.cause, verdict.action) == ("socket_in_use", "retry_once")
     await first.kill()
     second = await world.recorder.start(recorder_spec(tmp_path, world))  # free again
     await second.kill()
@@ -492,39 +511,135 @@ async def test_with_no_player_it_waits_for_the_target_then_exits_1(
     world: FakeWorld, fake_clock: FakeClock, tmp_path: Path
 ) -> None:
     world.client.stop()
-    session = await world.recorder.start(recorder_spec(tmp_path, world))
-    took = await fake_clock.advance_until(lambda: session.returncode is not None, within=120)
-    assert session.returncode == 1 and took == 60
+    starting = asyncio.ensure_future(world.recorder.start(recorder_spec(tmp_path, world)))
+    took = await fake_clock.advance_until(starting.done, within=120)
+    with pytest.raises(RecorderStartError) as failed:
+        await starting
+    assert failed.value.exit_code == 1 and took == 60
+    verdict = classify_exit(1, failed.value.log_tail)
+    assert (verdict.cause, verdict.action) == ("no_player", "fail_item")
+    assert world.recorder.sessions[-1].returncode == 1
+
+
+async def test_start_waits_for_the_player_within_wait_target(
+    world: FakeWorld, fake_clock: FakeClock, tmp_path: Path
+) -> None:
+    world.client.stop()
+    starting = asyncio.ensure_future(world.recorder.start(recorder_spec(tmp_path, world)))
+    await fake_clock.advance(5)
+    assert not starting.done()
+    status = await world.recorder.sessions[-1].call("session.status")
+    assert status == {"state": "idle", "counters": ZERO_COUNTERS}  # no session yet
+    world.client.start()
+    await fake_clock.settle()
+    session = await starting
+    status = await session.call("session.status")
+    assert status["state"] == "waiting" and status["session_id"]
+    await session.kill()
 
 
 async def test_the_rpc_methods(world: FakeWorld, fake_clock: FakeClock, tmp_path: Path) -> None:
     session = await world.recorder.start(recorder_spec(tmp_path, world))
     notes = Notes(session)
     info = await session.call("core.info")
-    assert info["version"] == "2.0.2" and len(info["checks"]) == 8
+    assert info["version"] == "v2.0.2" and info["protocol"] == 1
+    assert info["target"] == {"process": "spotify", "mpris": "org.mpris.MediaPlayer2.spotify"}
+    assert [check["id"] for check in info["checks"]] == [
+        "target",
+        "player_running",
+        "ffmpeg",
+        "encoder",
+        "capture",
+        "session_bus",
+        "player_heard",
+        "output_writable",
+    ]  # FINDINGS row 5: all 8 pass
     assert all(check["ok"] for check in info["checks"])
     with pytest.raises(RecorderRpcError) as refused:
         await session.call("player.control", {"cmd": "pause"})  # nothing loaded
     assert refused.value.code == -32005
+    with pytest.raises(RecorderRpcError) as bad_cmd:
+        await session.call("player.control", {"cmd": "stop"})
+    assert bad_cmd.value.code == -32602
     with pytest.raises(RecorderRpcError) as unknown:
         await session.call("nope")
     assert unknown.value.code == -32601
-    result = await session.call("settings.set", {"values": {"recorder.silence_db": -55}})
-    assert result == {"applied": ["recorder.silence_db"]}
-    assert world.recorder.persisted_settings == {"recorder.silence_db": "-55"}
-    assert (await session.call("settings.get", {"keys": ["encode.format"]}))["values"] == {
-        "encode.format": "aac"
+    with pytest.raises(RecorderRpcError) as active:
+        await session.call("session.start")
+    assert active.value.code == -32003
+    result = await session.call(
+        "settings.set", {"values": {"recorder.silence_db": -55, "encode.format": "ogg"}}
+    )
+    assert result == {
+        "applied": ["recorder.silence_db"],
+        "rejected": {"encode.format": "expected one of mp3, aac, flac, wav"},
     }
+    assert world.recorder.persisted_settings == {"recorder.silence_db": -55.0}
+    values = (await session.call("settings.get", {"keys": ["encode.format", "output.playlist"]}))[
+        "values"
+    ]
+    assert values == {"encode.format": "aac", "output.playlist": False}  # typed, as Spytify's
+    with pytest.raises(RecorderRpcError) as unknown_key:
+        await session.call("settings.get", {"keys": ["nope"]})
+    assert unknown_key.value.code == -32602
+    status = await session.call("session.status")
+    assert status == {
+        "state": "waiting",
+        "session_id": session.session_id,
+        "counters": ZERO_COUNTERS,
+    }
+    log = await session.call("log.tail", {"lines": 1})
+    assert len(log["lines"]) == 1 and set(log["lines"][0]) == {"level", "msg", "ts"}
+    recent = await session.call("events.recent")
+    assert all(set(event) == {"method", "params"} for event in recent["events"])
     world.recorder.hang_methods = {"core.info"}
     answer = asyncio.ensure_future(session.call("core.info", timeout_s=3))
     await fake_clock.settle()
     await fake_clock.advance(3)
     with pytest.raises(TimeoutError):
         await answer
-    await session.kill()
+    world.recorder.hang_methods = set()
+    assert await session.call("core.shutdown") == {}
+    assert await run_out(session, fake_clock, within=5) == 0
+    with pytest.raises(RecorderGone):
+        await session.call("session.status")
     await notes.done()
-    assert notes.of("settings.changed") == [{"keys": ["recorder.silence_db"]}]
+    assert notes.of("settings.changed") == [{"values": {"recorder.silence_db": -55.0}}]
     assert world.recorder.live() is None
+
+
+async def test_the_events_file_is_spytifyds_format(
+    world: FakeWorld, album: CatalogAlbum, fake_clock: FakeClock, tmp_path: Path
+) -> None:
+    spec = recorder_spec(tmp_path, world)
+    session = await world.recorder.start(spec)
+    await play(world, album, 4)
+    await run_out(session, fake_clock)
+    lines = [json.loads(line) for line in spec.events_file.read_text().splitlines()]
+    assert lines and all(set(line) == {"method", "params"} for line in lines)  # proto.Event
+    levels = {line["params"]["level"] for line in lines if line["method"] == "log"}
+    assert levels <= {"error", "info", "debug"}
+    for text in spec.log_file.read_text().splitlines():
+        stamp, level, _ = text.split(" ", 2)
+        assert stamp.endswith("Z") and level in ("error", "info", "debug")
+
+
+async def test_the_counter_prefix_moves_on_and_is_saved(
+    world: FakeWorld, album: CatalogAlbum, fake_clock: FakeClock, tmp_path: Path
+) -> None:
+    settings = [("output.template", "{title}"), ("output.prefix", "counter")]
+    session = await world.recorder.start(recorder_spec(tmp_path, world, settings=settings))
+    notes = Notes(session)
+    await play(world, album, 3)
+    await run_out(session, fake_clock)
+    await notes.done()
+    assert [Path(n["path"]).name for n in notes.of("track.finished")] == [
+        "001 Seaside Stillness.m4a",
+        "002 Last Hours.m4a",
+    ]
+    assert [n["counter"] for n in notes.of("track.finished")] == [1, 2]
+    assert notes.of("settings.changed")[-1] == {"values": {"output.counter_next": 3}}
+    assert world.recorder.counter_next == 3  # in $SPYTIFY_CONFIG: the next item goes on
 
 
 async def test_level_notifications_only_while_recording(
@@ -542,6 +657,27 @@ async def test_level_notifications_only_while_recording(
     await fake_clock.advance(2)
     assert len(notes.of("level")) == 10
     await session.kill()
+
+
+async def test_level_notifications_are_sent_but_not_kept(
+    world: FakeWorld, album: CatalogAlbum, fake_clock: FakeClock, tmp_path: Path
+) -> None:
+    """The meter goes to the socket only. Kept, a 3-hour item's 100,000 level records were
+    written in place at the exit and blocked the loop for 0.5 s in fake mode; the real port's
+    events_file() leaves them out too."""
+    world.recorder.level_interval_s = 0.1
+    spec = recorder_spec(tmp_path, world)
+    session = await world.recorder.start(spec)
+    notes = Notes(session)
+    await play(world, album, 4)  # Last Hours: 88 s
+    assert await run_out(session, fake_clock) == 0
+    await notes.done()
+    assert len(notes.of("level")) > 800
+    assert session.levels_sent == len(notes.of("level"))
+    kept = [n.method for n in await session.events_file()]
+    assert "level" not in kept and "track.finished" in kept
+    lines = [json.loads(line) for line in spec.events_file.read_text().splitlines()]
+    assert [line["method"] for line in lines] == kept
 
 
 async def test_the_socket_can_lose_the_last_notifications(

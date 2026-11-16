@@ -43,6 +43,7 @@ the first estimate (a failure there is logged, so start-up never fails on it).
 
 import asyncio
 import logging
+import sqlite3
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -203,18 +204,23 @@ class BacklogService:
         return self._last
 
     async def _compute(self) -> Backlog:
-        """Reads the inputs and runs `estimate`. Times are whole milliseconds, as the database's."""
+        """Reads the inputs and runs `estimate`. Times are whole milliseconds, as the database's.
+        Building the track lists and walking the windows touch every track of the library, so
+        that part runs on a worker thread: on a big library it would hold up the event loop
+        (design.md § Stack)."""
         services = self.services
         now = services.clock.now()
         now = now.replace(microsecond=now.microsecond // 1000 * 1000)
-        items = await self._items()
+        rows, entries, d13 = await self._rows()
         recorded = await services.matching.recorded_track_ids()
         hours = await load_hours(services.store)
-        return estimate(items, recorded, hours, services.config.zone, now)
+        return await asyncio.to_thread(
+            _estimate_from_rows, rows, entries, d13, recorded, hours, services.config.zone, now
+        )
 
-    async def _items(self) -> list[BacklogItem]:
-        """Every item that isn't removed, with its track list (None without one). Two queries:
-        the items, and every track list joined to its durations."""
+    async def _rows(self) -> tuple[list[sqlite3.Row], list[sqlite3.Row], dict[str, bool]]:
+        """Every item that isn't removed, every track list joined to its durations (two
+        queries), and D13 for the items without a track list."""
         store = self.services.store
         rows = await store.fetchall(
             "SELECT id, kind, tracked, item_access, unavailable_at, catalog_fetched_at "
@@ -227,34 +233,55 @@ class BacklogService:
             "LEFT JOIN tracks t ON t.id = it.track_id "
             "WHERE i.removed_at IS NULL ORDER BY it.item_id, it.position"
         )
-        lists: dict[str, list[BacklogTrack]] = {}
-        for entry in entries:
-            track = BacklogTrack(
-                id=entry["track_id"],
-                duration_ms=entry["duration_ms"] or 0,
-                playable=entry["playable"] == 1,
-                is_local=entry["unplayable_reason"] == "local",
-            )
-            lists.setdefault(entry["item_id"], []).append(track)
-        items: list[BacklogItem] = []
+        d13: dict[str, bool] = {}
         for row in rows:
-            # A track list exists when the item has item access and it was fetched (an empty
-            # playlist has a list with no entries).
-            has_list = bool(row["item_access"]) and row["catalog_fetched_at"] is not None
             # D13 only matters for items without a list: the others are counted by their tracks.
-            d13 = False if has_list else await self.services.matching.d13_up_to_date(row["id"])
-            items.append(
-                BacklogItem(
-                    id=row["id"],
-                    kind=row["kind"],
-                    tracked=bool(row["tracked"]),
-                    item_access=bool(row["item_access"]),
-                    unavailable=row["unavailable_at"] is not None,
-                    tracks=lists.get(row["id"], []) if has_list else None,
-                    d13_up_to_date=d13,
-                )
+            if not _has_list(row):
+                d13[row["id"]] = await self.services.matching.d13_up_to_date(row["id"])
+        return rows, entries, d13
+
+
+def _has_list(row: sqlite3.Row) -> bool:
+    """A track list exists when the item has item access and it was fetched (an empty playlist
+    has a list with no entries)."""
+    return bool(row["item_access"]) and row["catalog_fetched_at"] is not None
+
+
+def _estimate_from_rows(
+    rows: list[sqlite3.Row],
+    entries: list[sqlite3.Row],
+    d13: dict[str, bool],
+    recorded: Collection[str],
+    hours: Hours,
+    zone: ZoneInfo,
+    now: datetime,
+) -> Backlog:
+    """`_rows`' results as BacklogItems, then `estimate`. Pure; BacklogService runs it on a
+    worker thread."""
+    lists: dict[str, list[BacklogTrack]] = {}
+    for entry in entries:
+        track = BacklogTrack(
+            id=entry["track_id"],
+            duration_ms=entry["duration_ms"] or 0,
+            playable=entry["playable"] == 1,
+            is_local=entry["unplayable_reason"] == "local",
+        )
+        lists.setdefault(entry["item_id"], []).append(track)
+    items: list[BacklogItem] = []
+    for row in rows:
+        has_list = _has_list(row)
+        items.append(
+            BacklogItem(
+                id=row["id"],
+                kind=row["kind"],
+                tracked=bool(row["tracked"]),
+                item_access=bool(row["item_access"]),
+                unavailable=row["unavailable_at"] is not None,
+                tracks=lists.get(row["id"], []) if has_list else None,
+                d13_up_to_date=False if has_list else d13[row["id"]],
             )
-        return items
+        )
+    return estimate(items, recorded, hours, zone, now)
 
 
 def _figures(backlog: Backlog) -> dict[str, object]:

@@ -441,7 +441,7 @@ Three cards, stacked.
 - **Variants:**
   - **No schedule (manual only):** "No backup scheduled", with Run now.
   - **Held:** if the Web API connection has expired, or the client is logged out, the card turns red and says why. Its main button becomes Reconnect, or "Log in again" (wizard step 3), in place of Run now.
-- **What Run now runs:** every tracked playlist, plus Queued and Partial albums.
+- **What Run now runs:** every tracked playlist, plus Queued and Partial albums. A playlist or album that has become unavailable is left out until a refresh finds it again.
 
 **2. Full backup**
 How far the backup of everything tracked has got, and how long the rest takes. The figures come from the [backlog estimate](design.md#backlog-estimate).
@@ -472,7 +472,7 @@ The item queue is the main element. A compact now-playing strip sits above it.
 - **Stop, a split button:**
   - **Stop after this track** (the main action): nothing is lost. The header says "Stopping after this track…" until it ends.
   - **Stop now** (from the arrow): first a confirm, "The current track will be discarded and recorded next time."
-  - Either way, the run ends as **Stopped**. Items left in the queue aren't recorded this time. Tracked playlists are picked up by the next run, and albums stay Queued.
+  - Either way, the run ends as **Stopped**. Items left in the queue aren't recorded this time, and their rows in History carry the **Stopped** badge. Tracked playlists are picked up by the next run, and albums stay Queued.
 
 **Now-playing strip**
 Styled like the client's now-playing bar, docked under the header:
@@ -505,7 +505,7 @@ One row per item, in run order. Row states:
   - ✕ failed, with the reason.
 - For followed or linked playlists, whose track list the API won't give, the table grows as tracks start, and the header shows "n recorded" with no total.
 
-**"Back up now" from the Library or Albums during a run:** the item goes into the queue right after the current item, with a toast: "Added to the current run".
+**"Back up now" from the Library or Albums during a run:** the item goes into the queue right after the current item, with a toast: "Added to the current run". The current item, or one that already ended in this run, isn't added again, so the toast must say so when nothing was added.
 
 ### Warnings during a run
 Inline alerts sit between the strip and the queue.
@@ -513,10 +513,14 @@ Inline alerts sit between the strip and the queue.
 - **Playback moved to another device** (you started Spotify on your phone, for example):
   - The current track is discarded. The current item is marked **Interrupted**, and the run **pauses**. It never takes playback back on its own.
   - The alert reads "Playback moved to <device>. The backup is paused so it won't interrupt you." with **Resume** and **Stop**.
-  - **Resume** takes playback back on the container's device and restarts the current item. Tracks already recorded are skipped as duplicates within seconds, so it carries on where it stopped.
+  - **Resume** takes playback back on the container's device and restarts the current item. Tracks already recorded are skipped as duplicates within seconds, so it carries on where it stopped. It first pauses the other device.
   - **Scheduled runs while paused:** a paused run stays paused until you resume or stop it. The next scheduled run doesn't start while one is paused, and History notes it as skipped.
 - **Spytify error:** an `error` event shows as a red alert with the message. If the current item can't continue, it is marked Partial and the run moves to the next item.
+- **Web API error during an item:** a failed jump shows as a warning. The player is paused, and the item ends Partial. A lost or expired connection ends the run instead.
+- **Autoplay moved on:** Spotify started another context after the item's own ended. The controller stops the recorder at once. A whole item ends Partial, so it isn't up to date. A missing-tracks item just pauses when its plan is done.
+- **A second interruption of the same item:** a second takeover or stall ends that item Partial. Resume first pauses the other device, so the container can take playback back.
 - **Track failed** (for example, a low-volume take): no alert. It shows in the track table and the counters.
+- **Client not running:** a run that finds the client not running (but still logged in) restarts it once, then waits up to 60 s for the container's device to show up. If it doesn't, the run fails.
 
 ### Dashboard endpoints
 
@@ -580,11 +584,14 @@ A large modal in the client's dialog style. Its main element is a grid of square
 - **Start:** a scheduled run starts at the first hour of each window, if there's anything to do.
 - **End of a window:** the run **stops after the current track**, so nothing is half-recorded.
   - The cut-off item keeps what it recorded. It's marked **Carried over** and runs in the next window at its place in the run order (first by default), where its recorded tracks are skipped as duplicates within seconds.
-  - The rest of the queue waits for the next window.
+  - The rest of the queue isn't carried over. Its items end **Stopped** in this run's History. The next window picks up tracked playlists and Queued albums again, as usual (Q18).
   - The run ends as **Window ended** in History, with its counts.
-- **Start-up (missed runs):** if the container starts during an active hour, for example after the NAS was off, the run starts straight away and stops at the window's end as usual. A window that passed while the container was off is recorded in History as "Missed: spotivault was not running".
-- **Run now ignores the grid.** A forced run goes until it's done or you stop it. If a window opens while one is running, no second run starts; the forced run already covers it.
-- **Editing during a run:** if you turn off the current hour, the run stops after the current track.
+- **Start-up (missed runs):** if the container starts during an active hour, for example after the NAS was off, the run starts straight away and stops at the window's end as usual. A window that passed while the container was off is recorded in History as "Missed: spotivault was not running", for the last 21 days at most.
+  - **A restart during a window:** the run that was going ends **Failed**, with the reason "container restarted". The window starts again at start-up. A window you stopped by hand isn't started again.
+- **Run now ignores the grid.** A forced run goes until it's done or you stop it. If a window opens while one is running, no second run starts; the forced run already covers it. It doesn't cover the window if it was already stopping when the window opened, or if it failed: the window then gets its own run once it has ended.
+- **Nothing to back up:** a window with no tracked items starts no run and writes no History row.
+- **Editing during a run:** if you turn off the current hour, the run stops after the current track. Changing the other hours of the window in progress moves where the run stops: a shorter window stops it at the new end, and a longer one lets it go on. If you turn on an hour of a window that's already in progress, and no run is going, a run starts for that window at the next scheduler check (Q21).
+- **The client starting up:** a client that isn't running yet, as after a reboot, doesn't hold the window: the run starts, and its pre-run check waits up to 60 s for the device. Only a client that's logged out, or not installed, holds it.
 
 ### Run order
 A section on the page, titled "Run order", that sets which kind of item each run does first. It's a list of four groups, each with a drag handle. The default order:
@@ -645,7 +652,7 @@ A table, newest first, loading more as you scroll.
   - "Missed: spotivault was not running";
   - "Skipped: the previous run was paused";
   - "Held: Spotify connection expired".
-- **Filter chips:** All · With issues · Scheduled · Run now.
+- **Filter chips:** All · With issues · Scheduled · Run now. **Scheduled** includes the Start-up runs.
 - **Opening a run:** clicking a row opens the run page.
 
 Duplicate skips are cheap. In the prototype, a re-run of an already-recorded album skipped every track in under a second. So a large ↷ count with a small ✓ count is the normal look of a nightly run, and it isn't treated as a problem.
@@ -654,7 +661,7 @@ Duplicate skips are cheap. In the prototype, a re-run of an already-recorded alb
 - **Header:**
   - Date, trigger, start–end time and duration.
   - The window it ran in, for scheduled runs.
-  - The outcome pill, the ✓ / ↷ / ✕ counts and the size added.
+  - The outcome pill, the ✓ / ↷ / ✕ counts and the size added. A run that a restart or a crash of the container ended shows **Failed**, with the reason "container restarted".
   - A link, "Logs for this run", which opens the Logs tab filtered to this run.
 - **Items:** in the order they ran, each one a collapsible row:
   - The cover, name, and ✓ / ↷ / ✕ counts.
@@ -759,7 +766,7 @@ One scrolling page, like the client's Settings: section headings, with rows of l
   - **Warning:** "Renaming files yourself makes them record again. Changing the layout here never re-records anything. But if you rename or move files outside spotivault, it can't find them, so those tracks are recorded again on the next run."
   - **Cancel** and **Apply.** Apply only changes the layout in the unsaved settings; the page's Save bar saves it.
 - **Playlist files:** a toggle, "Write .m3u playlists", on by default.
-  - Each tracked playlist, and Liked Songs, gets `Music/Playlists/<name>.m3u`, in Spotify's order, with paths relative to the music folder.
+  - Each tracked playlist, and Liked Songs, gets `Music/Playlists/<name>.m3u`, in Spotify's order, with paths relative to the `.m3u` (`../Radiohead/OK Computer/01 - Airbag.m4a`), so the folder can move.
   - Plex, Jellyfin and Navidrome read these.
 - **Playlist covers:** a toggle, "Save Spotify's covers", on by default.
   - Each playlist's cover is saved next to its `.m3u` as `Music/Playlists/<name>.jpg`, at the largest size Spotify has (640 px, or 1280 px for a grid of album covers).
@@ -939,3 +946,10 @@ The feasibility prototype (`prototype/`) and step S0 of the M1 plan settle these
 14. **Covers in media servers:** do Plex, Jellyfin and Navidrome show `<name>.jpg` as the cover of `<name>.m3u` when they import it? If one of them doesn't, is there a name it does read, such as `<name>.m3u.jpg`?
 15. **Cover changes:** when you change a playlist's cover in Spotify, does the image ID in the `images` URL change? The controller relies on that to know when to download it again. **Partly tested** (S0): `images` does come back on `/me/playlists`, from `image-cdn-ak.spotifycdn.com`. Whether the ID changes with the cover is still untested.
 16. ~~**File layout in Spytify:**~~ **Resolved:** Spytify names files itself. The layout maps to `output.group_by` (none, `artist`, `artist/album`), `output.template` (the six placeholders), `output.prefix` (`none`, `counter`, `album_track`), `output.underscores` and `output.ascii_filenames`, passed with `--set` for each item. The controller never moves files, and the per-track records keep `track.finished`'s path. One catch: Spytify adds " (YYYY)" to the album folder whenever the client sends a year, and the Linux client hasn't so far.
+17. **Container stopped during a run:** a `docker stop`, a restart or a crash ends the run **Failed**, with reason "container restarted", and the window starts again after the restart. The other option is **Stopped** with that reason. That changes the contract, since `reason` is documented for failed runs only, and the scheduler's query. Built: Failed.
+18. **Items that never started:** when a run stops, at a window's end or by hand, the items it never reached end **Stopped**. The other option is a badge such as "waiting for the next window", a contract change. Built: Stopped. A forced item that isn't tracked doesn't run in the next window.
+19. **A run of tracks listed twice in one playlist:** a track listed twice is fine: Spytify skips the second as a duplicate and the playlist plays on. But two or more tracks listed again in the same order look just like Spytify's replay at the end of a playlist (bug #1), so the loop guard pauses there. The item ends Partial and is never a clean full pass, so the tracks after that run aren't recorded while the playlist stays that way. Should the guard instead wait for a third repeat, or only fire after Spotify's end of the playlist? Built: Partial.
+20. **A whole item's time limit:** at the limit, the take playing is finished, as design.md § Run flow says: the controller stops the recorder after this track, and sends SIGTERM only if it still runs 30 s after that track's end. So the item can run up to one track past its limit. The other option is to cut the take. Built: finished.
+21. **Turning on an hour in a window in progress:** if no run is going, one starts for that window at the next scheduler check. Should the window wait for the next one instead? Built: the run starts.
+22. **Episodes between tracks:** when the plan jumps over an episode, Spytify records it as incomplete, and it's counted as "Skipped (other)". Should it show in the counts at all? Built: counted.
+23. **Spytify's own logs:** `/config/logs/spytify/` is never rotated or deleted. The rule of 14 days or 50 MB covers only the controller and the s6 services. Spytify writes a `level` line up to ten times a second, so a 24-hour item's events file can reach about 150 MB. Built: kept. It needs a retention rule.

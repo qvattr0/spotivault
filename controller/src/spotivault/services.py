@@ -25,7 +25,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from spotivault import __version__
-from spotivault.api.models import ClientInstall, ClientStatus, Connection, Setup, SetupStep, Status
+from spotivault.api.models import ClientInstall, ClientStatus, Connection, Setup, SetupStep
 from spotivault.backlog import BacklogService
 from spotivault.catalog.albums import AlbumsService
 from spotivault.catalog.covers import CoverService
@@ -39,19 +39,24 @@ from spotivault.config import Config
 from spotivault.connection import ConnectionService
 from spotivault.container import ContainerService
 from spotivault.desktop import LocalDesktop
+from spotivault.engine.run import RunEngine
 from spotivault.events import EventBus
 from spotivault.fake import build_fake_ports
 from spotivault.fake.clock import ScaledClock
 from spotivault.fake.seed import attach as attach_fake_world
+from spotivault.files import FilesService
+from spotivault.history import HistoryService
 from spotivault.imagecdn import HttpImageCdn
 from spotivault.loopwatch import LoopWatch
 from spotivault.matching import MatchingService
+from spotivault.metrics import MetricsService
 from spotivault.ports import Clock, Ports
+from spotivault.recorder import SpytifyRecorder
+from spotivault.schedule import ScheduleService
 from spotivault.settings import SettingsService
 from spotivault.setup import SetupService
 from spotivault.storage import LocalStorageProbe, StorageService
 from spotivault.store import Store
-from spotivault.unbuilt import UnbuiltRecorder
 from spotivault.webapi.auth_store import AuthStore
 from spotivault.webapi.client import SpotifyWebApi
 from spotivault.webapi.usage import UsageService
@@ -117,6 +122,13 @@ class Services:
         self.library = LibraryService(self)  # catalog-library
         self.albums = AlbumsService(self)  # albums-covers
         self.backlog = BacklogService(self)  # matching-backlog: hello `backlog`
+        # S6's modules (ARCHITECTURE.md § S6's parts). The run engine's start-up hook (recovery)
+        # is registered before the schedule's (missed windows, a start-up run), so it runs first.
+        self.files = FilesService(self)  # history-files-metrics: the .m3u, stale files
+        self.history = HistoryService(self)  # history-files-metrics
+        self.runs = RunEngine(self)  # engine-run: hello `status`
+        self.schedule = ScheduleService(self)  # schedule
+        self.metrics = MetricsService(self)  # history-files-metrics
 
     def add_startup(self, name: str, fn: HookFn) -> None:
         """`fn` is awaited once at start-up, after the store opens, in the order added. If it
@@ -226,9 +238,9 @@ def build_real_ports(
     store: Store | None = None,
     auth: AuthStore | None = None,
 ) -> Ports:
-    """The real outside world. The recorder (S6) is a stand-in until built. The Web API port
-    shares `store` and `auth` with the Services built from these ports (build_services passes
-    them); by default, new ones, which tests/test_ports.py's signature checks are fine with."""
+    """The real outside world. The Web API port shares `store` and `auth` with the Services
+    built from these ports (build_services passes them); by default, new ones, which
+    tests/test_ports.py's signature checks are fine with."""
     store = store if store is not None else Store(config.db_path)
     auth = auth if auth is not None else AuthStore(store, clock)
     mpris = JeepneyMpris(config)
@@ -236,7 +248,7 @@ def build_real_ports(
         clock=clock,
         mpris=mpris,
         client=LocalClientControl(config, mpris),
-        recorder=UnbuiltRecorder(),
+        recorder=SpytifyRecorder(config, clock),
         webapi=SpotifyWebApi(config, clock, store, auth),
         storage=LocalStorageProbe(),
         desktop=LocalDesktop(config),
@@ -248,7 +260,8 @@ def _add_placeholder_snapshots(bus: EventBus, config: Config) -> None:
     """Contract-valid "nothing known yet" values for every hello key, so hello works before every
     module is built. The module that owns a key replaces its placeholder:
     setup → SetupService, client → ClientManager, connection → ConnectionService (S5,
-    spotify-connect), backlog → BacklogService (S5, matching-backlog), status → S6."""
+    spotify-connect), backlog → BacklogService (S5, matching-backlog), status → RunEngine (S6,
+    engine-run), which registers it in its constructor: it has no placeholder here."""
 
     async def setup() -> Setup:
         steps = [
@@ -269,11 +282,6 @@ def _add_placeholder_snapshots(bus: EventBus, config: Config) -> None:
             first_unfinished="tos",
             completed=False,
             tos_acknowledged_at=None,
-        )
-
-    async def status() -> Status:
-        return Status(
-            state="idle", run=None, item=None, track=None, session_state=None, view_only=False
         )
 
     async def connection() -> Connection:
@@ -315,7 +323,6 @@ def _add_placeholder_snapshots(bus: EventBus, config: Config) -> None:
         return None
 
     bus.add_snapshot("setup", setup)
-    bus.add_snapshot("status", status)
     bus.add_snapshot("connection", connection)
     bus.add_snapshot("client", client)
     bus.add_snapshot("backlog", backlog)

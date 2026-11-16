@@ -20,8 +20,9 @@ next playable entry starts, and so on. It follows what the prototype found on th
 
 Everything that changes is announced to `listeners` as a PlayerEvent, synchronously and in order:
 SimMpris turns them into MPRIS changes, and the SimRecorder reacts to them as Spytify does. The
-test-facing methods (`load`, `take_over`, `play_elsewhere`, `pause_by_itself`, …) are how tests
-and the fake world change things from the outside.
+test-facing methods (`load`, `take_over`, `play_elsewhere`, `pause_by_itself`,
+`resume_by_itself`, …) are how tests and the fake world change things from the outside.
+tests/engine_sim.py scripts them on the clock for the engine's tests.
 
 Owner: the fake agent.
 """
@@ -206,6 +207,12 @@ class SimPlayer:
     def pause_by_itself(self) -> None:
         """Our player pauses with no other device involved: a network stall, say."""
         self._set_status("Paused")
+
+    def resume_by_itself(self) -> None:
+        """The stall is over: our player plays on from where it paused, if playback is still
+        ours (after a takeover it isn't: only a play on our device takes it back)."""
+        if self.active_device_id == self.catalog.our_device.id:
+            self._set_status("Playing")
 
     def take_over(self, device_name: str = "Pixel 9") -> None:
         """Another device takes playback over mid-track (web-ui.md § Warnings during a run): it

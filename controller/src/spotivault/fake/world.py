@@ -82,6 +82,7 @@ class FakeWorld:
             music_dir=config.music_dir,
             storage=self.storage,
             mpris_name=config.mpris_name,
+            process_name=config.spytify_target_process,
         )
         self.webapi = FakeWebApi(clock, self.catalog, self.player)
         self.cdn = FakeImageCdn()
