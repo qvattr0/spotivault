@@ -7,13 +7,15 @@ export interface RowTitleProps {
   sub?: string;
   /** A 15/500 title (tracks, modal rows) instead of 15/600 (playlists, albums). */
   medium?: boolean;
+  /** A 14 px title, as in the Dashboard's Up next list (t4YEY). */
+  small?: boolean;
   /** Makes the title a button, so keyboard users can open the item too. */
   onOpen?: () => void;
 }
 
 /** A row's title with its line below (gap 2). Used by the list rows and ItemRow. */
-export function RowTitle({ title, sub, medium, onOpen }: RowTitleProps) {
-  const className = cx(styles.title, medium && styles.medium);
+export function RowTitle({ title, sub, medium, small, onOpen }: RowTitleProps) {
+  const className = cx(styles.title, medium && styles.medium, small && styles.small);
   return (
     <div className={styles.names}>
       {onOpen ? (

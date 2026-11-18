@@ -53,12 +53,36 @@ The `.pen` file draws most components in their default state only. The UI fills 
 | Settings › "Disconnect" | A tertiary button in `danger`, as drawn in t6RqK. |
 | Info alert | The warn alert's pattern in the info colours. |
 | Modal | Escape and × close it. A click on the scrim doesn't, because some modals hold unsaved edits. Focus stays inside, and goes back to the opener. |
-| Toast | Bottom centre of the page panel, for 5 s, at most 3 at once. Screen readers announce each one. |
+| Toast | Bottom centre of the page panel, for 5 s, at most 3 at once. Screen readers announce each one. While a modal is open, a toast shows above its scrim, so a failed or skipped add in a + modal can be read. |
 | Level meter | 24 segments, 2 dB each from −48 dBFS, read from `peak_dbfs`. Yellow from −18 dBFS, which gives the drawing's 15 green and 2 yellow. It falls silent 0.6 s after the last reading. |
 | A list row's Back up now | Over the cover, on hover or keyboard focus (components.md § Differences, row 6). |
 | A failed wizard step | Drawn in the stepper as the active step, as Setup 2 · Failed shows it. |
 | Narrow windows | Under 800 px the sidebar keeps its icons and hides its status card. The bottom bar drops "Item n of m" under 1000 px and the track names under 700 px. |
-| Small grey text on cards | `text-muted` on `bg-elevated` is 4.2:1, under WCAG AA's 4.5:1. Where the drawings put it there, the UI uses `text-sub`: the status card's connection line, and the docked strip's track times. The grey dot and the bottom bar's times (on `bg-app`) stay as drawn. |
+| Small grey text on cards and modals | `text-muted` on `bg-elevated` is 4.2:1, and on the modal surface 3.7:1, both under WCAG AA's 4.5:1. Where the drawings put it there, the UI uses `text-sub`: the status card's connection line, the docked strip's track times, the noVNC panel's connection state (steps 3 and 4), step 4's "Auto" labels, the run page's track numbers and file paths, the + modals' list headings, and Edit layout's rule hint and "Insert:" label. The grey dot and the bottom bar's times (on `bg-app`) stay as drawn. |
+
+**Pages (S8)**
+
+Where web-ui.md gave no words or rule, S8 built the more cautious answer below. None has been reviewed.
+
+| Page | Built as |
+|---|---|
+| Setup gate | While the setup state is unknown, nothing redirects: the gate shows "Connecting". A step after the first unfinished one can't be opened. Done steps can. Steps 7 to 9 all open once steps 1 to 6 are done, since 7 and 8 can be passed without a write. After setup, `/setup/<step>` stays open, so step 9 isn't taken away when setup completes. |
+| Step 2 | A client that isn't installed and has no install going shows a short note with a button to start it, in place of starting an install by itself. The controller starts the install at start-up, so this shows only for a moment, or in the mock. The same goes for a client that went missing from `/config` after its install: the note says so, with Install. Right after an install ends well, the step shows Installed at once, before the client's own status catches up. |
+| Step 3 | Continue stays a button, enabled once you're logged in. The drawing's hint reads "Continues by itself once you're logged in", but nothing leaves the page by itself. |
+| Step 4 | Crossfade and Gapless are Confirm rows (§ 4, open question 3). Each Auto row shows an "Auto" label before its pill. |
+| Step 5 | A stored Client ID shows masked, with a Change button, and Both checks must pass is the hint by Continue. Once connected, the paste field is hidden. In Reconnect, Done doesn't wait for the device check. |
+| Step 8 | "Back up all my saved albums" starts picked, as drawn. Its footer has Done only. |
+| Step 9 | "Schedule: None yet", with no "set it in Schedule" link, since there's no Schedule page in M1. The backup-length line isn't built (plan D8). |
+| Library | An item's "Show files path" gives `Music/Playlists/<name>.m3u` from its name. No endpoint gives the real path, so a name with odd characters can differ from the file. The row menu adds "Remove from Library" for added items and has no "Change cover…". |
+| Add playlists | Cancel and Done in the footer, as drawn. The made-by-Spotify refusal is a standing note over the list, not an inline error. |
+| Add albums | Done only in the footer. The empty state shows only when there's nothing to add. |
+| Albums detail | It reads the whole list of added albums, since the contract has no `GET /api/albums/{id}`. An album's tracks follow its state: recorded first, then Missing. It is never New. |
+| Dashboard | The run header shows the backlog's time left ("about 26 h left") from `GET /api/backlog`. The current item's pill says Stopping, not Waiting, while the last track records after Stop after this track. The Full backup card isn't built (plan D8). The Next backup card has no "Change schedule" in M1. |
+| Paused after a takeover | The paused item shows the track table as the controller sends it. In the controller it is empty; in the mock it keeps the discarded take as "Discarded · will redo". The contract doesn't say which is right. |
+| History | A run still going is listed first, as the controller lists it, with a Running pill that links to the Dashboard and no counts until it ends. Its run page says so too, and follows the run: "Building the queue…" until the queue is built after the pre-run check, then its items, and an open item's tracks as each take ends. An item's reason shows as a line under its name on the run page. An item stopped while paused after a takeover keeps the controller's "Interrupted, retried" badge. Each take is a row, so the controller's idle-exit take shows as an extra "Skipped (duplicate)" row with no position. |
+| Player | The client's screen is 16 : 10, as 1280 × 800 is, not the drawn 640 × 440 or 520 × 658. Take control asks first. |
+| Settings | "Save Spotify's covers" keeps web-ui.md's text, which mentions custom covers, with no link. The Unsaved changes bar sits at the foot of the panel. It never covers the focused control: a control that brings the bar up is scrolled clear of it. Notifications and Security aren't shown. |
+| Fake clock | At a fake speed above 1, the Dashboard's elapsed time and the strip's track clock stay at 0:00, since the fake clock runs ahead of the browser. This is fake mode only. |
 
 ## Navigation
 
@@ -601,6 +625,8 @@ Inline alerts sit between the strip and the queue.
 - **A second interruption of the same item:** a second takeover or stall ends that item Partial. Resume first pauses the other device, so the container can take playback back.
 - **Track failed** (for example, a low-volume take): no alert. It shows in the track table and the counters.
 - **Client not running:** a run that finds the client not running (but still logged in) restarts it once, then waits up to 60 s for the container's device to show up. If it doesn't, the run fails.
+  - The restart shows as a red alert, the controller's `error` event (`client_restarted`): "The device spotivault wasn't listed, so the Spotify client was restarted."
+  - The failed run's reason is `device_missing`. The Last run card and History word it "the container's client isn't listed as a playback device", as step 5's check does.
 
 ### Dashboard endpoints
 

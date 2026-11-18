@@ -1,16 +1,19 @@
-import { CalendarClock, Disc3, History, LayoutDashboard, LibraryBig, MonitorPlay, Settings } from 'lucide-react';
+import { Disc3, History, LayoutDashboard, LibraryBig, MonitorPlay, Settings } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { Brand } from '@/components/ui-a';
 import { SidebarStatus } from './SidebarStatus.tsx';
 import styles from './Sidebar.module.css';
 
-/** The entries, in web-ui.md § Navigation's order, with components.md's icons. */
+/**
+ * The entries, in web-ui.md § Navigation's order, with components.md's icons. Schedule
+ * (`calendar-clock`, between History and Settings) comes back with its page: it isn't in M1
+ * (plan § Scope), and the sidebar has no dead links.
+ */
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/library', label: 'Library', icon: LibraryBig },
   { to: '/albums', label: 'Albums', icon: Disc3 },
   { to: '/history', label: 'History', icon: History },
-  { to: '/schedule', label: 'Schedule', icon: CalendarClock },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/player', label: 'Player', icon: MonitorPlay },
 ];

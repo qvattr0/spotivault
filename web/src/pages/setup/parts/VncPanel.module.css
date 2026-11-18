@@ -1,0 +1,68 @@
+/* The embedded client screen (UzVcR: 640 × 476; wNpTP: 520 × 694): a 1 px border, radius 8, a
+   36-tall bar in bg-elevated with the title (13/500 text-sub, a 16 px icon) and the state (12
+   text-muted, a 6 px dot), then the screen. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  height: 36px;
+  padding: 0 14px;
+  background: var(--bg-elevated);
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-sub);
+  font: var(--type-small);
+  font-weight: 500;
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  /* text-sub, not the drawn text-muted: 4.2:1 on bg-elevated is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--text-muted);
+}
+
+.connected {
+  background: var(--accent);
+}
+
+.reconnecting,
+.connecting {
+  background: var(--warn);
+}
+
+.disconnected {
+  background: var(--danger);
+}
+
+/* The client's screen is 1280 × 800: keep its shape, so "fit" fills the box. */
+.view {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 0;
+}

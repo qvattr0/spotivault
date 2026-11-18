@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
-import type { KeyboardEvent, Ref } from 'react';
+import { useLayoutEffect, useRef, type KeyboardEvent, type Ref, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { cx } from '@/lib/cx.ts';
 import { menuItems } from './useMenu.ts';
 import styles from './Menu.module.css';
@@ -30,10 +31,58 @@ export interface MenuListProps {
   align?: 'start' | 'end';
   /** Below its button (default), or above it at the foot of the screen. */
   placement?: 'below' | 'above';
+  /**
+   * What it opens from (useMenu's `wrapperRef`). With it, the menu is drawn on top of the page
+   * (a portal, `position: fixed`), so a parent that clips its overflow (a scrolling panel, a
+   * card) can't cut it off; it follows its button on scroll, and opens the other way when there's
+   * no room. Without it, it's drawn in place, under its button.
+   */
+  anchorRef?: RefObject<HTMLElement | null>;
 }
 
+/** Space kept between the menu and the window's edge, in px. */
+const EDGE = 8;
+/** Space between the button and the menu, in px (as drawn). */
+const GAP = 4;
+
 /** The open menu: a list of actions under its button (components.md § Menu). Arrow keys move. */
-export function MenuList({ items, id, labelledBy, onClose, ref, align = 'end', placement = 'below' }: MenuListProps) {
+export function MenuList({ items, id, labelledBy, onClose, ref, align = 'end', placement = 'below', anchorRef }: MenuListProps) {
+  const own = useRef<HTMLDivElement | null>(null);
+
+  // On top of the page: place the menu at its button, before the browser paints, and again when
+  // anything scrolls or the window changes size. Written to the element's style directly: it's
+  // only position, and it changes on every scroll.
+  useLayoutEffect(() => {
+    const list = own.current;
+    if (!anchorRef || !list) return;
+    function place() {
+      const anchor = anchorRef?.current?.getBoundingClientRect();
+      if (!anchor || !list) return;
+      const { offsetWidth: width, offsetHeight: height } = list;
+      const fitsBelow = anchor.bottom + GAP + height <= window.innerHeight - EDGE;
+      const fitsAbove = anchor.top - GAP - height >= EDGE;
+      const up = placement === 'above' ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove;
+      const left = align === 'end' ? anchor.right - width : anchor.left;
+      list.dataset.placement = up ? 'above' : 'below';
+      list.style.top = `${up ? anchor.top - GAP - height : anchor.bottom + GAP}px`;
+      list.style.left = `${Math.max(EDGE, Math.min(left, window.innerWidth - width - EDGE))}px`;
+    }
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [anchorRef, align, placement]);
+
+  /** Both refs: useMenu's (focus, outside clicks) and this one (placing). */
+  function setRefs(node: HTMLDivElement | null) {
+    own.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) ref.current = node;
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const all = menuItems(event.currentTarget);
     const i = all.indexOf(document.activeElement as HTMLElement);
@@ -50,20 +99,21 @@ export function MenuList({ items, id, labelledBy, onClose, ref, align = 'end', p
       event.preventDefault();
       onClose(true);
     } else if (event.key === 'Tab') {
-      onClose(false);
+      // Focus goes back to the button first, so Tab moves on from there: the menu sits at the end
+      // of the page (a portal), where Tab would leave the page.
+      onClose(true);
     }
   }
 
-  return (
+  const menu = (
     <div
-      ref={ref}
+      ref={setRefs}
       id={id}
       role="menu"
       aria-labelledby={labelledBy}
       className={cx(
         styles.menu,
-        align === 'end' ? styles.alignEnd : styles.alignStart,
-        placement === 'above' && styles.above,
+        anchorRef ? styles.floating : [align === 'end' ? styles.alignEnd : styles.alignStart, placement === 'above' && styles.above].filter(Boolean).join(' '),
       )}
       onKeyDown={onKeyDown}
     >
@@ -97,4 +147,5 @@ export function MenuList({ items, id, labelledBy, onClose, ref, align = 'end', p
       })}
     </div>
   );
+  return anchorRef ? createPortal(menu, document.body) : menu;
 }

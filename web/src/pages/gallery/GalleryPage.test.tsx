@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { sections as uiA } from '@/components/ui-a/gallery.tsx';
 import { sections as uiB } from '@/components/ui-b/gallery.tsx';
+import { sections as uiC } from '@/components/ui-c/gallery.tsx';
 import { leadSections as shellLead, sections as shell } from '@/shell/gallery.tsx';
 import { LiveStoreProvider } from '@/state';
 import { storeFor } from '@/test/live.ts';
@@ -13,7 +14,7 @@ import { GalleryPage } from './GalleryPage.tsx';
 import { SheetSection } from './SheetSection.tsx';
 
 
-const ALL = arrangeSections([foundations, ...shellLead, ...uiA, ...uiB, ...shell]);
+const ALL = arrangeSections([foundations, ...shellLead, ...uiA, ...uiB, ...shell, ...uiC]);
 
 function renderGallery(path = '/gallery') {
   const router = createMemoryRouter([{ path: '/gallery', element: <GalleryPage /> }], { initialEntries: [path] });

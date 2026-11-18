@@ -1,55 +1,35 @@
-// The route table: every page in docs/web-ui.md, at the routes in web-ui.md § Routes.
-// Pages are placeholders until S8, each in the frame it will use.
+// The route table: every page in docs/web-ui.md, at the routes in web-ui.md § Routes. Each page
+// lives in its builder's folder under src/pages/ (web/README.md § S8 ownership) and draws its own
+// frame (Page, with its tint) inside the shell. This file is shared: builders don't edit it.
 //
 // Not routes: modals, menus, hover states and the Library/Albums List-Grid choice (screens.md).
 // No sign-in route: the UI password isn't in M1.
+// Not in M1 (plan § Scope): the Schedule page and History's Tracks and Logs tabs. Their routes stay
+// (web-ui.md § Routes) with a "not in this version" page, and nothing links to them.
 
 import { Navigate, type RouteObject } from 'react-router';
-import { Placeholder } from './pages/Placeholder.tsx';
+import { AlbumPage, AlbumsPage } from './pages/albums/index.ts';
+import { DashboardPage } from './pages/dashboard/index.ts';
+import { RunPage, RunsPage } from './pages/history/index.ts';
+import { Later } from './pages/Later.tsx';
+import { LibraryPage, PlaylistPage } from './pages/library/index.ts';
 import { NotFound } from './pages/NotFound.tsx';
-import { Welcome } from './pages/setup/Welcome.tsx';
+import { PlayerPage } from './pages/player/index.ts';
+import { SettingsPage } from './pages/settings/index.ts';
+import { Reconnect, SETUP_PAGES } from './pages/setup/index.ts';
 import { AppLayout } from './shell/AppLayout.tsx';
-import { Page, type PageTint } from './shell/Page.tsx';
 import { SetupGate } from './shell/SetupGate.tsx';
 import { WizardCard } from './shell/WizardCard.tsx';
 import { WizardLayout } from './shell/WizardLayout.tsx';
 import { SETUP_STEPS } from './shell/setup-steps.ts';
-import { useStatus } from '@/state';
 
-/** The drawings of each wizard step, from screens.md. */
-const STEP_FRAMES: Record<string, string> = {
-  welcome: 'Oleh8',
-  client: 'h2Qgw, dxPUp',
-  login: 'UzVcR',
-  'client-settings': 'wNpTP',
-  'web-api': 'j8m6AR',
-  output: 'Mj5zE',
-  playlists: 'ZJSG0',
-  albums: 'sUXcW',
-  done: 'BAzX6',
-};
-
-/** An app page's placeholder, in its page frame with its tint (components.md § Page layout). */
-function placeholderPage(path: string, title: string, spec: string, frames?: string, tint?: PageTint): RouteObject {
+/** A wizard step's page, in its card at the step's width (setup-steps.ts). */
+function setupRoute(slug: string, cardWidth: number): RouteObject {
+  const StepPage = SETUP_PAGES[slug];
   return {
-    path,
-    element: (
-      <Page tint={tint}>
-        <Placeholder title={title} spec={spec} frames={frames} />
-      </Page>
-    ),
+    path: slug,
+    element: <WizardCard width={cardWidth}>{StepPage ? <StepPage /> : null}</WizardCard>,
   };
-}
-
-/** The Dashboard's placeholder. Its tint is a darker green while a run is going (t4YEY, hJlHj). */
-function DashboardPlaceholder() {
-  const status = useStatus();
-  const running = !!status && status.state !== 'idle';
-  return (
-    <Page tint={running ? 'dashboard-running' : 'dashboard'}>
-      <Placeholder title="Dashboard" spec="Dashboard" frames="fzNDm, t4YEY, hJlHj" />
-    </Page>
-  );
 }
 
 export const routes: RouteObject[] = [
@@ -73,18 +53,7 @@ export const routes: RouteObject[] = [
         children: [
           // The gate sends the bare /setup to the first unfinished step.
           { index: true, element: <Navigate to="welcome" replace /> },
-          ...SETUP_STEPS.map((step, i) => ({
-            path: step.slug,
-            element: (
-              <WizardCard width={step.cardWidth}>
-                {step.slug === 'welcome' ? (
-                  <Welcome />
-                ) : (
-                  <Placeholder title={`${i + 1}. ${step.label}`} spec="Setup wizard" frames={STEP_FRAMES[step.slug]} />
-                )}
-              </WizardCard>
-            ),
-          })),
+          ...SETUP_STEPS.map((step) => setupRoute(step.slug, step.cardWidth)),
         ],
       },
       {
@@ -97,7 +66,7 @@ export const routes: RouteObject[] = [
             index: true,
             element: (
               <WizardCard width={800}>
-                <Placeholder title="Reconnect" spec="5. Connect the Spotify Web API" />
+                <Reconnect />
               </WizardCard>
             ),
           },
@@ -107,20 +76,19 @@ export const routes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: '/', element: <Navigate to="/dashboard" replace /> },
-          { path: '/dashboard', element: <DashboardPlaceholder /> },
-          placeholderPage('/library', 'Library', 'Library', 'ZGPGu, GH52o, w06M4n', 'dashboard'),
-          placeholderPage('/library/:id', 'Playlist', 'Library › Detail view', 'l9Wn7L, GZoBm, CyvW7, ay3D7', 'library-detail'),
-          placeholderPage('/albums', 'Albums', 'Albums', 'MX2OU, wwJXz, L3CNc7', 'albums'),
-          // Not drawn: "the same layout as a playlist's detail view".
-          placeholderPage('/albums/:id', 'Album', 'Albums › Detail view', undefined, 'albums'),
+          { path: '/dashboard', element: <DashboardPage /> },
+          { path: '/library', element: <LibraryPage /> },
+          { path: '/library/:id', element: <PlaylistPage /> },
+          { path: '/albums', element: <AlbumsPage /> },
+          { path: '/albums/:id', element: <AlbumPage /> },
           { path: '/history', element: <Navigate to="/history/runs" replace /> },
-          placeholderPage('/history/runs', 'History', 'History › Runs tab', 'o5vCh7', 'history'),
-          placeholderPage('/history/runs/:id', 'Run', 'History › Run page', 'bWcg0', 'history'),
-          placeholderPage('/history/tracks', 'History', 'History › Tracks tab (deferred past M1)', 'doecA', 'history'),
-          placeholderPage('/history/logs', 'History', 'History › Logs tab (deferred past M1)', 'xRi3r', 'history'),
-          placeholderPage('/schedule', 'Schedule', 'Schedule (deferred past M1)', 'IyhIV, gaqyw', 'schedule'),
-          placeholderPage('/settings', 'Settings', 'Settings', 't6RqK, w1uXEY'),
-          placeholderPage('/player', 'Player', 'Player', 'ZQChN, jh5YJ'),
+          { path: '/history/runs', element: <RunsPage /> },
+          { path: '/history/runs/:id', element: <RunPage /> },
+          { path: '/history/tracks', element: <Later title="History" /> },
+          { path: '/history/logs', element: <Later title="History" /> },
+          { path: '/schedule', element: <Later title="Schedule" /> },
+          { path: '/settings', element: <SettingsPage /> },
+          { path: '/player', element: <PlayerPage /> },
           { path: '*', element: <NotFound /> },
         ],
       },

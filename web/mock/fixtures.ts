@@ -249,7 +249,7 @@ export const storageNotMounted: Storage = {
 export const container: Container = {
   device_name: 'spotivault',
   tz: 'Europe/Berlin',
-  music_source: '/volume6/Music',
+  music_source: '/Music',
   umask: '022',
   ui_password_env_set: false,
   versions: { image: '0.1.0', controller: '0.1.0', spytify: '2.0.2', client: '1.3.4.258' },
@@ -274,7 +274,6 @@ function playlist(item: Partial<LibraryItem> & Pick<LibraryItem, 'id' | 'name'>)
     last_backup_at: fromNow(-20 * HOUR),
     status: 'up_to_date',
     removable: false,
-    playback_note: null,
     progress: null,
     ...item,
   };
@@ -288,14 +287,17 @@ export const libraryItems: LibraryItem[] = [
     cover_source: 'none', total: 2004, recorded: 1990, new: 14, last_backup_at: fromNow(-9 * HOUR), status: 'new',
   }),
   playlist({
+    // A followed playlist: its total is /me/playlists' items.total, with no track list (contract:
+    // LibraryItem.total), so it shows "32 / 35 recorded".
     id: LATE_NIGHT_DRIVE, kind: 'followed', name: 'Late Night Drive', owner: 'Lorde', item_access: false,
-    total: null, recorded: 32, new: null, removable: true, status: 'up_to_date',
+    total: 35, recorded: 32, new: null, removable: true, status: 'up_to_date',
   }),
   playlist({ id: fakeId('chillmix'), name: 'Chill Mix', total: 120, recorded: 84, new: 0, status: 'partial' }),
   playlist({ id: fakeId('indiefinds'), name: 'Indie Finds', total: 64, recorded: 64 }),
   playlist({ id: fakeId('sundayvinyl'), name: 'Sunday Vinyl', total: 31, recorded: 31, status: 'unavailable' }),
   playlist({ id: fakeId('roadtrip2026'), name: 'Road Trip 2026', total: 52, recorded: 0, new: 52, last_backup_at: null, status: 'never_backed_up' }),
   playlist({ id: fakeId('focus'), name: 'Focus', tracked: false, total: 88, recorded: 0, new: null, last_backup_at: null, status: 'not_tracked' }),
+  // A linked playlist: no total and no track list (S0, Q10).
   playlist({
     id: fakeId('kexpliveset'), kind: 'linked', name: 'KEXP Live Sets', owner: 'KEXP', item_access: false,
     total: null, recorded: 12, new: null, removable: true, status: 'up_to_date',
@@ -311,9 +313,19 @@ export const librarySummary: LibrarySummary = {
   auto_track_owned: true,
 };
 
+/** Followed playlists not in the Library yet: the + modal's suggestions. */
 export const suggestions: PlaylistPreview[] = [
   { id: fakeId('pitchforkbest'), uri: `spotify:playlist:${fakeId('pitchforkbest')}`, name: 'Best New Tracks', owner: 'Pitchfork', cover: null, kind: 'followed', item_access: false, total: 50, already_added: false },
   { id: fakeId('jazzbrunch'), uri: `spotify:playlist:${fakeId('jazzbrunch')}`, name: 'Jazz Brunch', owner: 'Mara', cover: null, kind: 'followed', item_access: false, total: 77, already_added: false },
+];
+
+/**
+ * Playlists you don't follow that a pasted link resolves to (S0, Q10): a name, owner and cover,
+ * but no total and no track list. Any other id in a link is `not_found`; see mock/links.ts.
+ */
+export const linkedPreviews: PlaylistPreview[] = [
+  { id: fakeId('fridayfinds'), uri: `spotify:playlist:${fakeId('fridayfinds')}`, name: 'Friday Finds', owner: 'Ana', cover: null, kind: 'linked', item_access: false, total: null, already_added: false },
+  { id: fakeId('morningcommute'), uri: `spotify:playlist:${fakeId('morningcommute')}`, name: 'Morning Commute', owner: 'radio_eins', cover: null, kind: 'linked', item_access: false, total: null, already_added: false },
 ];
 
 // --- Albums --------------------------------------------------------------------------------------
@@ -366,7 +378,8 @@ export function trackList(count: number, opts: { album?: string; artist?: string
     const recorded = state === 'recorded' || state === 'skipped_duplicate';
     return {
       position: opts.access === false ? null : i + 1,
-      track_id: fakeId(`track${albumName}${i}`),
+      // The index first, so ids stay unique per list (fakeId cuts at 22 characters).
+      track_id: fakeId(`t${i}x${albumName}`),
       title,
       artists: [artist],
       album: albumName,
@@ -377,6 +390,23 @@ export function trackList(count: number, opts: { album?: string; artist?: string
       reason: state === 'failed' ? 'low_volume' : null,
       recorded_at: recorded ? fromNow(-2 * DAY) : null,
     };
+  });
+}
+
+/**
+ * An album's tracks as its state says: the recorded ones first (every fourth a duplicate of a file
+ * already there), then the rest `missing`, with the low-volume failure first when it ended Partial.
+ * An album's tracks are never `new` (web-ui.md § Albums › Detail view: Recorded, Skipped
+ * (duplicate), Missing or Failed), as in the controller.
+ */
+export function albumTrackList(album: Album): ItemTrack[] {
+  return trackList(album.total, { album: album.name, artist: album.artist }).map((t, i) => {
+    const recordedAt = fromNow(-2 * DAY);
+    if (i < album.recorded) {
+      return { ...t, state: i % 4 === 3 ? 'skipped_duplicate' : 'recorded', size_bytes: 6_000_000 + i * 120_000, path: t.path ?? `${album.artist}/${album.name}/${String(i + 1).padStart(2, '0')} - ${t.title}.m4a`, reason: null, recorded_at: recordedAt };
+    }
+    const rest: TrackState = album.status === 'partial' && i === album.recorded ? 'failed' : 'missing';
+    return { ...t, state: rest, size_bytes: null, path: null, reason: rest === 'failed' ? 'low_volume' : null, recorded_at: null };
   });
 }
 
@@ -484,7 +514,30 @@ export const historyRows: HistoryRow[] = [
     id: 34, kind: 'skipped', trigger: 'scheduled', started_at: fromNow(-8 * DAY), ended_at: null, duration_s: null,
     outcome: null, counters: null, reason: 'previous_paused', window: null,
   },
+  {
+    id: 33, kind: 'run', trigger: 'scheduled', started_at: fromNow(-9 * DAY), ended_at: fromNow(-9 * DAY + 2 * HOUR),
+    duration_s: 7_200, outcome: 'failed',
+    counters: { ...zeroCounters, recorded: 14, skipped_duplicate: 120, bytes_added: 98_000_000 },
+    reason: 'container_restarted', window: { start: fromNow(-9 * DAY), end: fromNow(-9 * DAY + 6 * HOUR) },
+  },
 ];
+
+/**
+ * Older nightly runs to put after `historyRows` (POST /__mock/history {"older": n}), so History has
+ * more than one page and "loading more as you scroll" can be seen. Their ids start at 1000.
+ */
+export function olderHistory(count: number): HistoryRow[] {
+  return Array.from({ length: count }, (_, i) => {
+    const start = -(9 + i) * DAY - 23 * HOUR;
+    const recorded = (i * 7) % 23;
+    return {
+      id: 1000 + i, kind: 'run', trigger: 'scheduled', started_at: fromNow(start), ended_at: fromNow(start + 2 * HOUR),
+      duration_s: 7_200, outcome: 'completed',
+      counters: { recorded, skipped_duplicate: 400 + i, skipped_other: 0, failed: 0, bytes_added: recorded * 7_500_000 },
+      reason: null, window: { start: fromNow(start), end: fromNow(start + 6 * HOUR) },
+    };
+  });
+}
 
 export const lastRun: LastRun = {
   run: historyRows[0] ?? null,
@@ -522,6 +575,15 @@ export const scheduleNightly: Schedule = {
   hours_per_week: 48,
 };
 
+/** Manual only: every day empty (web-ui.md § Schedule, "No backups scheduled · Run now only"). */
+export const scheduleManual: Schedule = {
+  hours: { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] },
+  tz: 'Europe/Berlin',
+  run_order: ['carried_over', 'liked', 'playlists', 'albums'],
+  windows_per_week: 0,
+  hours_per_week: 0,
+};
+
 export const scheduleNext: ScheduleNext = {
   at: fromNow(9 * HOUR),
   window_end: fromNow(15 * HOUR),
@@ -533,9 +595,17 @@ export const scheduleNext: ScheduleNext = {
 
 // --- The hello snapshot --------------------------------------------------------------------------
 
-export type Scenario = 'fresh' | 'setup' | 'idle' | 'expiring' | 'expired' | 'running' | 'paused';
+/**
+ * The mock's starting points (web/README.md § Mock backend):
+ * - `fresh`: a new container, at step 1. `setup`: midway through the wizard, at step 4 by default
+ *   (POST /__mock/scenario takes `step` for any other).
+ * - `new`: set up a moment ago: never run, no schedule, no albums added, nothing backed up yet.
+ * - `idle` (the default), `expiring`, `expired`: set up, with History, albums and a schedule.
+ * - `running`, `paused`: a scheduled run going; `paused` loses playback to a phone 4 s in.
+ */
+export type Scenario = 'fresh' | 'setup' | 'new' | 'idle' | 'expiring' | 'expired' | 'running' | 'paused';
 
-export const SCENARIOS: readonly Scenario[] = ['fresh', 'setup', 'idle', 'expiring', 'expired', 'running', 'paused'];
+export const SCENARIOS: readonly Scenario[] = ['fresh', 'setup', 'new', 'idle', 'expiring', 'expired', 'running', 'paused'];
 
 /** The `hello` data a scenario starts with. The mock's world starts from the same values. */
 export function helloFor(scenario: Scenario): Hello {
@@ -553,6 +623,7 @@ export function helloFor(scenario: Scenario): Hello {
       return { ...base, setup: setupAt('tos'), connection: connectionNotConfigured, client: clientNotInstalled, backlog: null };
     case 'setup':
       return { ...base, setup: setupMidway, connection: connectionNotConfigured, backlog: null };
+    case 'new':
     case 'idle':
       return base;
     case 'expiring':

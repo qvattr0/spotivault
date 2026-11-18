@@ -34,3 +34,11 @@
   border-radius: var(--r-md);
   background: var(--bg-base);
 }
+
+/* Settings' sticky Unsaved changes bar (about 73 tall) sits over the panel's foot: a control that
+   Tab scrolls into view stops above it, not under it (WCAG 2.4.11). The room is kept on the whole
+   Settings page, not only while the bar shows, so a control is already clear of it when its change
+   brings the bar up (SaveBar also scrolls the focused control clear then). */
+.panel:has([data-settings]) {
+  scroll-padding-bottom: 88px;
+}

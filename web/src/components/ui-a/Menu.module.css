@@ -29,6 +29,15 @@
   left: 0;
 }
 
+/* On top of the page (a portal): MenuList sets top and left from its button. Above modals and
+   toasts, since a menu is opened from whatever is on top. */
+.floating {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+}
+
 /* At the foot of the screen (the global bottom bar), the menu opens above its button. */
 .above {
   top: auto;

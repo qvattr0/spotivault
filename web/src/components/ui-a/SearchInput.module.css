@@ -24,6 +24,11 @@
   flex: none;
 }
 
+/* The + modals' field: 44 tall, like Input/Text. */
+.lg {
+  height: 44px;
+}
+
 .input {
   flex: 1;
   min-width: 0;
@@ -39,6 +44,12 @@
 .input::placeholder {
   color: var(--text-muted);
   opacity: 1;
+}
+
+/* The box draws the focus ring. Without this, base.css's :focus-visible ring (same specificity,
+   and its stylesheet can load after this one) draws a second, square one on the field. */
+.input:focus-visible {
+  outline: none;
 }
 
 /* The browser's own clear button: we draw ours. */

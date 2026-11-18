@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cx } from '@/lib/cx.ts';
+import { useDocumentTitle } from './PageHeader.tsx';
 import styles from './Page.module.css';
 
 /** The page colours that tint the top of the panel (components.md § Page layout). */
@@ -15,7 +16,7 @@ const TINTS: Record<PageTint, string> = {
 };
 
 interface PageProps {
-  /** The 32/800 page title, as an h1. Leave it out to draw your own header. */
+  /** The 32/800 page title, as an h1. Leave it out when the page draws a PageHeader. */
   title?: string;
   /** Dashboard idle and Library: 'dashboard'. Settings and Player have none. */
   tint?: PageTint;
@@ -29,13 +30,7 @@ interface PageProps {
  * over the top (components.md § Page layout). Every S8 page draws itself inside one.
  */
 export function Page({ title, tint, flush = false, children }: PageProps) {
-  useEffect(() => {
-    if (!title) return;
-    document.title = `${title} · spotivault`;
-    return () => {
-      document.title = 'spotivault';
-    };
-  }, [title]);
+  useDocumentTitle(title);
 
   return (
     <div className={cx(styles.page, tint && styles.tinted, tint && TINTS[tint], flush && styles.flush)}>

@@ -1,6 +1,6 @@
 // The drawn screens the live shell can be set up like: which mock scenario and route reproduce
-// each one. The gallery's "Shell, live" view offers them, and the e2e tests screenshot them as
-// e2e/screenshots/<node>.png, to set beside web/design-reference/<node>.png.
+// each one. The gallery's "Shell, live" view offers them. The e2e screenshots of every S8 frame
+// (each page put in its drawn state) are listed in e2e/page-screens.ts.
 //
 // Plain data with type-only imports: the e2e tests and the report script (Node) read it too.
 

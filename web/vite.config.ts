@@ -113,6 +113,9 @@ export default defineConfig({
     proxy,
     // The logo files are in ../docs/brand.
     fs: { allow: [repoRoot] },
+    // Playwright writes traces (HTML) and screenshots here while tests run. Watching them made Vite
+    // reload every open page mid-test, so parallel e2e runs flaked.
+    watch: { ignored: ['**/test-results*/**', '**/e2e/screenshots/**', '**/playwright-report/**'] },
   },
   preview: {
     port: 4173,

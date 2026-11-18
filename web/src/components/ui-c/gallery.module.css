@@ -1,0 +1,59 @@
+/* Layout for ui-c's gallery entries. Gallery only. */
+
+.w640 {
+  width: 640px;
+}
+
+.w760 {
+  width: 760px;
+}
+
+.w900 {
+  width: 900px;
+}
+
+.w1100 {
+  width: 1100px;
+}
+
+.valid {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.state {
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
+.tracked {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+/* A detail view sits on its page's tint (components.md § Page layout). */
+.detail {
+  padding: 28px 32px;
+  border-radius: var(--r-md);
+  background: linear-gradient(var(--tint-library-detail), var(--bg-base));
+}
+
+.detailAlbums {
+  padding: 28px 32px;
+  border-radius: var(--r-md);
+  background: linear-gradient(var(--tint-albums), var(--bg-base));
+}
+
+.vnc {
+  width: 640px;
+  height: 400px;
+  border-radius: var(--r-md);
+  background: var(--bg-app);
+}

@@ -446,7 +446,7 @@ export interface paths {
         put?: never;
         /**
          * Preview a pasted link without adding it (+ modal)
-         * @description Resolves the link into a preview row with an Add button, or a reason it can't be used.
+         * @description Resolves the link into a preview row with an Add button, or a reason it can't be used. One `GET /playlists/{id}`, which answers with the name, owner, cover and `snapshot_id` even for a playlist you don't follow (S0, Q10). A Spotify-made id (`37i9dQZF1…`) is refused without asking Spotify, which answers 404 for those.
          */
         post: operations["resolveLibraryLink"];
         delete?: never;
@@ -1214,9 +1214,9 @@ export interface components {
             id: components["schemas"]["LibraryItemId"];
             kind: components["schemas"]["LibraryKind"];
             uri: string;
-            /** @description Pending S0 (Q10): a linked playlist whose metadata can't be read shows its id as the name until a refresh can read it. */
+            /** @description The playlist's name, or "Liked Songs". Always known: a linked playlist's comes from `GET /playlists/{id}` (S0, Q10). */
             name: string;
-            /** @description The owner's display name, or `you`. */
+            /** @description The owner's display name (their id when Spotify gives none), or `you`. */
             owner: string;
             /** @description A thumbnail URL under `/api/library/{id}/cover`. Null for Liked Songs, which shows its tile. */
             cover: string | null;
@@ -1226,9 +1226,9 @@ export interface components {
              */
             cover_source: "custom" | "spotify" | "none";
             tracked: boolean;
-            /** @description False for followed and linked playlists you don't collaborate on. Their track list and total are unknown. */
+            /** @description False for followed and linked playlists you don't collaborate on. Their track list is unknown. */
             item_access: boolean;
-            /** @description Playable tracks. Null when unknown (no item access). */
+            /** @description The playable tracks of its stored track list. Without one, a followed playlist's `items.total` from `GET /me/playlists` (every entry, playable or not: web-ui.md's "32 / 35 recorded"). Null for a linked playlist, whose total is unknown. */
             total: number | null;
             recorded: number;
             /** @description Tracks added since the last backup. Null when unknown. */
@@ -1238,27 +1238,25 @@ export interface components {
             status: components["schemas"]["LibraryStatus"];
             /** @description True for followed and linked items only. */
             removable: boolean;
-            /**
-             * @description Pending S0 (Q9). If Liked Songs can't be played as a context on this client, Liked Songs carries `liked_not_playable` here, shows "can't be played on this client yet", and runs skip it.
-             * @enum {string|null}
-             */
-            playback_note: "liked_not_playable" | null;
             progress: components["schemas"]["ItemProgress"] | null;
         };
         UrlBody: {
             url: string;
         };
-        /** @description A playlist that can be added. For a linked playlist the name, owner and cover come from `GET /playlists/{id}`. Pending S0 (Q10): whether that answers when `/items` returns 403, so `name`, `owner` and `cover` may be null for a linked playlist; the UI then shows the id. */
+        /** @description A playlist that can be added. A followed one comes from the last catalog refresh's `GET /me/playlists`, with its total. A linked one comes from `GET /playlists/{id}`, which answers with its name, owner, cover and `snapshot_id` but no `items`, so its total is null, and its `/items` answers 403 (S0, Q10). */
         PlaylistPreview: {
             id: components["schemas"]["SpotifyId"];
             uri: string;
-            name: string | null;
-            owner: string | null;
-            /** @description A Spotify CDN URL, used straight away and never stored. */
+            name: string;
+            /** @description The owner's display name, or their id when Spotify gives none. */
+            owner: string;
+            /** @description A Spotify CDN URL, used straight away and never stored. Null when the playlist has no image, or (a suggestion) when no refresh since the controller started has seen one. */
             cover: string | null;
             /** @enum {string} */
             kind: "followed" | "linked";
+            /** @description False for a linked playlist, and for a followed one you don't collaborate on. */
             item_access: boolean;
+            /** @description `items.total` for a followed playlist; null for a linked one (unknown). */
             total: number | null;
             already_added: boolean;
         };
@@ -1484,6 +1482,7 @@ export interface components {
             run_id: number;
             /** @description True when a new run started; false when the items joined the current run. */
             started: boolean;
+            /** @description A new run: the `items` given, or empty for Run now. Joining a run: the items that now wait right after the current item, in the given order, both new ones and ones already waiting that moved there. The current item, and items that already ended or were removed in this run, are left out: a run has one row per item. */
             added: components["schemas"]["ItemId"][];
         };
         /** @enum {string} */
@@ -1659,7 +1658,7 @@ export interface components {
                 method: string;
                 endpoint: string;
                 retry_after_s: number | null;
-                /** @description `run:<id>`, `refresh:<id>` or `other`. */
+                /** @description `run:<id>`, `refresh:<id>`, `setup` (the code exchange in wizard step 5) or `other`. */
                 scope: string;
             }[];
             /** @description The usage-log warnings raised in the period (also in the controller log). */
@@ -2437,7 +2436,7 @@ export interface operations {
                     "application/json": components["schemas"]["LibraryItem"];
                 };
             };
-            /** @description Already in the Library (`already_added`). */
+            /** @description Already in the Library (`already_added`), checked before asking Spotify. Or the Web API isn't connected (`not_connected`), or the connection expired (`connection_expired`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2447,6 +2446,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["LinkRefused"];
+            503: components["responses"]["SpotifyUnavailable"];
         };
     };
     getLibrarySuggestions: {
@@ -2501,7 +2501,9 @@ export interface operations {
                     "application/json": components["schemas"]["PlaylistPreview"];
                 };
             };
+            409: components["responses"]["NotConnected"];
             422: components["responses"]["LinkRefused"];
+            503: components["responses"]["SpotifyUnavailable"];
         };
     };
     removeLibraryItem: {
@@ -3163,6 +3165,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebApiUsage"];
                 };
             };
+            422: components["responses"]["ValidationFailed"];
         };
     };
 }

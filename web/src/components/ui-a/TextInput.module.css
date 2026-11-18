@@ -48,6 +48,12 @@
   outline: none;
 }
 
+/* The box draws the focus ring. Without this, base.css's :focus-visible ring (same specificity,
+   and its stylesheet can load after this one) draws a second, square one on the field. */
+.input:focus-visible {
+  outline: none;
+}
+
 /* The placeholder stays in the body font even in a mono field, as drawn. */
 .input::placeholder {
   color: var(--text-muted);

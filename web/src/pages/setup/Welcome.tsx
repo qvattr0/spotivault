@@ -1,53 +1,90 @@
-// Wizard step 1, "Welcome and Terms notice" (web-ui.md § 1): a checkbox, "I understand", then
-// Continue. Continue posts the acknowledgement (POST /api/setup/tos) and moves on to the first
-// unfinished step.
+// Wizard step 1, "Welcome and Terms notice" (web-ui.md § 1; Oleh8): what spotivault does, the
+// notice, a checkbox "I understand", then Continue. Continue posts the acknowledgement
+// (POST /api/setup/tos) and goes on to step 2.
 //
-// A minimal version, so the wizard can get past step 1 before S8 builds the step's real page: the
-// copy here is a placeholder. The request and the navigation are final.
+// Once acknowledged, "this screen never shows again": opened from the stepper or from Settings ›
+// About ("Read the Terms notice again"), it shows the same text read-only, with no checkbox, and a
+// way back (web/README.md § S8 ownership: /setup/welcome after setup).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { api, callApi } from '@/api';
-import { Button, Checkbox } from '@/components/ui-a';
-import { setupPath } from '@/shell/setup-steps.ts';
+import { TriangleAlert } from 'lucide-react';
+import { api } from '@/api';
+import { Button, ButtonLink, Checkbox } from '@/components/ui-a';
+import { useAction } from '@/lib/use-action.ts';
+import { formatDate } from '@/shell';
+import { useSetup } from '@/state';
+import { nextStepPath } from './parts/step-nav.ts';
+import { StepFooter } from './parts/StepFooter.tsx';
+import { StepTitle } from './parts/StepTitle.tsx';
+import parts from './parts/Step.module.css';
+import styles from './Welcome.module.css';
 
 export function Welcome() {
+  const setup = useSetup();
   const navigate = useNavigate();
   const [understood, setUnderstood] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onContinue() {
-    setBusy(true);
-    setError(null);
-    const result = await callApi(api.POST('/api/setup/tos', { body: { understood: true } }));
-    setBusy(false);
-    if (result.error) {
-      setError(result.error.code === 'network' ? "Can't reach spotivault. Try again." : 'Something went wrong. Try again.');
-      return;
-    }
-    navigate(setupPath(result.data.first_unfinished ?? 'done'), { replace: true });
-  }
+  // Set once the acknowledgement is stored. Step 2 opens when the live store has the new setup
+  // state too: the setup gate reads the store, and the answer can come before its setup.state event.
+  const [sent, setSent] = useState(false);
+  const acknowledge = useAction(() => api.POST('/api/setup/tos', { body: { understood: true } }), {
+    onDone: () => setSent(true),
+  });
+  const acknowledgedAt = setup?.tos_acknowledged_at ?? null;
+  useEffect(() => {
+    if (sent && acknowledgedAt) navigate(nextStepPath('tos'));
+  }, [sent, acknowledgedAt, navigate]);
 
   return (
-    <section>
-      <h1 className="type-page-title">Welcome to spotivault</h1>
-      <p className="text-sub" style={{ marginTop: 'var(--s-4)' }}>
-        Read the terms notice, then tick the box to continue.
-      </p>
-      <div style={{ marginTop: 'var(--s-6)' }}>
-        <Checkbox checked={understood} onChange={setUnderstood} label="I understand" />
-      </div>
-      <div style={{ marginTop: 'var(--s-6)' }}>
-        <Button variant="primary" disabled={!understood} busy={busy} onClick={onContinue}>
-          Continue
-        </Button>
-      </div>
-      {error && (
-        <p role="alert" className="text-sub" style={{ marginTop: 'var(--s-4)' }}>
-          {error}
-        </p>
+    <>
+      <StepTitle
+        hero
+        title="Back up your Spotify playlists as real files"
+        lead="spotivault plays your playlists and albums on a Spotify client inside this container and records them as tagged music files on your NAS. It runs on a schedule you choose."
+      />
+      <Notice />
+      {acknowledgedAt && !sent ? (
+        <>
+          <p className={parts.muted}>You acknowledged this notice on {formatDate(acknowledgedAt)}.</p>
+          <StepFooter>
+            {setup?.completed ? (
+              <ButtonLink variant="primary" to="/settings">
+                Back to Settings
+              </ButtonLink>
+            ) : (
+              <ButtonLink variant="primary" to={nextStepPath('tos')}>
+                Continue
+              </ButtonLink>
+            )}
+          </StepFooter>
+        </>
+      ) : (
+        <>
+          <Checkbox checked={understood} onChange={setUnderstood} label="I understand" />
+          <StepFooter>
+            <Button variant="primary" disabled={!understood} busy={acknowledge.busy || sent} onClick={() => void acknowledge.run()}>
+              Continue
+            </Button>
+          </StepFooter>
+        </>
       )}
+    </>
+  );
+}
+
+/** The Terms notice (web-ui.md § 1): the warn box of Oleh8. */
+function Notice() {
+  return (
+    <section className={styles.notice} aria-labelledby="terms-notice">
+      <h2 id="terms-notice" className={styles.noticeTitle}>
+        <TriangleAlert size={20} aria-hidden className={styles.noticeIcon} />
+        Before you start
+      </h2>
+      <ul className={styles.noticeList}>
+        <li>Recording breaks Spotify&apos;s terms of use. Accounts using recording software have been suspended before.</li>
+        <li>Consider using a separate Premium account for spotivault.</li>
+        <li>Whether private copies are legal depends on your country.</li>
+      </ul>
     </section>
   );
 }

@@ -125,6 +125,7 @@ h4 {
   --type-wordmark: 800 19px / normal var(--font); /* sidebar "spotivault" */
   --type-modal-title: 800 22px / normal var(--font);
   --type-page-title: 800 32px / normal var(--font); /* "Dashboard", "Library" */
+  --type-detail-title: 800 64px / normal var(--font); /* a detail view's name (l9Wn7L): "Late Night Drive" */
 }
 
 .type-display { font: var(--type-display); }

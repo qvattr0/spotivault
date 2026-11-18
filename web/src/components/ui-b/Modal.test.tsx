@@ -132,6 +132,36 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('still closes on Escape, and takes Tab back, when the focused control inside goes away', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    function Removing() {
+      const [shown, setShown] = useState(true);
+      return (
+        <Modal open title="Add albums" onClose={onClose}>
+          {shown ? (
+            <button type="button" onClick={() => setShown(false)}>
+              Add
+            </button>
+          ) : (
+            <p>Added</p>
+          )}
+          <button type="button">Done</button>
+        </Modal>
+      );
+    }
+    render(<Removing />);
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(document.activeElement).toBe(document.body);
+
+    await user.tab();
+    expect(screen.getByRole('dialog')).toHaveFocus();
+    screen.getByRole('dialog').blur();
+    expect(document.activeElement).toBe(document.body);
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('lets a confirm opened from inside it take focus and Escape', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

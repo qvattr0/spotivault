@@ -129,6 +129,22 @@ describe('reduce', () => {
     expect(next.status?.track?.title).toBe('Last Hours');
   });
 
+  it("keeps the named playback-moved alert in the controller's takeover order, until Resume", () => {
+    // engine/run.py _apply_report: item.state interrupted, run.state paused, then device.moved.
+    let state = reduce(idle, envelope('hello', helloFor('running')));
+    const interrupted = { ...statusRunning.item!, state: 'interrupted' as const };
+    state = reduce(state, envelope('item.state', { run_id: 42, item: interrupted, previous_state: 'playing' }));
+    state = reduce(state, envelope('run.state', { ...runRunning, state: 'paused', paused_reason: 'device_moved', previous_state: 'running' }));
+    const moved: DeviceMovedEvent = { run_id: 42, item_id: interrupted.item_id, device: { id: 'x', name: "Lorne's iPhone", type: 'Smartphone' }, discarded_take_id: 't' };
+    state = reduce(state, envelope('device.moved', moved));
+    // A run.state that stays paused (new counters) keeps it.
+    state = reduce(state, envelope('run.state', { ...runRunning, state: 'paused', paused_reason: 'device_moved', previous_state: 'paused' }));
+    expect(state.alerts).toEqual([expect.objectContaining({ kind: 'device_moved', event: moved })]);
+    // Resume: playback is back, so the alert is no longer true.
+    state = reduce(state, envelope('run.state', { ...runRunning, state: 'running', previous_state: 'paused' }));
+    expect(state.alerts).toEqual([]);
+  });
+
   it('leaves the status alone when an item that is not current changes', () => {
     const running = reduce(idle, envelope('hello', helloFor('running')));
     const removed = queueItem({ item_id: 'liked', name: 'Liked Songs', state: 'removed' });

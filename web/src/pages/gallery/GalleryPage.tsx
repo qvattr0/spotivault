@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router';
 import { sections as uiA } from '@/components/ui-a/gallery.tsx';
 import { sections as uiB } from '@/components/ui-b/gallery.tsx';
+import { sections as uiC } from '@/components/ui-c/gallery.tsx';
 import { leadSections as shellLead, sections as shell } from '@/shell/gallery.tsx';
 import { arrangeSections } from './arrange.ts';
 import { foundations } from './foundations.tsx';
@@ -10,7 +11,7 @@ import styles from './GalleryPage.module.css';
 
 // Every group's sections, merged by title and in the component sheet's order. Within a merged
 // section, entries keep this order: the shell's lead sections first (the Sidebar opens Navigation).
-const SECTIONS = arrangeSections([foundations, ...shellLead, ...uiA, ...uiB, ...shell]);
+const SECTIONS = arrangeSections([foundations, ...shellLead, ...uiA, ...uiB, ...shell, ...uiC]);
 
 /**
  * /gallery: every component in every state, to compare with web/design-reference/E3ZmN.png.

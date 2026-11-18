@@ -8,6 +8,8 @@
   --surface-modal: #282828; /* modal dialogs and open menus (components.md § Differences, row 8) */
   --cover-pill-bg: #000000b3; /* the status pill on an album cover (the scrim value, typed in) */
   --menu-item-hover: #ffffff1a; /* a hovered menu item: white at 10 % over the surface (iMmk3) */
+  --choice-checked-fill: #1ed76015; /* a chosen large choice card: accent at 8 % (ZJSG0, sUXcW) */
+  --player-surround: #0a0a0a; /* the Player's screen area, around the client's screen (ZQChN) */
 
   /* Cover art placeholders and glyphs */
   --cover-glyph: #ffffff99; /* the music glyph on a 44 px row cover */

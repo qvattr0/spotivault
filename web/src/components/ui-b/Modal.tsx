@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { focusableIn } from './focusable.ts';
 import { ModalBox } from './ModalBox.tsx';
@@ -24,6 +24,9 @@ export interface ModalProps {
  *   dialog itself), stays inside it on Tab and Shift+Tab, and goes back where it was on close.
  * - **Closing:** Escape and the × button call `onClose`. A click on the scrim doesn't: the docs
  *   don't say, and the schedule and layout modals hold unsaved edits (our cautious choice).
+ * - **Focus lost:** when the focused control inside goes away (a row the + modal removes), the
+ *   browser puts focus on the page body, outside the dialog. Escape still closes the top dialog
+ *   then, and Tab brings focus back into it.
  */
 export function Modal({ open, title, onClose, children, footer, width = 560 }: ModalProps) {
   if (!open) return null;
@@ -58,6 +61,8 @@ function ModalDialog({ title, onClose, children, footer, width }: DialogProps) {
       const target = event.target;
       if (!dialog || !(target instanceof Element) || dialog.contains(target)) return;
       if (target.closest('[aria-modal="true"]')) return;
+      // A menu opened from inside it is drawn on top of the page, outside the dialog (ui-a's MenuList).
+      if (target.closest('[role="menu"]')) return;
       dialog.focus();
     }
     document.addEventListener('focusin', keepFocusInside);
@@ -67,6 +72,27 @@ function ModalDialog({ title, onClose, children, footer, width }: DialogProps) {
       if (opener?.isConnected) opener.focus();
     };
   }, [opener]);
+
+  // Keys pressed while focus is on the page body (see "Focus lost" above) don't reach the dialog's
+  // own onKeyDown, so the document hears them for the dialog on top.
+  const keyWithFocusLost = useEffectEvent((event: globalThis.KeyboardEvent) => {
+    const dialog = dialogRef.current;
+    if (!dialog || event.target !== document.body) return;
+    const dialogs = document.querySelectorAll('[aria-modal="true"]');
+    if (dialogs[dialogs.length - 1] !== dialog) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+    } else if (event.key === 'Tab') {
+      event.preventDefault();
+      dialog.focus();
+    }
+  });
+  useEffect(() => {
+    const listener = (event: globalThis.KeyboardEvent) => keyWithFocusLost(event);
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  }, []);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const dialog = dialogRef.current;

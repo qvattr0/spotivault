@@ -1,0 +1,70 @@
+/* The + modal (w06M4n), 600 wide: the field (44 tall, bg-elevated), the pasted link's preview in a
+   bg-highlight box, the standing note about Spotify's own playlists (danger text on danger-tint),
+   then "PLAYLISTS YOU FOLLOW" over rows 60 tall with 40 px covers. 16 apart. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/* Doubled classes: they win over ui-a's and ui-b's own, whatever order the CSS loads in. */
+.field.field {
+  background: var(--bg-elevated);
+}
+
+.preview.preview {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--bg-highlight);
+}
+
+.suggestion.suggestion {
+  min-height: 60px;
+}
+
+.standing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: 6px;
+  background: var(--danger-tint);
+  color: var(--danger);
+  font: var(--type-small);
+}
+
+.standing svg {
+  flex: none;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* "PLAYLISTS YOU FOLLOW": 11/700 capitals, as the wizard's section labels. */
+.heading {
+  margin: 0;
+  /* text-sub, not the drawn text-muted: 3.7:1 on the modal surface is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-label);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+/* "✓ Added", in the green of an up-to-date pill. */
+.added {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--accent);
+  font: var(--type-button-sm);
+}

@@ -1,5 +1,5 @@
 /* A drop-down choice. components.md has no Select; the screens draw two, closed only:
-   - quiet: the Library and Albums sort, "Recently backed up ⌄" (ZGPGu): 14/700 text-sub and a
+   - quiet: the Library and Albums sort, "Recently backed up ⌄" (ZGPGu): 13/500 text-sub and a
      16 px chevron-down, gap 8, no box; padding 9 4, like Button/Tertiary;
    - boxed: History · Logs "Run: All ⌄" (xRi3r): bg-highlight, radius 4, 26 tall, padding 4 12,
      a 14/700 white label.
@@ -27,6 +27,8 @@
 .quiet {
   padding: 9px 4px;
   color: var(--text-sub);
+  font: var(--type-small);
+  font-weight: 500;
 }
 
 .boxed {

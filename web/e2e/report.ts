@@ -4,7 +4,8 @@
 //   node e2e/report.ts      after `npm run e2e`, which also writes it at the end of its screenshots
 //
 // How screenshots pair with web/design-reference/ (both are 2x):
-// - <node>.png, a screen: design-reference/<node>.png (screens.md gives the node ids).
+// - <node>.png, a screen: design-reference/<node>.png (screens.md gives the node ids). The S8 pages
+//   are shot in each drawn frame's state (e2e/page-screens.ts), in screens.md's order.
 // - E3ZmN.<node>.png, a gallery section: that section's box in the component sheet, E3ZmN.png
 //   (the boxes are in src/pages/gallery/sheet.ts).
 // The reference PNGs aren't committed: screens.md says how to export them.
@@ -12,7 +13,7 @@
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readSync, rmSync, writeFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { SHELL_SCREENS } from '../src/pages/gallery/screens.ts';
+import { PAGE_SCREENS } from './page-screens.ts';
 import { SHEET_NODE, SHEET_SECTIONS, SHEET_SIZE, type SheetSection } from '../src/pages/gallery/sheet.ts';
 
 const SCREENSHOTS = fileURLToPath(new URL('./screenshots/', import.meta.url));
@@ -73,11 +74,12 @@ function pairFor(name: string): Pair {
     };
   }
 
-  const screen = SHELL_SCREENS.find((s) => s.node === node);
+  const screen = PAGE_SCREENS.find((s) => s.node === node);
   const size = referenceSize(name);
+  const scenario = screen ? (screen.step ? `"${screen.scenario}" at ${screen.step}` : `"${screen.scenario}"`) : '';
   return {
     name,
-    title: screen ? `${screen.title} (${screen.path}, mock scenario "${screen.scenario}")` : node,
+    title: screen ? `${screen.title} (${screen.path}, mock scenario ${scenario})` : node,
     built,
     reference: size ? { file: name, size } : null,
   };
@@ -121,8 +123,8 @@ function section(pair: Pair, referencesUrl: string): string {
 /** Writes the report for whatever screenshots there are. Returns its path. */
 export function writeReport(): string {
   mkdirSync(SCREENSHOTS, { recursive: true });
-  // The sheet's sections first, then the screens, then anything else by name.
-  const expected = [...SHEET_SECTIONS.map((s) => `${SHEET_NODE}.${s.node}.png`), ...SHELL_SCREENS.map((s) => `${s.node}.png`)];
+  // The sheet's sections first, then the pages' screens, then anything else by name.
+  const expected = [...SHEET_SECTIONS.map((s) => `${SHEET_NODE}.${s.node}.png`), ...PAGE_SCREENS.map((s) => `${s.node}.png`)];
   const place = (name: string) => (expected.includes(name) ? expected.indexOf(name) : expected.length);
   const names = readdirSync(SCREENSHOTS)
     .filter((n) => n.endsWith('.png'))

@@ -146,6 +146,8 @@ describe('SplitButton', () => {
   });
 
   it('can open its menu above, for the bar at the foot of the screen', async () => {
+    // The button sits at the foot of a 768 px window.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(DOMRect.fromRect({ x: 600, y: 720, width: 225, height: 36 }));
     render(
       <SplitButton
         label="Stop after this track"
@@ -156,7 +158,26 @@ describe('SplitButton', () => {
       />,
     );
     await userEvent.click(screen.getByRole('button', { name: 'More ways to stop' }));
-    expect(screen.getByRole('menu')).toHaveClass('above');
+    // Drawn on top of the page (a portal), above its button.
+    expect(screen.getByRole('menu')).toHaveAttribute('data-placement', 'above');
+    expect(screen.getByRole('menu').parentElement).toBe(document.body);
+    vi.restoreAllMocks();
+  });
+
+  it('opens the other way when there is no room, and follows its button on scroll', async () => {
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
+    rect.mockReturnValue(DOMRect.fromRect({ x: 600, y: 740, width: 36, height: 36 }));
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(120);
+    render(<MenuButton label="Options" items={[{ label: 'Back up now', onSelect: () => {} }]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Options' }));
+    const menu = screen.getByRole('menu');
+    expect(menu).toHaveAttribute('data-placement', 'above');
+
+    rect.mockReturnValue(DOMRect.fromRect({ x: 600, y: 100, width: 36, height: 36 }));
+    window.dispatchEvent(new Event('scroll'));
+    expect(menu).toHaveAttribute('data-placement', 'below');
+    expect(menu.style.top).toBe('140px');
+    vi.restoreAllMocks();
   });
 
   it('disables both halves', () => {

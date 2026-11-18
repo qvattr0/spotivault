@@ -39,6 +39,25 @@ describe('useApi', () => {
     expect(request).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps the old answer on screen while new deps load, with keepData', async () => {
+    let release: (() => void) | null = null;
+    const request = (filter: string) =>
+      filter === 'all' ? answer({ filter }) : new Promise<FetchResult<{ filter: string }>>((resolve) => (release = () => void resolve(answer({ filter }))));
+    const { result, rerender } = renderHook(({ filter }) => useApi(() => request(filter), [filter], { keepData: true }), {
+      initialProps: { filter: 'all' },
+      wrapper: wrapperFor(storeFor('idle')),
+    });
+    await waitFor(() => expect(result.current.data).toEqual({ filter: 'all' }));
+
+    rerender({ filter: 'tracked' });
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toEqual({ filter: 'all' });
+    await waitFor(() => expect(release).not.toBeNull());
+    act(() => release?.());
+    await waitFor(() => expect(result.current.data).toEqual({ filter: 'tracked' }));
+    expect(result.current.loading).toBe(false);
+  });
+
   it('gives the error code of a failed load', async () => {
     const { result } = renderHook(() => useApi(() => failure('not_connected'), []), { wrapper: wrapperFor(storeFor('idle')) });
     await waitFor(() => expect(result.current.error?.code).toBe('not_connected'));
@@ -72,6 +91,35 @@ describe('useApi', () => {
     act(() => store.dispatch(envelope('backlog', helloFor('idle').backlog!)));
     act(() => result.current.reload());
     await waitFor(() => expect(result.current.data).toBe(3));
+  });
+
+  it('does not pile up reloads: events while one is out make one more, and the one out lands', async () => {
+    const store = storeFor('idle');
+    const releases: (() => void)[] = [];
+    const signals: AbortSignal[] = [];
+    let n = 0;
+    const request = vi.fn((signal: AbortSignal) => {
+      signals.push(signal);
+      const value = ++n;
+      return new Promise<FetchResult<number>>((resolve) => releases.push(() => resolve(answer(value))));
+    });
+    const { result } = renderHook(() => useApi(request, [], { reloadOn: ['run.finished'] }), { wrapper: wrapperFor(store) });
+    await waitFor(() => expect(releases).toHaveLength(1));
+    act(() => releases[0]!());
+    await waitFor(() => expect(result.current.data).toBe(1));
+
+    // A burst: the first event reloads at once; the rest wait for its answer.
+    for (let i = 0; i < 5; i += 1) act(() => store.dispatch(envelope('run.finished', { run: historyRows[0]! })));
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(signals[1]!.aborted).toBe(false);
+
+    act(() => releases[1]!());
+    await waitFor(() => expect(result.current.data).toBe(2));
+    // One more, a moment after that answer, for the events that came meanwhile.
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(3));
+    act(() => releases[2]!());
+    await waitFor(() => expect(result.current.data).toBe(3));
+    expect(request).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the older data when a reload fails', async () => {

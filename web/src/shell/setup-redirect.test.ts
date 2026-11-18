@@ -19,6 +19,15 @@ describe('setupRedirect', () => {
     expect(setupRedirect(midway, '/setup/nonsense')).toBe('/setup/client-settings');
   });
 
+  it('opens steps 7 to 9 once steps 1 to 6 are done, since 7 and 8 can be skipped', () => {
+    const atPlaylists = setupAt('playlists');
+    expect(setupRedirect(atPlaylists, '/setup/albums')).toBeNull();
+    expect(setupRedirect(atPlaylists, '/setup/done')).toBeNull();
+    expect(setupRedirect(setupAt('albums'), '/setup/done')).toBeNull();
+    expect(setupRedirect(atPlaylists, '/library')).toBe('/setup/playlists');
+    expect(setupRedirect(setupAt('output'), '/setup/playlists')).toBe('/setup/output');
+  });
+
   it('leaves everything alone after setup, except the bare /setup', () => {
     expect(setupRedirect(setupComplete, '/dashboard')).toBeNull();
     expect(setupRedirect(setupComplete, '/setup/done')).toBeNull();

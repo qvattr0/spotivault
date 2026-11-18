@@ -28,23 +28,31 @@ describe('routes', () => {
 
   it('sends you to the wizard before setup is complete', async () => {
     const { router } = renderAt('/library', 'setup');
-    expect(await screen.findByRole('heading', { name: '4. Client settings' })).toBeInTheDocument();
+    // The step on screen is the stepper's current one ('setup' scenario: step 4).
+    const steps = await screen.findByRole('list', { name: 'Setup steps' });
+    expect(within(steps).getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/setup/client-settings');
   });
 
-  it('has a page for every sidebar entry', async () => {
-    for (const [path, title] of [
-      ['/library', 'Library'],
-      ['/albums', 'Albums'],
-      ['/history', 'History'],
-      ['/schedule', 'Schedule'],
-      ['/settings', 'Settings'],
-      ['/player', 'Player'],
-    ]) {
-      const { unmount } = renderAt(path, 'idle');
-      expect(await screen.findByRole('heading', { name: title })).toBeInTheDocument();
-      unmount();
+  it('has a page for every sidebar entry, titled as the entry', async () => {
+    const { unmount } = renderAt('/dashboard', 'idle');
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
+    const entries = within(nav).getAllByRole('link').map((link) => [link.getAttribute('href'), link.textContent] as const);
+    unmount();
+    // Schedule isn't in M1, so it isn't offered (no dead links).
+    expect(entries.map(([, label]) => label)).toEqual(['Dashboard', 'Library', 'Albums', 'History', 'Settings', 'Player']);
+    for (const [path, title] of entries) {
+      const { unmount: done } = renderAt(path ?? '/', 'idle');
+      expect(await screen.findByRole('heading', { level: 1, name: title ?? '' })).toBeInTheDocument();
+      done();
     }
+  });
+
+  it('keeps the routes of pages that come later, unlinked', async () => {
+    renderAt('/schedule', 'idle');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Schedule' })).toBeInTheDocument();
+    expect(screen.getByText(/isn't in this version/)).toBeInTheDocument();
   });
 
   it('opens the gallery even before setup', async () => {
@@ -70,7 +78,7 @@ describe('the app shell', () => {
     expect(card).toHaveTextContent('Connected as Lorne');
   });
 
-  it('shows the now-playing bar during a run, except on the Dashboard', async () => {
+  it('shows the now-playing bar during a run, docked under the run header on the Dashboard', async () => {
     const { unmount } = renderAt('/library', 'running');
     const bar = await screen.findByRole('region', { name: 'Now recording' });
     expect(within(bar).getByText('Last Hours')).toBeInTheDocument();
@@ -78,8 +86,12 @@ describe('the app shell', () => {
     unmount();
 
     renderAt('/dashboard', 'running');
-    await screen.findByRole('heading', { name: 'Dashboard' });
-    expect(screen.queryByRole('region', { name: 'Now recording' })).not.toBeInTheDocument();
+    // web-ui.md § Now-playing strip: on the Dashboard the strip sits under the run header instead
+    // of the bottom bar, without a Stop of its own (the header has it).
+    await screen.findByRole('heading', { level: 1, name: 'Backing up' });
+    const strips = screen.getAllByRole('region', { name: 'Now recording' });
+    expect(strips).toHaveLength(1);
+    expect(within(strips[0]!).queryByRole('button', { name: 'Stop after this track' })).not.toBeInTheDocument();
   });
 
   it('has no now-playing bar when idle', async () => {
@@ -102,8 +114,9 @@ describe('the app shell', () => {
   });
 
   it('opens the Reconnect flow after setup, without the stepper', async () => {
-    renderAt('/reconnect', 'expired');
-    expect(await screen.findByRole('heading', { name: 'Reconnect' })).toBeInTheDocument();
+    const { router } = renderAt('/reconnect', 'expired');
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/reconnect');
     expect(screen.queryByRole('list', { name: 'Setup steps' })).not.toBeInTheDocument();
   });
 });

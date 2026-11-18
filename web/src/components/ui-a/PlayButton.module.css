@@ -17,6 +17,11 @@
     background-color 100ms ease;
 }
 
+.lg {
+  width: 56px;
+  height: 56px;
+}
+
 .play:not(:disabled):hover,
 .play[data-state='hover'] {
   transform: scale(1.04);

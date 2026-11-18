@@ -14,7 +14,8 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
  * Destructure it as above: the React lint rules read `menu.open` as touching a ref.
  *
  * It closes on Escape (focus goes back to the button), on Tab, after an item is chosen, and on a
- * click outside `wrapperRef`.
+ * click outside `wrapperRef` and the list. The list is drawn on top of the page (MenuList's
+ * `anchorRef`), so a parent with `overflow: hidden` or `auto` can't clip it.
  */
 export function useMenu(options: { defaultOpen?: boolean } = {}) {
   const [open, setOpen] = useState(options.defaultOpen ?? false);
@@ -35,7 +36,9 @@ export function useMenu(options: { defaultOpen?: boolean } = {}) {
       focusOnOpen.current = null;
     }
     function onPointerDown(event: PointerEvent) {
-      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false);
+      // The list is drawn on top of the page (a portal), outside the wrapper: a click in it is inside.
+      const target = event.target as Node;
+      if (!wrapperRef.current?.contains(target) && !listRef.current?.contains(target)) setOpen(false);
     }
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
@@ -66,7 +69,8 @@ export function useMenu(options: { defaultOpen?: boolean } = {}) {
     },
   };
 
-  const listProps = { ref: listRef, id: listId, labelledBy: triggerId, onClose: close };
+  // anchorRef: the list is drawn on top of the page, placed at the wrapper (MenuList).
+  const listProps = { ref: listRef, id: listId, labelledBy: triggerId, onClose: close, anchorRef: wrapperRef };
 
   return { open, wrapperRef, triggerProps, listProps };
 }

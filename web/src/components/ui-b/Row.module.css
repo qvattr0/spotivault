@@ -15,8 +15,9 @@
   border-radius: 6px;
 }
 
+/* 28 tall: its rule 20 above the first row (ZGPGu, l9Wn7L). */
 .header {
-  height: 36px;
+  height: 28px;
   color: var(--text-sub);
   font: var(--type-small);
   font-weight: 500;
@@ -115,6 +116,11 @@
 /* Track titles and modal rows: 15/500, not 600. */
 .medium {
   font-weight: 500;
+}
+
+/* The Dashboard's Up next rows: 14 px. */
+.small {
+  font-size: 14px;
 }
 
 /* The title as a button that opens the detail view. */

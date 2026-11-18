@@ -28,10 +28,9 @@ test('a takeover pauses the run, and the shell says so', async ({ page, request 
   await useScenario(request, 'running');
   await page.goto('/dashboard');
   await expectRunState(page, 'running');
-  // The mock refuses a takeover (409) until the run has a current item.
-  await expect.poll(async () => (await request.post('/__mock/takeover')).status(), { timeout: 10_000 }).toBe(204);
-  // The mock pauses the run up to about 9 s after it accepts the takeover.
-  await expectRunState(page, 'paused', 15_000);
+  // The mock refuses a takeover (409) until a track is recording; then the run pauses at once.
+  await expect.poll(async () => (await request.post('/__mock/takeover')).status(), { timeout: 15_000 }).toBe(204);
+  await expectRunState(page, 'paused');
 });
 
 test("the gallery's live shell runs and stops a backup", async ({ page, request }) => {

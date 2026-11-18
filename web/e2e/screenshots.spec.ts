@@ -1,14 +1,15 @@
 // Screenshots at 2x, to set beside the S3 reference PNGs (web/design-reference/, also 2x):
 // - each gallery section as E3ZmN.<section node>.png, at the sheet's width (2400);
-// - the shell in each drawn screen (src/pages/gallery/screens.ts) as <frame node>.png, at 1440 × 960.
+// - each S8 page in the state of its drawn frame (e2e/page-screens.ts) as <frame node>.png, 1440
+//   wide and as tall as the frame (960, or the frame's own height).
 // They go to e2e/screenshots/ (gitignored), and the run ends by writing the side-by-side report,
 // e2e/screenshots/index.html (e2e/report.ts). Nothing here compares pixels: the report is for eyes.
 
 import { expect, test } from '@playwright/test';
-import { SCREEN_SIZE, SHELL_SCREENS } from '../src/pages/gallery/screens.ts';
+import { SCREEN_SIZE } from '../src/pages/gallery/screens.ts';
 import { SHEET_NODE, SHEET_SIZE } from '../src/pages/gallery/sheet.ts';
-import { expectRunState } from './live.ts';
-import { useScenario } from './mock.ts';
+import { openPage, useScenario } from './mock.ts';
+import { PAGE_SCREENS } from './page-screens.ts';
 import { removeScreenshots, screenshotPath, writeReport } from './report.ts';
 
 test.use({ deviceScaleFactor: 2 });
@@ -40,19 +41,18 @@ test.describe('gallery sections', () => {
   });
 });
 
-test.describe('shell screens', () => {
-  test.use({ viewport: SCREEN_SIZE });
+test.describe('page screens', () => {
+  // Some wait for a run to reach the drawn moment (an album recording).
+  test.setTimeout(60_000);
 
-  for (const screen of SHELL_SCREENS) {
+  for (const screen of PAGE_SCREENS) {
     test(`${screen.node}: ${screen.title}`, async ({ page, request }) => {
-      await useScenario(request, screen.scenario);
-      await page.goto(screen.path);
-      if (screen.runState) await expectRunState(page, screen.runState, 15_000);
-      else await expect(page).toHaveURL(new RegExp(`${screen.path}$`));
-      if (screen.recording) {
-        const bar = page.getByRole('region', { name: 'Now recording' });
-        await expect(bar.getByText('Recording', { exact: true })).toBeVisible({ timeout: 15_000 });
-      }
+      // A frame taller than 960 is drawn whole: the window gets its height, so nothing scrolls.
+      await page.setViewportSize({ width: SCREEN_SIZE.width, height: screen.height ?? SCREEN_SIZE.height });
+      await useScenario(request, screen.scenario, screen.step ? { step: screen.step } : {});
+      await openPage(page, screen.path);
+      await expect(page).toHaveURL(new RegExp(`${screen.path}$`));
+      await screen.prepare?.(page, request);
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({ path: screenshotPath(`${screen.node}.png`), animations: 'disabled' });
     });

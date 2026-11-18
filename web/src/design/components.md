@@ -54,7 +54,7 @@ Drawn as specimens (`uqijT`), not as variables, so there are no type tokens. Lin
 | Caption | 12/500 | `l2fTfn` |
 | Mono | 12/400, `$font-mono` (JetBrains Mono), `$text-sub`. For logs and paths. | `w5Tkp` |
 
-Components also use sizes off this scale: 11/500 (spec labels, timestamps in the now-playing strip), 15/600–700 (primary button label, nav labels, row and card titles), 18/800 (wizard header wordmark), 19/800 (sidebar wordmark), 22/800 (modal title) and 32/800 (page titles).
+Components also use sizes off this scale: 11/500 (spec labels, timestamps in the now-playing strip), 15/600–700 (primary button label, nav labels, row and card titles), 18/800 (wizard header wordmark), 19/800 (sidebar wordmark), 22/800 (modal title) and 32/800 (page titles). The screens add 26/800 (the Dashboard's run counts), 28/800 (wizard step titles), 30/800 (the wizard's first and last steps, the Dashboard's next window, a run's page) and 64/800 (a detail view's name), measured from the screen PNGs.
 
 ### Spacing and radius
 

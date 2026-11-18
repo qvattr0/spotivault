@@ -12,10 +12,20 @@
   background: var(--bg-app);
 }
 
-/* Docked under the Dashboard's run header (t4YEY): a card on the page. */
+/* Docked under the Dashboard's run header (t4YEY): a card on the page. Its sides keep 340 and the
+   centre takes the rest (about 340 on a 1440 window), as drawn. */
 .docked {
   border-radius: var(--r-md);
   background: var(--bg-elevated);
+}
+
+.docked .track,
+.docked .right {
+  flex: 1 1 340px;
+}
+
+.docked .centre {
+  flex: 1 1 340px;
 }
 
 .track {

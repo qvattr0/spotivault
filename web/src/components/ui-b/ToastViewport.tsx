@@ -10,7 +10,8 @@ export interface ToastViewportProps {
 
 /**
  * Where toasts appear: bottom centre of the nearest positioned box. The shell puts it in the page
- * panel, so toasts sit at the bottom centre of the content area (components.md § Toast).
+ * panel, so toasts sit at the bottom centre of the content area (components.md § Toast). While a
+ * modal is open, they sit above its scrim (ToastViewport.module.css).
  *
  * It's a polite live region that is always in the page, so screen readers announce each toast as
  * it's added (a live region added together with its text often isn't read).

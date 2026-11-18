@@ -94,7 +94,7 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | `services.setup` | `await is_complete()` | S6: refuse a run with `setup_incomplete`. |
 | | `await mark_done("webapi" \| "albums")`, `await mark_failed("webapi", message)` | S5: step 5 once the token works and our device is listed; step 8 after `POST /api/albums`. |
 | | `await refresh()` | After a fact behind a step changes. `complete()` finishes the wizard (`POST /api/setup/complete`). |
-| | `await restart()` | "Run setup again". It refuses while `runs` has a row with `kind = 'run'` and `state <> 'ended'`, so S6 must keep that row current. |
+| | `await restart()` | "Run setup again": steps 2 to 9 back to `todo` (the answer), then the live checks at once, so steps 2, 3, 4 and 6 turn done again in their own `setup.state`. It refuses while `runs` has a row with `kind = 'run'` and `state <> 'ended'`, so S6 must keep that row current. |
 | `services.client` | `await status()`, `await refresh()` | The client's `ClientStatus`, as last polled or read now. |
 | | `await checklist()`, `await drifted_rows()` | The pre-run check (S6): refuse while `drifted_rows()` isn't empty. |
 | | `await set_run_active(active)` | S6, when a run starts and when it ends, failures included. It drives `restartable` and the 409s of install and restart. |

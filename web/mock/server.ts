@@ -15,6 +15,7 @@ import { WebSocketServer } from 'ws';
 import { SCENARIOS, type Scenario } from './fixtures.ts';
 import { createHub } from './hub.ts';
 import { handle } from './routes.ts';
+import { serveVnc } from './vnc.ts';
 import { createWorld } from './world.ts';
 
 export interface MockServer {
@@ -78,9 +79,12 @@ export function startMockServer(options: MockOptions = {}): Promise<MockServer> 
     wss.handleUpgrade(req, socket, head, (ws) => {
       if (path === '/api/events') {
         hub.add(ws, world.hello());
+      } else if (path === '/vnc') {
+        // A small fake screen (mock/vnc.ts); 1013 while the screen "isn't up yet", as the controller.
+        if (world.data.vncUp) serveVnc(ws, world);
+        else ws.close(1013, 'The screen is not up yet.');
       } else {
-        // No VNC here. Point SPOTIVAULT_VNC at a real container for the noVNC view.
-        ws.close(4000, path === '/vnc' ? 'The mock backend has no VNC. Set SPOTIVAULT_VNC.' : 'Unknown WebSocket path.');
+        ws.close(4000, 'Unknown WebSocket path.');
       }
     });
   });
