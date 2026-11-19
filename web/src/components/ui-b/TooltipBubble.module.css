@@ -1,0 +1,17 @@
+/* The hover tooltip (SxrJu): $bg-press, 4 px corners, padding 5 8, label 12/600 $text. */
+
+.bubble {
+  display: block;
+  width: max-content;
+  max-width: 320px;
+  padding: 5px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-press);
+  color: var(--text);
+  font: var(--type-pill);
+  pointer-events: none;
+}
+
+.bubble[hidden] {
+  display: none;
+}

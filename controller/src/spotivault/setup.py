@@ -190,8 +190,10 @@ class SetupService:
         """Settings › About › "Run setup again": steps 2 to 9 back to `todo`, and `completed`
         false. Nothing else is deleted. Refused with 409 `run_active` during a run.
 
-        The answer shows the steps as just reset, so the wizard reopens at step 2; the live checks
-        turn them done again on the next refresh.
+        The answer shows the steps as just reset, so the wizard reopens at step 2. The live checks
+        run right after, with their own `setup.state`, and turn steps 2, 3, 4 and 6 done again
+        when their facts still hold: nothing else would run them (the UI follows the socket, and
+        the hello doesn't check), and the wizard can't walk past a step that isn't done.
         """
         if await self._run_is_active():
             raise run_active()
@@ -213,6 +215,7 @@ class SetupService:
             await self._save(setup, after)
             if _compose(before, {}) != setup:
                 self._publish(setup)
+            await self._refresh(None)
         log.info("setup: run again from step 2")
         return setup
 

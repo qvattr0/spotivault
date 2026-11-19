@@ -1,0 +1,5 @@
+/* The Library page's own bits. The header, chips, rows and cards are the shared components'. */
+.loading {
+  color: var(--text-sub);
+  font: var(--type-body);
+}

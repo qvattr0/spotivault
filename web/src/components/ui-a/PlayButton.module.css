@@ -1,0 +1,49 @@
+/* Button/Play (components.md § Buttons): a 48 px accent circle with its shadow and a 22 px
+   arrow-down-to-line in on-accent. "Back up now". Hover and pressed are ours, as on Button. */
+
+.play {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-play);
+  transition:
+    transform 100ms ease,
+    background-color 100ms ease;
+}
+
+.lg {
+  width: 56px;
+  height: 56px;
+}
+
+.play:not(:disabled):hover,
+.play[data-state='hover'] {
+  transform: scale(1.04);
+}
+
+.play:not(:disabled):active,
+.play[data-state='active'] {
+  transform: none;
+  background: var(--accent-press);
+}
+
+.play[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.play:disabled {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play {
+    transition: none;
+  }
+}

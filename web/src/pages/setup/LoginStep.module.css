@@ -1,0 +1,82 @@
+/* Step 3's right column (UzVcR): the lead, three numbered steps (a 28 px grey disc, 15/400 text,
+   20 apart), the waiting box (bg-elevated, radius 8, padding 14 16, 14/400) and the reset row
+   (13 text-muted over the button). Everything 20 apart. */
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  color: var(--text);
+  font: var(--type-body);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.number {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 700;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 14px var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: var(--type-body);
+}
+
+.status svg {
+  flex: none;
+}
+
+.ok {
+  color: var(--accent);
+}
+
+.waiting {
+  color: var(--accent);
+  animation: turn 1.2s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting {
+    animation: none;
+  }
+}
+
+.reset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}

@@ -1,0 +1,22 @@
+/* Step 2's progress (h2Qgw): the phase (14/600) and the percentage (14 text-sub) over a
+   full-width bar, gap 10. */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.progressText {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.percent {
+  color: var(--text-sub);
+  font-weight: 400;
+}

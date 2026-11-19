@@ -1,0 +1,177 @@
+/* What the wizard steps share: the title (28/800; 30/800 on the first and last steps, Oleh8 and
+   BAzX6), the lead (15/400) under it, section labels ("FORMAT"), the mono box (the install log, the
+   folder layout), the two-column layout of steps 3 and 4, and the footer with Back and Continue.
+   Measured from Oleh8, h2Qgw, UzVcR, wNpTP, Mj5zE. */
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+}
+
+/* The lead sits 24 under the title; 8 when a button stands beside them (wNpTP's Re-check). */
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  min-width: 0;
+}
+
+.headTextTight {
+  gap: var(--s-2);
+}
+
+.title {
+  color: var(--text);
+  font: var(--type-page-title);
+  font-size: 28px;
+}
+
+.titleHero {
+  font-size: 30px;
+}
+
+.lead {
+  color: var(--text-sub);
+  font: var(--type-body);
+  font-size: 15px;
+}
+
+.body {
+  color: var(--text-sub);
+  font: var(--type-body);
+  line-height: 1.45;
+}
+
+/* "FORMAT", "FOLDER LAYOUT" (Mj5zE): 11/700 text-muted capitals, 22 above what they label. */
+.sectionLabel {
+  color: var(--text-muted);
+  font: var(--type-label);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: var(--text-muted);
+  font: var(--type-small);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.stackLoose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* The black box of mono text: the folder layout (Mj5zE), its lines 13 white, 10 apart, under a
+   13/400 text-sub paragraph. */
+.monoBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--r-md);
+  background: var(--bg-app);
+  color: var(--text-sub);
+  font: var(--type-mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.monoBox p {
+  white-space: pre-wrap;
+}
+
+.monoBox .body {
+  font: var(--type-small);
+}
+
+/* The install log (h2Qgw, dxPUp): 12 text-muted, one line every 20 px. */
+.log {
+  gap: 0;
+  padding: 14px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.monoText {
+  color: var(--text);
+}
+
+.errorLine {
+  color: var(--danger);
+}
+
+/* Steps 3 and 4: the client's screen at the left, the instructions at the right. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 3fr);
+  gap: 40px;
+  align-items: start;
+}
+
+.splitWide {
+  display: grid;
+  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  gap: var(--s-8);
+  align-items: start;
+}
+
+/* Step 4's list is longer than the screen: the screen stays in view while it scrolls. */
+.splitWide > :first-child {
+  position: sticky;
+  top: var(--s-6);
+}
+
+@media (max-width: 900px) {
+  .splitWide > :first-child {
+    position: static;
+  }
+
+  .split,
+  .splitWide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: var(--s-2);
+}
+
+.footerEnd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-6);
+  margin-left: auto;
+}
+
+.hint {
+  color: var(--text-muted);
+  font: var(--type-small);
+}
+
+.inlineError {
+  color: var(--danger);
+  font: var(--type-small);
+}

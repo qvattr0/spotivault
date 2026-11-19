@@ -95,7 +95,7 @@ It prints one JSON object per line (`{"stage":"download","percent":42,…}`), wh
 
 ### What's in the image
 
-The image is 336 MB uncompressed (111 MB compressed). The controller is 62 MB of it: 39 MB of Python and 23 MB of venv. Without one, the S2 image was 274 MB. The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
+The image is 337 MB uncompressed (112 MB compressed). The controller is 62 MB of it: 39 MB of Python and 23 MB of venv. Without one, the S2 image was 274 MB. The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
 
 | Part | How it's kept small |
 |---|---|
@@ -112,6 +112,7 @@ The image is 336 MB uncompressed (111 MB compressed). The controller is 62 MB of
 | Controller runtime | Ubuntu's `python3` (3.12): 24 MB installed, plus 12 MB of byte-compiled standard library. `python3-minimal` would be smaller, but it lacks `asyncio` and `sqlite3`. `x11-utils` adds `xwininfo`, for the client's window title (0.8 MB). |
 | Controller venv | Built in a builder stage with uv, from `controller/uv.lock`, at `/opt/spotivault/venv` (23 MB, 8 MB of it bytecode). It's byte-compiled there, because the `app` user can't write to it. No pip, uv or caches ship. pydantic and pydantic-core are 9.6 MB of it. |
 | noVNC | Only its `core` and `vendor` folders (0.8 MB), pinned by sha256, in the controller's web root. No websockify: the controller bridges `WS /vnc`. |
+| Web UI | `npm ci` and `vite build` in a `webui` stage on a pinned Node 22.18 image. Only `web/dist` ships: `index.html` and its hashed assets (0.9 MB), beside noVNC's core in the web root. `node_modules`, the design drawings and test output stay out of the build context ([.dockerignore](../.dockerignore)). |
 
 The excludes are in [spotivault-excludes](../image/rootfs/etc/dpkg/dpkg.cfg.d/spotivault-excludes).
 

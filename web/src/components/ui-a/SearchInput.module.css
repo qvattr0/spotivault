@@ -1,0 +1,98 @@
+/* Input/Search (components.md § Search input, UMfdf): 40 tall, bg-highlight, pill, padding 0 14,
+   gap 10. A 18 px search icon in text-sub, then the field: placeholder 14/400 text-muted.
+   Hover, focus, the clear button and disabled aren't drawn (§ Differences, row 5). Ours: hover
+   lightens the box, focus draws a 1 px white ring inside it (as the text input's focus is drawn).
+   It fills its container's width. */
+
+.box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  color: var(--text-sub);
+  font: var(--type-body);
+  transition:
+    background-color 100ms ease,
+    box-shadow 100ms ease;
+}
+
+.box > svg {
+  flex: none;
+}
+
+/* The + modals' field: 44 tall, like Input/Text. */
+.lg {
+  height: 44px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+/* The box draws the focus ring. Without this, base.css's :focus-visible ring (same specificity,
+   and its stylesheet can load after this one) draws a second, square one on the field. */
+.input:focus-visible {
+  outline: none;
+}
+
+/* The browser's own clear button: we draw ours. */
+.input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.clear {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: -6px;
+  border-radius: var(--r-pill);
+  color: var(--text-sub);
+}
+
+.clear:hover {
+  color: var(--text);
+}
+
+.box:hover,
+.box[data-state='hover'] {
+  background: var(--bg-press);
+}
+
+.box:focus-within,
+.box[data-state='focus'] {
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+.disabled {
+  opacity: 0.4;
+}
+
+.disabled:hover {
+  background: var(--bg-highlight);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box {
+    transition: none;
+  }
+}

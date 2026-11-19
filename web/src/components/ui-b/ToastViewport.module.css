@@ -1,0 +1,42 @@
+/* Toasts stack at the bottom centre of the content area (Library · Detail · Cover saved, ay3D7). */
+
+.viewport {
+  position: absolute;
+  bottom: var(--s-6);
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--s-6));
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.item {
+  pointer-events: auto;
+  animation: rise 0.2s ease-out;
+}
+
+/* While a modal is open (Modal portals its scrim, z-index 40, to body), toasts raised from inside
+   it (an add that failed or was skipped) show above the scrim, where they can be read: no box
+   between them and the root makes a stacking context. Menus (z-index 60) stay above. With no
+   modal open, nothing changes. */
+body:has([aria-modal='true']) .viewport {
+  z-index: 50;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    animation: none;
+  }
+}

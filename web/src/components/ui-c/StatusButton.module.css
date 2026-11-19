@@ -1,0 +1,61 @@
+/* Settings › Spotify account's joined "OK | Reconnect" (t6RqK): one pill, 35 tall, bg-highlight,
+   a 1 px bg-base line between the halves. The state: icon 16 and label 14/700 in its tone. The
+   action: icon 16 and label 14/700 text. Hover (the action's half lightens to bg-press) and focus
+   (the ring on the action) are ours. */
+
+.joined {
+  display: inline-flex;
+  align-items: stretch;
+  height: 35px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  overflow: hidden;
+}
+
+.status,
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--type-button-sm);
+}
+
+.status {
+  padding: 0 14px 0 12px;
+}
+
+.green {
+  color: var(--accent);
+}
+
+.yellow {
+  color: var(--warn);
+}
+
+.red {
+  color: var(--danger);
+}
+
+.neutral {
+  color: var(--text-sub);
+}
+
+.divider {
+  width: 1px;
+  background: var(--bg-base);
+}
+
+.action {
+  padding: 0 16px 0 12px;
+  color: var(--text);
+}
+
+.action:hover {
+  background: var(--bg-press);
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}

@@ -389,13 +389,17 @@ async def test_run_setup_again(
         "albums": "todo",
         "done": "todo",
     }
-    assert published[-1] == body
     assert await services.setup.is_complete() is False
-    # The live checks turn the checked steps done again; the others wait for their actions.
-    again = await get_setup(client)
+    # The reset goes out first; the live checks then run at once, with their own event, and turn
+    # the checked steps done again, so the wizard can walk on from step 2 without any other read.
+    # The others wait for their actions.
+    assert published[-2] == body
+    again = published[-1]
     assert again["first_unfinished"] == "webapi"
+    assert again["completed"] is False
     done = [step for step, state in states(again).items() if state == "done"]
     assert done == ["tos", "client", "login", "client_settings", "output"]
+    assert await get_setup(client) == again
     # Nothing else was deleted.
     assert (await client.get("/api/settings")).status_code == 200
 
