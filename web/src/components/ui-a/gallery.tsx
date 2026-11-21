@@ -453,6 +453,9 @@ const controlStates: GallerySection = {
           <Spec label="Disabled">
             <PlayButton disabled />
           </Spec>
+          <Spec label="Small (list rows)">
+            <PlayButton size="sm" />
+          </Spec>
         </Row>
       ),
     },

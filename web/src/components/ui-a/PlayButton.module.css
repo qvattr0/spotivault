@@ -22,6 +22,12 @@
   height: 56px;
 }
 
+/* Over a list row's 44 px cover: a 48 would stick out past the art. */
+.sm {
+  width: 32px;
+  height: 32px;
+}
+
 .play:not(:disabled):hover,
 .play[data-state='hover'] {
   transform: scale(1.04);

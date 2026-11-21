@@ -52,7 +52,7 @@ export function LibraryRow({ item, now, onChanged, onRemoved }: LibraryRowProps)
       }
       status={<ItemStatus item={item} />}
       menu={<ItemMenu item={item} onRemoved={onRemoved} />}
-      action={<BackUpButton item={item} />}
+      action={<BackUpButton item={item} size="sm" />}
       onOpen={() => navigate(`/library/${item.id}`)}
     />
   );

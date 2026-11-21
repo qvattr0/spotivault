@@ -10,8 +10,8 @@ import { BACK_UP_HINT } from './library-words.ts';
 
 export interface BackUpButtonProps {
   item: LibraryItem;
-  /** `lg` in the detail header. */
-  size?: 'md' | 'lg';
+  /** `sm` over a list row's cover, `lg` in the detail header. */
+  size?: 'sm' | 'md' | 'lg';
   /** Which edge the tooltip lines up with. */
   align?: 'center' | 'start' | 'end';
 }

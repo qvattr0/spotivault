@@ -413,7 +413,7 @@ A Spotify-style table, one row per item:
 | Status | The pill. |
 | ⋯ | Row menu: Back up now · Change cover… (not for Liked Songs) · Open in Spotify · Show files path · Remove from Library (added items only). |
 
-Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button. It records the item once, right away, and its tooltip says so. Tracking is for scheduled backups; Back up now doesn't change it.
+Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button. In list rows it's 32 px, so it fits over the 44 px cover; cards and the detail header keep the larger ones. It records the item once, right away, and its tooltip says so. Tracking is for scheduled backups; Back up now doesn't change it.
 
 Albums are not in the Library. They have their own page (see [Albums](#albums)), because they work differently.
 

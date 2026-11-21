@@ -131,7 +131,7 @@ All are horizontal, centred, and sized by their content.
 | `Button/Secondary` | `Ueyby` | No fill, 1 px `$border-strong` stroke, pill, padding `9 20`, gap 8 | Label 14/700 `$text` ("Re-check"). Optional leading icon 16 `$text` (`refresh-cw`), hidden by default. | 35 |
 | `Button/Tertiary` | `ev6xK` | No fill or stroke, padding `9 4`, gap 6 | Label 14/700 `$text-sub` ("Change schedule"). Optional trailing icon 16 `chevron-right`, hidden by default. | 35 |
 | `Button/Icon` | `FUIY9` | 36 × 36, pill, no fill | Icon 20 `$text-sub`. Default `ellipsis`; instances use `plus`, `x` and others. | 36 |
-| `Button/Play` | `kYWoD` | 48 × 48 `$accent` circle, shadow `0 8 16 #0000007A` | Icon 22 `arrow-down-to-line` `$on-accent`. This is "Back up now". | 48 |
+| `Button/Play` | `kYWoD` | 48 × 48 `$accent` circle, shadow `0 8 16 #0000007A` | Icon 22 `arrow-down-to-line` `$on-accent`. This is "Back up now". Ours: a 32 × 32 size with a 16 icon over a list row's 44 px cover, which a 48 overhangs. | 48 |
 | `Button/Split` | `RRyRZ` | See below. | "Stop after this track" plus a menu arrow. | 36 |
 | `Button/Danger` | `c77Pg1` | `$danger-strong`, pill, padding `9 20` | Label 14/700 `$text` ("Stop now"). | 35 |
 

@@ -55,6 +55,11 @@ describe('LibraryRow', () => {
     expect(onChanged).toHaveBeenCalledWith(answer);
   });
 
+  it("draws Back up now small, so it fits over the row's 44 px cover", () => {
+    renderList();
+    for (const button of screen.getAllByRole('button', { name: 'Back up now' })) expect(button).toHaveClass('sm');
+  });
+
   it('gives Back up now a tooltip that tells it from the check', async () => {
     const user = userEvent.setup();
     renderList();
