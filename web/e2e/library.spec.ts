@@ -1,6 +1,6 @@
 // The Library against the mock (web-ui.md § Library): the list and the grid, filters, search,
-// sort, the tracking switch, Back up now, the row and header menus, the detail view, and the
-// + modal with its suggestions, pasted links and their errors. Every state the page has is
+// sort, the tracking check, Back up now, the row and header menus, the detail view, Refresh, and
+// the + modal with its suggestions, pasted links and their errors. Every state the page has is
 // reached here through the mock's scenarios and controls.
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -36,7 +36,7 @@ test.describe('the List view', () => {
     await expect(row(page, 'Chill Mix').getByText('Partial')).toBeVisible();
     await expect(row(page, 'Road Trip 2026').getByText('Never backed up')).toBeVisible();
     await expect(row(page, 'Sunday Vinyl').getByText('Unavailable')).toBeVisible();
-    await expect(row(page, 'Focus').getByText('Not tracked')).toBeVisible();
+    await expect(row(page, 'Focus').getByText('Not tracked', { exact: true })).toBeVisible();
     // Liked Songs comes first, whatever the sort.
     await expect(page.getByRole('table', { name: 'Library' }).getByRole('row').nth(1)).toContainText('Liked Songs');
   });
@@ -79,8 +79,8 @@ test.describe('the Grid view', () => {
     await openPage(page, '/library');
     await page.getByRole('radio', { name: 'Grid' }).click();
     await expect(page.getByRole('list', { name: 'Library' })).toBeVisible();
-    await expect(card(page, 'Chill Mix').getByRole('switch', { name: 'Track Chill Mix' })).toHaveAttribute('aria-checked', 'true');
-    await expect(card(page, 'Focus').getByRole('switch', { name: 'Track Focus' })).toHaveAttribute('aria-checked', 'false');
+    await expect(card(page, 'Chill Mix').getByRole('checkbox', { name: 'Track Chill Mix' })).toHaveAttribute('aria-checked', 'true');
+    await expect(card(page, 'Focus').getByRole('checkbox', { name: 'Track Focus' })).toHaveAttribute('aria-checked', 'false');
     await expect(card(page, 'Chill Mix').getByText('Partial')).toBeVisible();
 
     // A new visit opens the grid again: the choice is per browser, not per visit.
@@ -98,20 +98,74 @@ test.describe('the Grid view', () => {
 
     // web-ui.md § Grid view: a thin ring around the badge while the item records. Its fill is the
     // share recorded: Liked Songs has 2 new tracks, so half once the first is recorded.
-    const ring = liked.getByRole('switch', { name: 'Track Liked Songs' }).locator('svg circle').nth(1);
+    const ring = liked.getByRole('checkbox', { name: 'Track Liked Songs' }).locator('svg circle').nth(1);
     await expect(ring).toHaveAttribute('stroke-dasharray', '0 100');
     await expect(ring).toHaveAttribute('stroke-dasharray', '50 100', { timeout: 15_000 });
     // A queued item has no ring (its badge holds only the check).
-    await expect(card(page, 'Indie Finds').getByRole('switch', { name: 'Track Indie Finds' }).locator('svg circle')).toHaveCount(0);
+    await expect(card(page, 'Indie Finds').getByRole('checkbox', { name: 'Track Indie Finds' }).locator('svg circle')).toHaveCount(0);
   });
 
   test('the badge toggles tracking', async ({ page, request }) => {
     await useScenario(request, 'idle');
     await openPage(page, '/library');
     await page.getByRole('radio', { name: 'Grid' }).click();
-    await card(page, 'Focus').getByRole('switch', { name: 'Track Focus' }).click();
-    await expect(card(page, 'Focus').getByRole('switch', { name: 'Track Focus' })).toHaveAttribute('aria-checked', 'true');
+    await card(page, 'Focus').getByRole('checkbox', { name: 'Track Focus' }).click();
+    await expect(card(page, 'Focus').getByRole('checkbox', { name: 'Track Focus' })).toHaveAttribute('aria-checked', 'true');
     await expect(card(page, 'Focus').getByText('Never backed up')).toBeVisible();
+  });
+});
+
+test.describe('Refresh', () => {
+  test('finds a playlist made in Spotify: the list shows it, and the toast says so', async ({ page, request }) => {
+    await useScenario(request, 'idle');
+    await openPage(page, '/library');
+    await mockControls(request).newPlaylist('Test Playlist');
+    await expect(row(page, 'Test Playlist')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Refreshing…' })).toBeVisible();
+    await expect(page.getByText('Library refreshed · 1 new playlist')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeVisible();
+
+    // The list follows the refresh's library.item: tracked, as auto-tracking is on.
+    const added = row(page, 'Test Playlist');
+    await expect(added.getByRole('checkbox', { name: 'Track Test Playlist' })).toBeChecked();
+    await expect(added.getByText('Never backed up')).toBeVisible();
+    await expect(page.getByText(/^8 of 9 tracked · /)).toBeVisible();
+  });
+
+  test('a playlist followed in Spotify becomes a suggestion in the + modal', async ({ page, request }) => {
+    await useScenario(request, 'idle');
+    await openPage(page, '/library');
+    await mockControls(request).newPlaylist('Friday Mix', { followed: true });
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    // The list doesn't change, so the toast says where it waits.
+    await expect(page.getByText('Library refreshed · 1 followed playlist to add with +')).toBeVisible();
+    await expect(row(page, 'Friday Mix')).toHaveCount(0);
+    await openAdd(page);
+    await expect(page.getByRole('dialog', { name: 'Add playlists' }).getByText('Friday Mix')).toBeVisible();
+  });
+
+  test('is greyed out during a backup, and its tooltip says why', async ({ page, request }) => {
+    await useScenario(request, 'running');
+    await openPage(page, '/library');
+    const refresh = page.getByRole('button', { name: 'Refresh', exact: true });
+    await expect(refresh).toHaveAttribute('aria-disabled', 'true');
+    const why = 'Not available while a backup is recording. Each backup refreshes the Library first.';
+    await refresh.hover();
+    await expect(page.getByRole('tooltip', { name: why })).toBeVisible();
+    // Still focusable, so the keyboard reaches the tooltip.
+    await refresh.focus();
+    await expect(refresh).toBeFocused();
+    await expect(refresh).toHaveAccessibleDescription(why);
+  });
+
+  test('without a connection, it says to connect first', async ({ page, request }) => {
+    await useScenario(request, 'idle');
+    await openPage(page, '/library');
+    await mockControls(request).connection('disconnected');
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect(page.getByText('Connect spotivault to Spotify first (Settings › Spotify account).')).toBeVisible();
   });
 });
 
@@ -172,12 +226,71 @@ test.describe('filter, search and sort', () => {
 });
 
 test.describe('actions on an item', () => {
-  test('the tracking switch flips, and the status follows', async ({ page, request }) => {
+  test('the tracking check flips, and the status follows', async ({ page, request }) => {
     await useScenario(request, 'idle');
     await openPage(page, '/library');
-    await row(page, 'Focus').getByRole('switch', { name: 'Track Focus' }).click();
-    await expect(row(page, 'Focus').getByRole('switch', { name: 'Track Focus' })).toHaveAttribute('aria-checked', 'true');
+    await row(page, 'Focus').getByRole('checkbox', { name: 'Track Focus' }).click();
+    await expect(row(page, 'Focus').getByRole('checkbox', { name: 'Track Focus' })).toHaveAttribute('aria-checked', 'true');
     await expect(row(page, 'Focus').getByText('Never backed up')).toBeVisible();
+  });
+
+  test('the check and Back up now each say what they do', async ({ page, request }) => {
+    await useScenario(request, 'idle');
+    await openPage(page, '/library');
+    const target = row(page, 'Focus');
+    const check = target.getByRole('checkbox', { name: 'Track Focus' });
+    await check.hover();
+    await expect(page.getByRole('tooltip', { name: 'Not tracked: left out of scheduled backups' })).toBeVisible();
+
+    // From the keyboard: Space flips it, and focus stays on it while the request goes.
+    await check.focus();
+    await page.keyboard.press('Space');
+    await expect(check).toBeChecked();
+    await expect(check).toBeFocused();
+    await expect(page.getByRole('tooltip', { name: 'Tracked: included in scheduled backups' })).toBeVisible();
+
+    await target.hover();
+    await target.getByRole('button', { name: 'Back up now' }).hover();
+    await expect(page.getByRole('tooltip', { name: 'Back up now: record it once, right away' })).toBeVisible();
+  });
+
+  test("on a not-tracked row, Back up now's tooltip is drawn whole, over the next row", async ({ page, request }) => {
+    await useScenario(request, 'idle');
+    await openPage(page, '/library');
+    const target = row(page, 'Focus');
+    await expect(target.getByRole('checkbox', { name: 'Track Focus' })).not.toBeChecked();
+    await target.hover();
+    await target.getByRole('button', { name: 'Back up now' }).hover();
+    const tip = page.getByRole('tooltip', { name: 'Back up now: record it once, right away' });
+    await expect(tip).toBeVisible();
+
+    /** The opacity it's drawn with: its own times every ancestor's. */
+    const drawnOpacity = (locator: Locator) =>
+      locator.evaluate((el) => {
+        let opacity = 1;
+        for (let at: Element | null = el; at; at = at.parentElement) opacity *= Number(getComputedStyle(at).opacity);
+        return Math.round(opacity * 100) / 100;
+      });
+    // The row dims its cover and names (web-ui.md § List view), not Back up now and its tooltip.
+    await expect.poll(() => drawnOpacity(tip)).toBe(1);
+    expect(await drawnOpacity(target.getByRole('button', { name: 'Focus', exact: true }))).toBe(0.6);
+    // The next row's cover doesn't paint over its lower half: the first thing drawn there is the
+    // tooltip. (A tooltip lets the pointer through, so it takes hits only while this looks; the
+    // next row's own Back up now is there too, but at opacity 0 until that row is hovered.)
+    const onTop = await tip.evaluate((el) => {
+      const drawn = (node: Element) => {
+        for (let at: Element | null = node; at; at = at.parentElement) if (getComputedStyle(at).opacity === '0') return false;
+        return true;
+      };
+      const box = el.getBoundingClientRect();
+      const bubble = el as HTMLElement;
+      bubble.style.pointerEvents = 'auto';
+      const stack = document.elementsFromPoint(box.left + box.width / 2, box.bottom - 4);
+      bubble.style.pointerEvents = '';
+      const top = stack.find(drawn);
+      return top !== undefined && el.contains(top);
+    });
+    expect(onTop).toBe(true);
   });
 
   test('Back up now on a row starts a run, and the toast says so', async ({ page, request }) => {
@@ -246,7 +359,18 @@ test.describe('the detail view', () => {
     await expect(tracks.getByText('New', { exact: true }).first()).toBeVisible();
 
     await expect(page.getByRole('button', { name: 'Back up now' })).toBeVisible();
-    await expect(page.getByRole('switch', { name: 'Track Chill Mix' })).toHaveAttribute('aria-checked', 'true');
+    // The header tracks with the same round check as a row, beside its word.
+    const check = page.getByRole('checkbox', { name: 'Track Chill Mix' });
+    await expect(check).toHaveAttribute('aria-checked', 'true');
+    await expect(check).toHaveAccessibleDescription('Tracked: included in scheduled backups');
+    await expect(page.getByText('Tracked', { exact: true })).toBeVisible();
+    await check.click();
+    await expect(check).not.toBeChecked();
+    await expect(page.getByText('Not tracked', { exact: true }).first()).toBeVisible();
+    // The word is part of the control: a click on it toggles too.
+    await check.getByText('Not tracked', { exact: true }).click();
+    await expect(check).toBeChecked();
+    await expect(check).toHaveText('Tracked');
     await expect(page.getByText('Files are never deleted.')).toBeVisible();
   });
 
@@ -266,7 +390,7 @@ test.describe('the detail view', () => {
     await useScenario(request, 'idle');
     await openPage(page, `/library/${fakeId('chillmix')}`);
     await page.getByRole('button', { name: 'Stop tracking' }).click();
-    await expect(page.getByRole('switch', { name: 'Track Chill Mix' })).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByRole('checkbox', { name: 'Track Chill Mix' })).toHaveAttribute('aria-checked', 'false');
     // The header's word and the status pill both say it.
     await expect(page.getByText('Not tracked', { exact: true }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Stop tracking' })).toBeDisabled();
@@ -307,7 +431,7 @@ test.describe('the + modal', () => {
     await modal.getByRole('button', { name: 'Done' }).click();
     await expect(modal).toHaveCount(0);
     await expect(row(page, 'Jazz Brunch')).toBeVisible();
-    await expect(row(page, 'Jazz Brunch').getByRole('switch', { name: 'Track Jazz Brunch' })).toHaveAttribute('aria-checked', 'true');
+    await expect(row(page, 'Jazz Brunch').getByRole('checkbox', { name: 'Track Jazz Brunch' })).toHaveAttribute('aria-checked', 'true');
   });
 
   test('a search with no followed playlist says Nothing to suggest', async ({ page, request }) => {

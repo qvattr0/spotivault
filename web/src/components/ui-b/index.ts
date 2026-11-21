@@ -1,8 +1,9 @@
 // The ui-b components' public exports. Pages import from '@/components/ui-b', not from the files.
 //
 // Lists and cards, feedback, modals, tooltips, toasts and the stepper's steps. Controls (buttons,
-// toggles, pills, menus, the card badge) are ui-a's: rows and cards take them as slots (`toggle`,
-// `status`, `menu`, `action`, `footer`), so pages pass ui-a's components in.
+// toggles, pills, menus, the card badge) are ui-a's: rows and cards take them as slots (`tracking`,
+// `status`, `menu`, `action`, `footer`), so pages pass ui-a's components in. TrackCheck is the
+// card badge with its tooltip, for the card, a list row and the detail header.
 //
 // Icons follow ui-a's rules (src/components/ui-a/index.ts). Shared conventions here:
 // - Cover art goes through <Cover>: an image with a placeholder tile when there's none.
@@ -12,6 +13,7 @@
 // Covers, cards and rows
 export { Cover, type CoverKind, type CoverProps } from './Cover.tsx';
 export { Card, type CardProps, type CardTracking } from './Card.tsx';
+export { TrackCheck, TRACKED_HINT, NOT_TRACKED_HINT, type TrackCheckProps } from './TrackCheck.tsx';
 export { ListTable, type ListTableProps } from './ListTable.tsx';
 export { PlaylistRow, type PlaylistRowProps } from './PlaylistRow.tsx';
 export { PlaylistHeader } from './PlaylistHeader.tsx';

@@ -6,6 +6,7 @@ import { CircleDotDashed, type LucideIcon } from 'lucide-react';
 import type { ItemTrack, LibraryItem, LibraryStatus } from '@/api';
 import type { PillTone } from '@/components/ui-a';
 import type { TrackStatusKind } from '@/components/ui-b';
+import type { CatalogRefreshEvent, CatalogRefreshReason } from '@/state';
 import { trackReasonText } from '@/lib/run-words.ts';
 import { formatBytes, formatDayTime, formatDuration, formatTime } from '@/shell/format.ts';
 
@@ -18,6 +19,9 @@ export const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: 'owned', label: 'Created by you' },
   { value: 'added', label: 'Added' },
 ];
+
+/** Back up now's tooltip: it records once, now; the tracking check is about the scheduled backups. */
+export const BACK_UP_HINT = 'Back up now: record it once, right away';
 
 /** The sort menu (web-ui.md § Header: "Recently backed up · Name · Recently added · Track count"). */
 export type LibrarySort = 'recently_backed_up' | 'name' | 'recently_added' | 'track_count';
@@ -162,3 +166,44 @@ export function detailMeta(item: LibraryItem, durationMs: number | null, length:
   parts.push(`${item.recorded} recorded`);
   return parts.join(' · ');
 }
+
+/** "1 new playlist", "2 new playlists". */
+function count(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** Why a refresh didn't happen, by the `ended` event's `reason`. Waiting only helps for some. */
+const NOT_REFRESHED: Partial<Record<CatalogRefreshReason, string>> = {
+  run_active: "The Library wasn't refreshed: a backup started, and each backup refreshes it first.",
+  not_connected: "The Library wasn't refreshed: the Spotify Web API isn't connected.",
+  connection_expired: 'The Spotify connection expired. Reconnect to refresh the Library.',
+  rate_limited: "The Library couldn't be refreshed: Spotify asked spotivault to wait. Try again in a few minutes.",
+  spotify_unavailable: "The Library couldn't be refreshed: Spotify didn't answer. Try again later.",
+};
+
+/**
+ * The toast when the Refresh button's refresh ends (web-ui.md § Header): what it found, from the
+ * `catalog.refresh` `ended` event. "Library refreshed · 1 new playlist · 1 followed playlist to add
+ * with +". A failed or skipped one says why, from its `reason`.
+ */
+export function refreshedText(event: CatalogRefreshEvent): string {
+  if (event.outcome === 'failed' || event.outcome === 'skipped') {
+    return (event.reason && NOT_REFRESHED[event.reason]) ?? "The Library couldn't be refreshed. Try again later.";
+  }
+  const parts = ['Library refreshed'];
+  const added = event.items_added ?? 0;
+  const suggested = event.suggestions_added ?? 0;
+  if (added > 0) parts.push(count(added, 'new playlist', 'new playlists'));
+  // Followed playlists wait in the + modal's suggestions: the list doesn't change, so say where.
+  if (suggested > 0) parts.push(count(suggested, 'followed playlist to add with +', 'followed playlists to add with +'));
+  if (event.outcome === 'partial') parts.push("some playlists couldn't be read");
+  return parts.join(' · ');
+}
+
+/** The Refresh button's tooltip. */
+export const REFRESH_HINT = 'Check Spotify for new and changed playlists now';
+
+/** The Refresh button's own words for a refused press (errors.ts has the general lines). */
+export const REFRESH_ERRORS = {
+  run_active: 'Not available while a backup is recording. Each backup refreshes the Library first.',
+} as const;

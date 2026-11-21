@@ -6,7 +6,7 @@ The stack-neutral contracts for the M1 slice. The controller and the UI are buil
 |---|---|
 | [openapi.yaml](openapi.yaml) | Every REST endpoint the slice pages use, with schemas, enums, error codes and examples (OpenAPI 3.1). |
 | [events.md](events.md) | `WS /api/events`: the envelope, the `hello` snapshot, every event's payload, and `level` throttling. |
-| [schema.sql](schema.sql) | The SQLite tables, indexes and checks, with the rules some columns encode. It's migration 1; later migrations live in `controller/src/spotivault/store/migrations/` (002, S5: `followed_playlists`, `api_warnings`, `items.full_path`; 003, S6: run item timings and reasons, the skip split, `items.m3u_path`, the loop lag in `run_metrics`). |
+| [schema.sql](schema.sql) | The SQLite tables, indexes and checks, with the rules some columns encode. It's migration 1; later migrations live in `controller/src/spotivault/store/migrations/` (002, S5: `followed_playlists`, `api_warnings`, `items.full_path`; 003, S6: run item timings and reasons, the skip split, `items.m3u_path`, the loop lag in `run_metrics`; 004, S8: the `manual` trigger of `catalog_refreshes`, for the Library's Refresh button). |
 | [vectors/](vectors/) | Language-neutral test cases: track keys, layouts, schedule windows, the backlog estimate. Each file says how its expected values were produced. |
 
 ## Checking them

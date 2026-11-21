@@ -36,7 +36,7 @@ import { TooltipBubble } from './TooltipBubble.tsx';
 import { TrackHeader } from './TrackHeader.tsx';
 import { TrackRow } from './TrackRow.tsx';
 import { TrackStatus } from './TrackStatus.tsx';
-import { ConfirmDemo, LiveLevelDemo, ModalDemo, ToastDemo, TrackedToggle, TrackingCard } from './gallery-demos.tsx';
+import { ConfirmDemo, LiveLevelDemo, ModalDemo, ToastDemo, TrackedCheck, TrackingCard } from './gallery-demos.tsx';
 import { Note, Row, Spec, Stack, noop } from './gallery-kit.tsx';
 import styles from './gallery.module.css';
 
@@ -245,7 +245,7 @@ const listsAndCards: GallerySection = {
               coverSrc={playlistCover(LATE_NIGHT_DRIVE)}
               tracks="84 / 120 recorded"
               lastBackup="2 days ago"
-              toggle={<TrackedToggle name="Late Night Drive" />}
+              tracking={<TrackedCheck name="Late Night Drive" />}
               status={<Pill tone="green">Up to date</Pill>}
               menu={rowMenu('Late Night Drive')}
               action={<PlayButton />}
@@ -257,7 +257,7 @@ const listsAndCards: GallerySection = {
               kind="liked"
               tracks="398 / 412 recorded"
               lastBackup="3 hours ago"
-              toggle={<TrackedToggle name="Liked Songs" />}
+              tracking={<TrackedCheck name="Liked Songs" />}
               status={<Pill tone="blue">14 new</Pill>}
               menu={rowMenu('Liked Songs')}
               action={<PlayButton />}
@@ -270,7 +270,7 @@ const listsAndCards: GallerySection = {
               coverSrc={playlistCover(fakeId('indiefinds'))}
               tracks="18 recorded"
               lastBackup="2 days ago"
-              toggle={<TrackedToggle name="Indie Finds" />}
+              tracking={<TrackedCheck name="Indie Finds" />}
               status={<Pill tone="green">Up to date</Pill>}
               menu={rowMenu('Indie Finds')}
               action={<PlayButton />}
@@ -283,7 +283,7 @@ const listsAndCards: GallerySection = {
               tracks="41 / 88 recorded"
               lastBackup="Now"
               recording
-              toggle={<TrackedToggle name="Road Trip 2026" />}
+              tracking={<TrackedCheck name="Road Trip 2026" />}
               status={
                 <Pill tone="green" icon={CircleDotDashed}>
                   Recording
@@ -298,7 +298,7 @@ const listsAndCards: GallerySection = {
               tracks="—"
               lastBackup="Never"
               muted
-              toggle={<TrackedToggle name="Old Uni Playlist" initial={false} />}
+              tracking={<TrackedCheck name="Old Uni Playlist" initial={false} />}
               status={<Pill tone="neutral">Not tracked</Pill>}
               menu={rowMenu('Old Uni Playlist')}
               action={<PlayButton />}
@@ -307,7 +307,9 @@ const listsAndCards: GallerySection = {
           </ListTable>
           <Note>
             Rows: as drawn · Liked Songs&apos; tile · hover (Indie Finds) · recording · not tracked, dimmed. Back up now
-            sits over the cover on hover and keyboard focus (not drawn: components.md § Differences, row 6).
+            sits over the cover on hover and keyboard focus (not drawn: components.md § Differences, row 6). The first
+            column is the card&apos;s round check, not the drawn Toggle (web-ui.md § List view); each control&apos;s
+            tooltip says what it does.
           </Note>
         </Stack>
       ),

@@ -13,6 +13,7 @@ from spotivault.api.deps import ServicesDep
 from spotivault.api.models import (
     GetLibrarySuggestionsResponse,
     LibraryItem,
+    LibraryRefresh,
     LibrarySummary,
     ListLibraryResponse,
     PatchLibraryItemRequest,
@@ -83,6 +84,21 @@ async def get_library_suggestions(
 )
 async def resolve_library_link(body: UrlBody, services: ServicesDep) -> PlaylistPreview:
     return await services.library.resolve(body.url)
+
+
+@router.post(
+    "/api/library/refresh",
+    operation_id="refreshLibrary",
+    response_model=LibraryRefresh,
+    status_code=202,
+    responses={
+        409: {"description": "`run_active`, `not_connected` or `connection_expired`."},
+    },
+)
+async def refresh_library(services: ServicesDep) -> LibraryRefresh:
+    """The Refresh button: a catalog refresh now, unthrottled. Answers before it runs; a press
+    while one runs joins it. Its `catalog.refresh` events say how it went."""
+    return await services.catalog.request_manual()
 
 
 @router.patch("/api/library/{id}", operation_id="patchLibraryItem", response_model=LibraryItem)

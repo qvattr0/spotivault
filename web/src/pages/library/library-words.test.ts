@@ -8,9 +8,11 @@ import {
   ownerLine,
   progressOf,
   recordedText,
+  refreshedText,
   statusView,
   trackView,
 } from './library-words.ts';
+import type { CatalogRefreshEvent } from '@/state';
 
 const base = libraryItems[1] as LibraryItem;
 const item = (over: Partial<LibraryItem>): LibraryItem => ({ ...base, ...over });
@@ -111,5 +113,50 @@ describe('trackView', () => {
     expect(trackView(track({ state: 'skipped_duplicate' })).text).toBe('Skipped (duplicate)');
     expect(trackView(track({ state: 'missing' })).text).toBe('Missing');
     expect(trackView(track({ state: 'new' })).text).toBe('New');
+  });
+});
+
+describe('refreshedText', () => {
+  const ended = (over: Partial<CatalogRefreshEvent>): CatalogRefreshEvent => ({
+    refresh_id: 57,
+    trigger: 'manual',
+    state: 'ended',
+    outcome: 'ok',
+    items_changed: 0,
+    items_added: 0,
+    suggestions_added: 0,
+    reason: null,
+    ...over,
+  });
+
+  it('says what the refresh found, and where a followed playlist waits', () => {
+    expect(refreshedText(ended({}))).toBe('Library refreshed');
+    expect(refreshedText(ended({ items_added: 1 }))).toBe('Library refreshed · 1 new playlist');
+    expect(refreshedText(ended({ suggestions_added: 1 }))).toBe('Library refreshed · 1 followed playlist to add with +');
+    expect(refreshedText(ended({ items_added: 2, suggestions_added: 2 }))).toBe(
+      'Library refreshed · 2 new playlists · 2 followed playlists to add with +',
+    );
+    expect(refreshedText(ended({ outcome: 'partial', items_changed: 3 }))).toBe(
+      "Library refreshed · some playlists couldn't be read",
+    );
+  });
+
+  it("says why it didn't refresh, from the event's reason", () => {
+    const failed = (reason: CatalogRefreshEvent['reason']) => refreshedText(ended({ outcome: 'failed', reason }));
+    const skipped = (reason: CatalogRefreshEvent['reason']) =>
+      refreshedText(ended({ outcome: 'skipped', refresh_id: null, reason }));
+    // Spotify's invalid_grant: reconnecting helps, trying again later doesn't.
+    expect(failed('connection_expired')).toBe('The Spotify connection expired. Reconnect to refresh the Library.');
+    expect(skipped('connection_expired')).toBe('The Spotify connection expired. Reconnect to refresh the Library.');
+    expect(failed('rate_limited')).toBe(
+      "The Library couldn't be refreshed: Spotify asked spotivault to wait. Try again in a few minutes.",
+    );
+    expect(failed('spotify_unavailable')).toBe("The Library couldn't be refreshed: Spotify didn't answer. Try again later.");
+    expect(failed('internal')).toBe("The Library couldn't be refreshed. Try again later.");
+    expect(failed(null)).toBe("The Library couldn't be refreshed. Try again later.");
+    expect(skipped('run_active')).toBe(
+      "The Library wasn't refreshed: a backup started, and each backup refreshes it first.",
+    );
+    expect(skipped('not_connected')).toBe("The Library wasn't refreshed: the Spotify Web API isn't connected.");
   });
 });

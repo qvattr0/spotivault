@@ -6,15 +6,16 @@
 
 import { useNavigate, useParams } from 'react-router';
 import { api, useApi, type LibraryItem } from '@/api';
-import { Button, ButtonLink, PlayButton, Toggle } from '@/components/ui-a';
-import { Alert, EmptyState, ListTable, TrackHeader, TrackRow } from '@/components/ui-b';
+import { Button, ButtonLink } from '@/components/ui-a';
+import { Alert, EmptyState, ListTable, TrackCheck, TrackHeader, TrackRow } from '@/components/ui-b';
 import { DetailHeader } from '@/components/ui-c';
 import { errorText } from '@/lib/errors.ts';
 import { Page, formatLength } from '@/shell';
 import { useLiveEvent } from '@/state';
 import { ItemMenu } from './ItemMenu.tsx';
 import { ItemStatus } from './ItemStatus.tsx';
-import { useBackUp, useRemove, useTracking } from './library-actions.ts';
+import { useRemove, useTracking } from './library-actions.ts';
+import { BackUpButton } from './BackUpButton.tsx';
 import { coverKindOf, detailMeta, trackLength, trackView } from './library-words.ts';
 import styles from './PlaylistPage.module.css';
 
@@ -36,7 +37,7 @@ export function PlaylistPage() {
     tracks.reload();
   });
 
-  // Patched in place after a change of the item's own (the switch, Stop tracking).
+  // Patched in place after a change of the item's own (the tracking check, Stop tracking).
   function changed(next: LibraryItem) {
     everything.setData((data) => ({ items: data.items.map((i) => (i.id === next.id ? next : i)) }));
   }
@@ -109,7 +110,10 @@ export function PlaylistPage() {
   );
 }
 
-/** The header's row: Back up now (the large round button), the tracking switch, the status, ⋯. */
+/**
+ * The header's row: Back up now (the large round button), the tracking check with its word (one
+ * control), the status, ⋯. web-ui.md § Detail view's "tracking toggle" is the grid card's round check here.
+ */
 function HeaderActions({
   item,
   onChanged,
@@ -120,20 +124,23 @@ function HeaderActions({
   onRemoved: () => void;
 }) {
   const tracking = useTracking(item, onChanged);
-  const backUp = useBackUp(item);
   return (
     <>
       {/* Neither is disabled while its request runs, so keyboard focus stays; useAction ignores a
           second press meanwhile. */}
-      <PlayButton size="lg" aria-busy={backUp.busy || undefined} onClick={() => void backUp.run()} />
+      {/* Tooltips start at their control: centred, the first would reach past the page's left edge. */}
+      <BackUpButton item={item} size="lg" align="start" />
+      {/* The word is part of the check's button, so a click on it toggles too. */}
       <span className={styles.tracking}>
-        <Toggle
-          checked={item.tracked}
+        <TrackCheck
+          inline
+          align="start"
+          tracked={item.tracked}
+          text={item.tracked ? 'Tracked' : 'Not tracked'}
           label={`Track ${item.name}`}
           aria-busy={tracking.busy || undefined}
           onChange={(tracked) => void tracking.run(tracked)}
         />
-        <span>{item.tracked ? 'Tracked' : 'Not tracked'}</span>
       </span>
       <ItemStatus item={item} />
       <ItemMenu item={item} onRemoved={onRemoved} />

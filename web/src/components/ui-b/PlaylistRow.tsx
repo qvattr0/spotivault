@@ -20,8 +20,8 @@ export interface PlaylistRowProps {
   recording?: boolean;
   /** Not tracked: the cover and text are dimmed. */
   muted?: boolean;
-  /** The tracking switch (`Toggle`). */
-  toggle?: ReactNode;
+  /** The tracking check (`TrackCheck`, `inline`). */
+  tracking?: ReactNode;
   /** The status `Pill`. */
   status?: ReactNode;
   /** The ⋯ row menu (ui-a's `MenuButton`). The row stays highlighted while it's open. */
@@ -38,13 +38,14 @@ export interface PlaylistRowProps {
 
 /**
  * `Row/Playlist` (components.md § List row): Toggle · Cover + name · Tracks · Last backup · Status · ⋯.
- * Put it in a <ListTable> with a <PlaylistHeader>.
+ * Put it in a <ListTable> with a <PlaylistHeader>. The drawing's Toggle is a round check in the UI
+ * (TrackCheck, as on a grid card), so it can't be mistaken for Back up now.
  *
  * Where "Back up now" sits on hover isn't drawn (components.md § Differences, row 6): we put it over
  * the cover, where the client puts its play button in list rows.
  */
 export function PlaylistRow(props: PlaylistRowProps) {
-  const { name, owner, coverSrc, kind, tracks, lastBackup, recording, muted, toggle, status, menu, action, selected, onOpen } =
+  const { name, owner, coverSrc, kind, tracks, lastBackup, recording, muted, tracking, status, menu, action, selected, onOpen } =
     props;
   const dataState = props['data-state'];
 
@@ -61,7 +62,7 @@ export function PlaylistRow(props: PlaylistRowProps) {
       onClick={rowClickHandler(onOpen)}
       data-state={dataState}
     >
-      <div role="cell">{toggle}</div>
+      <div role="cell">{tracking}</div>
       <div role="cell" className={styles.item}>
         <div className={styles.coverBox}>
           <Cover src={coverSrc} kind={kind} size={44} />

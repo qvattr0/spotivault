@@ -1,11 +1,11 @@
 // The Library against the real controller in fake mode, `demo` project: the main path of the page
 // (web-ui.md § Library). Shares the controller with the other demo specs, in file order: each test
-// leaves the controller as it found it (the tracking switch and the auto-track setting are put back,
+// leaves the controller as it found it (the tracking check and the auto-track setting are put back,
 // and afterEach stops any run).
 
 import { expect, test, type Page } from '@playwright/test';
 import type { LibraryItem } from '../../src/api/types.ts';
-import { demoReady, getJson, openPage, stopAnyRun } from '../helpers.ts';
+import { demoReady, getJson, openPage, startRun, stopAnyRun } from '../helpers.ts';
 
 test.beforeAll(async ({ request }) => {
   await demoReady(request);
@@ -30,14 +30,14 @@ test('the Library lists the account, Liked Songs first, with its summary', async
   await expect(rows).toHaveCount(items.length + 1); // and the header row
 });
 
-test('the tracking switch turns a playlist off and on, and the controller keeps it', async ({ page, request }) => {
+test('the tracking check turns a playlist off and on, and the controller keeps it', async ({ page, request }) => {
   const { items } = await getJson<{ items: LibraryItem[] }>(request, '/api/library');
   const playlist = items.find((item) => item.kind === 'owned' && item.tracked);
   expect(playlist, 'a tracked playlist of your own').toBeTruthy();
   const name = playlist?.name ?? '';
 
   await openPage(page, '/library');
-  const toggle = row(page, name).getByRole('switch', { name: `Track ${name}` });
+  const toggle = row(page, name).getByRole('checkbox', { name: `Track ${name}` });
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await expect
@@ -50,6 +50,27 @@ test('the tracking switch turns a playlist off and on, and the controller keeps 
   await expect
     .poll(async () => (await getJson<{ items: LibraryItem[] }>(request, '/api/library')).items.find((i) => i.id === playlist?.id)?.tracked)
     .toBe(true);
+});
+
+test('Refresh reads the Library from Spotify now, and says when it is done', async ({ page, request }) => {
+  await openPage(page, '/library');
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  // The demo account has nothing new since its last refresh.
+  await expect(page.getByText(/^Library refreshed/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeVisible();
+  const { items } = await getJson<{ items: LibraryItem[] }>(request, '/api/library');
+  await expect(page.getByRole('table', { name: 'Library' }).getByRole('row')).toHaveCount(items.length + 1);
+});
+
+test('Refresh is greyed out during a backup, and says why', async ({ page, request }) => {
+  await startRun(request, ['liked']);
+  await openPage(page, '/library');
+  const refresh = page.getByRole('button', { name: 'Refresh', exact: true });
+  await expect(refresh).toHaveAttribute('aria-disabled', 'true');
+  await refresh.hover();
+  await expect(
+    page.getByRole('tooltip', { name: 'Not available while a backup is recording. Each backup refreshes the Library first.' }),
+  ).toBeVisible();
 });
 
 test('Back up now on Liked Songs starts a run, and its row shows Recording or Queued', async ({ page }) => {

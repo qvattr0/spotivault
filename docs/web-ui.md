@@ -48,6 +48,9 @@ The `.pen` file draws most components in their default state only. The UI fills 
 | Select (Library sort, Logs run filter) | The browser's own list, in dark colours. Only the closed box is drawn. |
 | Menu | Arrow keys, Home, End and Escape work. It closes on Tab or a click outside. In the bottom bar it opens upwards. |
 | Library ⋯ "Automatically track playlists I create" | A menu item with a small toggle at its end. |
+| Library row and detail header: tracking | The grid card's round check, not the drawn Toggle, so it can't be taken for "Back up now". Tracked: a filled green check. Not tracked: a hollow grey circle that turns white on hover. In the detail header, the word beside it is part of the same control: a click on the word toggles too. The `.pen` still draws a Toggle in both places. Settings' toggles stay toggles. |
+| Library tooltips | The check says "Tracked: included in scheduled backups" or "Not tracked: left out of scheduled backups", on a row, a card and the detail header. "Back up now" says "Back up now: record it once, right away". On a card both wrap to two lines, so a card in the first column keeps them inside the page. |
+| Library Refresh | A secondary button with `refresh-cw`, at the right of the filter chips. Greyed out during a backup, but still focusable for its tooltip. Not drawn. |
 | Search box | A clear button; Escape clears it too. |
 | Logs filter chips | 24 tall, as measured in xRi3r. Several can be on at once. |
 | Settings › "Disconnect" | A tertiary button in `danger`, as drawn in t6RqK. |
@@ -76,7 +79,7 @@ Where web-ui.md gave no words or rule, S8 built the more cautious answer below. 
 | Step 5 | A stored Client ID shows masked, with a Change button, and Both checks must pass is the hint by Continue. Once connected, the paste field is hidden. In Reconnect, Done doesn't wait for the device check. |
 | Step 8 | "Back up all my saved albums" starts picked, as drawn. Its footer has Done only. Reopened once it's done, it shows the answer given, as step 7 does. Nothing stores that answer: saved albums still off the Albums page (`GET /api/albums/saved`) mean "I'll choose in Albums", since "all" adds every one. Until that list loads, or if it can't, the step shows "I'll choose", which adds nothing. |
 | Step 9 | "Schedule: None yet", with no "set it in Schedule" link, since there's no Schedule page in M1. The backup-length line isn't built (plan D8). |
-| Library | An item's "Show files path" gives `Music/Playlists/<name>.m3u` from its name. No endpoint gives the real path, so a name with odd characters can differ from the file. The row menu adds "Remove from Library" for added items and has no "Change cover…". |
+| Library | An item's "Show files path" gives `Music/Playlists/<name>.m3u` from its name. No endpoint gives the real path, so a name with odd characters can differ from the file. The row menu adds "Remove from Library" for added items and has no "Change cover…". Refresh joins a refresh already going, whatever started it, so one that read Spotify just before your change ends without it: press again. If its end never comes (the controller restarted, the socket lost events), the button stops saying "Refreshing…" with no toast. A refresh dropped because a backup started says so in its toast. |
 | Add playlists | Cancel and Done in the footer, as drawn. The made-by-Spotify refusal is a standing note over the list, not an inline error. |
 | Add albums | Done only in the footer. The empty state shows only when there's nothing to add. |
 | Albums detail | It reads the whole list of added albums, since the contract has no `GET /api/albums/{id}`. An album's tracks follow its state: recorded first, then Missing. It is never New. |
@@ -375,6 +378,12 @@ The Library is where you choose what gets backed up. It follows the client's own
 - **Sort:** Recently backed up · Name · Recently added · Track count.
 - **View switch:** List / Grid, like the client's Library view options. The choice is remembered per browser.
 - **+ button:** adds playlists (see "Add playlists" below).
+- **Refresh:** reads the Library from Spotify now, so a playlist you just made or followed in Spotify shows without waiting. Otherwise the Library is read at the start of each run, when an item is tracked or added, and when the Dashboard or Schedule page opens (at most once every 15 minutes).
+  - **While it runs:** the button says "Refreshing…" with a spinner. A second press, here or in another tab, joins the refresh already going.
+  - **When it ends:** a toast says what it found: "Library refreshed", plus "1 new playlist" for one you made, or "1 followed playlist to add with +" for one you followed, which waits in the + modal's suggestions. New playlists come in tracked while "Automatically track playlists I create" is on.
+  - **When it fails:** the toast says why. Spotify ended the connection: "The Spotify connection expired. Reconnect to refresh the Library." Spotify asked to wait, or didn't answer: "The Library couldn't be refreshed", with the reason and "Try again later". A backup that started first: "The Library wasn't refreshed: a backup started, and each backup refreshes it first."
+  - **During a backup:** the button is greyed out, and its tooltip says "Not available while a backup is recording. Each backup refreshes the Library first." A backup that starts after the press gets the same words in a toast.
+  - **Refused:** without a Web API connection, with the usual connection words.
 - **Options menu (⋯):**
   - "Automatically track playlists I create", a toggle. Turning it off before setup is complete (step 7's "I'll choose in the Library") also untracks Liked Songs and the playlists it had tracked on its own. Later, it only stops new playlists being tracked.
   - "Back up all tracked now".
@@ -384,7 +393,7 @@ Every row and card shows one status pill:
 
 | Pill | Meaning |
 |---|---|
-| Not tracked | The toggle is off. Its files, if any, are kept. |
+| Not tracked | The check is off. Its files, if any, are kept. |
 | Never backed up | Tracked, but no run has reached it yet. |
 | Up to date | Every known track is recorded. |
 | n new | Tracks added since the last backup. The next run records them. |
@@ -397,14 +406,14 @@ A Spotify-style table, one row per item:
 
 | Column | Content |
 |---|---|
-| Toggle | Track / don't track (switch). |
+| Check | Track / don't track: the grid card's round check. Clicking it toggles tracking. Its tooltip says what tracking means: the item is included in, or left out of, scheduled backups. |
 | Cover + name | Cover thumbnail, name, and the owner below it ("by you", "by Lorde", "added by link"). |
 | Tracks | "84 / 120 recorded". Followed playlists have a total in `/me/playlists` but no track list, so they show "32 / 35 recorded" with an info tooltip. Linked playlists have neither, so they show "32 recorded". |
 | Last backup | Relative time ("2 days ago"), or "Never". |
 | Status | The pill. |
 | ⋯ | Row menu: Back up now · Change cover… (not for Liked Songs) · Open in Spotify · Show files path · Remove from Library (added items only). |
 
-Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button.
+Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button. It records the item once, right away, and its tooltip says so. Tracking is for scheduled backups; Back up now doesn't change it.
 
 Albums are not in the Library. They have their own page (see [Albums](#albums)), because they work differently.
 
@@ -413,12 +422,13 @@ Albums are not in the Library. They have their own page (see [Albums](#albums)),
 - **Corner badge:**
   - Tracked: a filled green check.
   - Not tracked: a hollow circle. Clicking the badge toggles tracking.
+  - **Tooltip:** the same words as a row's check.
 - **Progress ring:** while an item is recording, a thin ring around the badge shows its progress.
 - **Hover:** shows the same round "Back up now" button.
 
 ### Detail view
 Clicking an item opens it in place, like a playlist page in the client.
-- **Header:** a large cover, the name, the owner, the track count and the total duration, then the tracking toggle and a large "Back up now" button.
+- **Header:** a large cover, the name, the owner, the track count and the total duration, then a large "Back up now" button and the tracking check (as on a row), with "Tracked" or "Not tracked" beside it.
 - **Cover:** you can replace it with your own, sharper image. Spotify keeps playlist covers at 640 px at most, so this is the only way to get a high-resolution one. Rules are in [design.md § Playlist covers](design.md#playlist-covers).
   - **Hover:** the cover dims and shows a pencil icon with "Change cover", like the client's own playlist editor. Clicking opens a file picker, and you can also drop an image onto the cover.
   - **With a custom cover set,** clicking opens a menu instead: Change cover · Use Spotify's cover · Show file path.
@@ -457,6 +467,7 @@ A modal in the client's dialog style.
 |---|---|---|
 | GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover` (a thumbnail URL, null for Liked Songs, which shows its tile), `cover_source` (`custom`, `spotify` or `none`)<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
 | PATCH | `/api/library/{id}` | `{tracked}`. Liked Songs' id is `liked`. |
+| POST | `/api/library/refresh` | Refresh: a catalog refresh now, not held back by the 15 minutes. It answers `202` at once with `{state, refresh_id}`: `started`, or `running` when a refresh was already going (this press joins it). `409` during a run (`run_active`) and without a connection (`not_connected` or `connection_expired`). |
 | POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. Without a connection: `409` (`not_connected` or `connection_expired`). |
 | DELETE | `/api/library/{id}` | Removes an added item. The files are kept. |
 | GET | `/api/library/suggestions?q=` | Followed playlists not yet in the Library. |
@@ -467,7 +478,7 @@ A modal in the client's dialog style.
 | DELETE | `/api/library/{id}/cover` | Removes the custom cover. The playlist goes back to Spotify's cover. |
 | POST | `/api/runs` | `{items: [id…]}` "Back up now". Queues the items in a forced run. Shared with the Dashboard. |
 | PUT | `/api/settings` | `auto_track_owned` |
-| WS | `/api/events` | `library.item` updates: status, counts and progress while recording. |
+| WS | `/api/events` | `library.item` updates: status, counts and progress while recording, and items a refresh found or changed. `catalog.refresh`: a refresh started or ended, with its outcome and what it found. |
 
 ---
 
@@ -1035,8 +1046,9 @@ View-only is set on the noVNC client, which is a guard against mistakes, not a s
 2. **Picking playlists:**
    1. In the Library, turn tracking on or off per row, or by the grid badge.
    2. Press **+**, then add followed playlists from the suggestions, or paste a link.
-   3. Tracked items are picked up by the next scheduled run, or right away with "Back up now" on a row, in the detail view, or in the options menu.
-   4. **Albums:** open Albums and press **+**. Filter by name, then Add. Added albums are queued for the next run. After a complete recording, they're done.
+   3. A playlist you just made or followed in Spotify: press **Refresh** in the Library's header. One you made joins the list; one you followed then waits in **+**'s suggestions.
+   4. Tracked items are picked up by the next scheduled run, or right away with "Back up now" on a row, in the detail view, or in the options menu.
+   5. **Albums:** open Albums and press **+**. Filter by name, then Add. Added albums are queued for the next run. After a complete recording, they're done.
 3. **Scheduled run:**
    1. At the first hour of a window in the schedule grid (or on start-up during an active hour), the Dashboard switches from idle to running.
    2. Items run in the fixed order, each followed by its Finishing state.

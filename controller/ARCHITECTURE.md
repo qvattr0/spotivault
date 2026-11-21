@@ -105,6 +105,7 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | `services.ports.webapi` | `devices()`, `player_state()`, `play(...)`, `pause(...)`, `seek(...)`, `set_shuffle(...)`, `set_repeat(...)`, each with `scope=ApiScope("run", run_id)` | S6's playback calls. They go on the playback lane, ahead of waiting catalog calls, and count against the run. Errors: `ports.WebApiError` and its subclasses; NotConnected and ConnectionExpired are raised before anything is sent; RateLimited is raised at once while a long hold lasts. |
 | `services.catalog` | `await refresh(trigger="run", run_id=...)` → `RefreshResult` | S6, at each run's start (awaited; it waits for a refresh already going). The only refresh that reads linked playlists' `snapshot_id` (D13), before any track list. `RefreshResult.snapshots_unread`: the followed and linked playlists, tracked or not, whose `snapshot_id` it didn't read (an untracked linked one never is); S6 plays those whole, whatever `d13_up_to_date()` says (design.md § Run flow step 1). |
 | | `request_refresh("page_open" \| "setup" \| "item_added")` → bool | Sync, never raises. `page_open` is throttled to once every 15 min. A queued refresh is dropped if a run is going when its turn comes (read from the `runs` table). |
+| | `await request_manual()` → `LibraryRefresh` | The Library's Refresh button (`POST /api/library/refresh`): trigger `manual`, unthrottled, coalesced with a refresh already running or queued. Raises ApiError 409 `run_active`, `not_connected` or `connection_expired`. |
 | | `await last_refresh_at()` | When the last refresh finished. |
 | `services.connection` | `await connection()`, `await held_reason()` | S6: the pre-run check, held scheduled runs (`not_connected`, `connection_expired`; `expiring` holds nothing), `GET /api/schedule/next`. |
 | `services.matching` | `await index()`, `invalidate()` | S6: planning reads the index; call `invalidate()` after each item, when new files are written. |
@@ -135,8 +136,9 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 - `windows.py`: `DAYS`, `Hours`, `WeeklyWindow`, `Window`, `weekly_windows`, `window_instances`, `load_hours`.
 - `catalog/covers.py`: `CoverUpdate`, `cover_url`.
 - `connection.py`: `our_device`, `ConnectionService.connection`, `held_reason`.
-- `catalog/refresh.py`: `RefreshTrigger`, `RefreshResult`, `refresh`, `request_refresh`, `last_refresh_at`.
+- `catalog/refresh.py`: `RefreshTrigger` (`manual` added for the Refresh button), `RefreshResult` (`items_added` and `suggestions_added` added), `refresh`, `request_refresh`, `request_manual`, `last_refresh_at`.
 - `store/migrations/002_s5_catalog.sql`: `followed_playlists`, `api_warnings`, `items.full_path`. A schema change is a new migration.
+- `store/migrations/004_manual_refresh.sql`: `catalog_refreshes.trigger` allows `manual`. SQLite can't change a CHECK in place, so it rebuilds the table, setting `followed_playlists`' rows aside while it does.
 - `api/models.py` and `contracts/`: regenerated from the contract; never hand-edited.
 
 ## Module map
@@ -151,7 +153,7 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | `services.py` | `Services`, `build_services`, the lifecycle, the hello placeholders (`status` has none: the run engine registers it). | foundation, S6 |
 | `events.py` | The event bus: envelope, seq, hello, bounded queues, `level` throttling. | foundation |
 | `errors.py` | `ApiError`, the error envelope and every exception handler. | foundation |
-| `store/` | SQLite: one worker thread, an async API, migrations. `001_initial.sql` is `contracts/schema.sql`; `002_s5_catalog.sql` is S5's; `003_s6_runs.sql` is S6's. | foundation, S5, S6 |
+| `store/` | SQLite: one worker thread, an async API, migrations. `001_initial.sql` is `contracts/schema.sql`; `002_s5_catalog.sql` is S5's; `003_s6_runs.sql` is S6's; `004_manual_refresh.sql` is the Library's Refresh button's. | foundation, S5, S6, S8 |
 | `loopwatch.py` | The event-loop lag watchdog (over 250 ms: a warning). | foundation |
 | `api/models.py` | Pydantic models generated from `openapi.yaml`. Never edited by hand. | foundation |
 | `api/deps.py`, `api/params.py` | `ServicesDep`, and the shared path and query parameters. | foundation |
@@ -212,6 +214,7 @@ The answers the built code takes. Each one is also in the spec where it matters 
 - **Liked Songs** is made once step 5 stores the account (an AuthStore listener in refresh.py), so step 7's `PATCH /api/library/liked` works before the first refresh ends. It starts tracked only while `auto_track_owned` is on, like your own playlists.
 - **Library:** "Created by you" includes Liked Songs. Turning `auto_track_owned` off before setup is complete also untracks Liked Songs and the playlists it had tracked on its own (refresh.py's docstring). A link to one of your own playlists that the listing hasn't seen yet previews as kind `linked` with total null, since PlaylistPreview has no `owned`; adding it stores it as owned.
 - **Events:** `library.item` and `album.item` are throttled to one per item per second at all times, not only during a run. The album publish's docstring says "during a run"; the code doesn't check for one.
+- **The Refresh button** (`POST /api/library/refresh`, S8): a `manual` refresh, unthrottled. A press while a refresh runs joins it, whatever its trigger, so a refresh that read the listing just before you changed something in Spotify ends without that change; press again once it ends. Refused with 409 `run_active` during a run, since a refresh never runs then and the run refreshes at its start; and with `not_connected` or `connection_expired` by the same rule that skips a refresh, so a connection past its expiry date still refreshes. Every refresh now sends `catalog.refresh` (`started`, then `ended` with the outcome and its counts), the run's own included; one asked for that doesn't run sends `ended` `skipped`, so the button never waits forever. A `failed` or `skipped` `ended` says why in `reason`, an ErrorCode (`connection_expired` when Spotify answered `invalid_grant` mid-refresh), so the UI can say to reconnect rather than to try again later.
 - **Albums:** an album's status puts `unavailable` before `recorded`. The Partial filter also takes unavailable albums that have recorded tracks.
 - **Fake mode:** `GET /api/webapi/usage` is always empty there, because the fake Web API writes no usage rows.
 
@@ -327,6 +330,7 @@ engine/states.py holds them as tables, with `check_item_transition` and `check_r
 | `error` relayed from Spytify, and the controller's item-level ones: `recorder_exit`, `recorder_timeout`, `steering_guard`, `loop_guard`, `context_changed`, `webapi`, `storage` (preflight) | engine-item |
 | `run.finished` for missed, skipped and held rows | schedule |
 | `library.item`, `album.item` (`services.library.publish`, `services.albums.publish`), `backlog` (`services.backlog.update()` after each item) | engine-run |
+| `catalog.refresh` (each catalog refresh's start and end, the run's own included) | catalog (`catalog/refresh.py`) |
 
 ### The database: who writes what
 

@@ -35,12 +35,45 @@ describe('Pill', () => {
 });
 
 describe('TrackBadge', () => {
-  it('is a switch that toggles tracking', async () => {
+  it('is a checkbox that toggles tracking', async () => {
     const onChange = vi.fn();
     render(<TrackBadge tracked={false} onChange={onChange} label="Track Old Uni Playlist" />);
-    const badge = screen.getByRole('switch', { name: 'Track Old Uni Playlist' });
+    const badge = screen.getByRole('checkbox', { name: 'Track Old Uni Playlist' });
     expect(badge).not.toBeChecked();
     await userEvent.click(badge);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('works from the keyboard, and keeps focus while its request is on its way', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TrackBadge inline tracked onChange={onChange} label="Track Chill Mix" aria-busy />);
+    const badge = screen.getByRole('checkbox', { name: 'Track Chill Mix' });
+    await user.tab();
+    expect(badge).toHaveFocus();
+    expect(badge).toBeEnabled();
+    await user.keyboard(' ');
+    expect(onChange).toHaveBeenCalledWith(false);
+    expect(badge).toHaveFocus();
+  });
+
+  it('draws inline in a row: a check when tracked, a hollow circle when not', () => {
+    const { rerender } = render(<TrackBadge inline tracked onChange={() => {}} label="Track Chill Mix" />);
+    const badge = screen.getByRole('checkbox', { name: 'Track Chill Mix' });
+    expect(badge).toHaveClass('badge', 'inline', 'tracked');
+    expect(badge.querySelector('svg')).not.toBeNull(); // the check
+    rerender(<TrackBadge inline tracked={false} onChange={() => {}} label="Track Chill Mix" />);
+    expect(badge).toHaveClass('inline', 'untracked');
+    expect(badge.querySelector('svg')).toBeNull();
+  });
+
+  it('holds its word in the same button, so a click on the word toggles too', async () => {
+    const onChange = vi.fn();
+    render(<TrackBadge inline tracked={false} onChange={onChange} label="Track Focus" text="Not tracked" />);
+    const check = screen.getByRole('checkbox', { name: 'Track Focus' });
+    expect(check).toHaveClass('labelled');
+    expect(check).toHaveTextContent('Not tracked');
+    await userEvent.click(screen.getByText('Not tracked'));
     expect(onChange).toHaveBeenCalledWith(true);
   });
 

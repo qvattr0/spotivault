@@ -31,7 +31,9 @@ import type {
   ItemState,
   LastRun,
   LibraryItem,
+  LibraryRefresh,
   LibrarySummary,
+  PlaylistPreview,
   QueueItem,
   RunItem,
   RunState,
@@ -118,6 +120,14 @@ export interface WorldData {
   queue: QueueItem[];
   currentTracks: RunTrack[];
   nextRunId: number;
+  /**
+   * Playlists made or followed in Spotify since the last catalog refresh (POST /__mock/new-playlist):
+   * the next refresh finds them. Made ones join the Library; followed ones become suggestions.
+   */
+  inSpotify: { name: string; followed: boolean }[];
+  /** Followed playlists a refresh found, suggested in the + modal after the fixtures' ones. */
+  foundSuggestions: PlaylistPreview[];
+  nextRefreshId: number;
 }
 
 /** The wizard step the `setup` scenario starts at, unless POST /__mock/scenario names another. */
@@ -156,6 +166,9 @@ function initialData(scenario: f.Scenario, step: SetupStepId = DEFAULT_SETUP_STE
     queue: [],
     currentTracks: [],
     nextRunId: 42,
+    inSpotify: [],
+    foundSuggestions: [],
+    nextRefreshId: 57,
   };
   if (scenario === 'setup') atSetupStep(data, step);
   if (scenario === 'new') justSetUp(data);
@@ -217,6 +230,26 @@ function runItemOf(q: QueueItem, order: number, startedAt: string, endedAt: stri
   };
 }
 
+/** A playlist you made in Spotify, as a catalog refresh adds it: owned, never backed up. */
+function madeInSpotify(name: string, tracked: boolean): LibraryItem {
+  const id = f.fakeId(name);
+  return {
+    id, kind: 'owned', uri: `spotify:playlist:${id}`, name, owner: 'you',
+    cover: `/api/library/${id}/cover?size=thumb`, cover_source: 'spotify', tracked, item_access: true,
+    total: 12, recorded: 0, new: tracked ? 12 : null, last_backup_at: null,
+    status: tracked ? 'never_backed_up' : 'not_tracked', removable: false, progress: null,
+  };
+}
+
+/** A playlist you followed in Spotify: a suggestion in the + modal once a refresh finds it. */
+function followedInSpotify(name: string): PlaylistPreview {
+  const id = f.fakeId(name);
+  return {
+    id, uri: `spotify:playlist:${id}`, name, owner: 'Someone Else', cover: null, kind: 'followed',
+    item_access: false, total: 20, already_added: false,
+  };
+}
+
 function savedFromAlbum(album: Album): SavedAlbum {
   return {
     id: album.id, uri: album.uri, name: album.name, artist: album.artist, year: album.year,
@@ -244,6 +277,8 @@ const WRAP_UP_MS = 1500;
 const CLIENT_RESTART_MS = 3000;
 /** Client not running: how long a run waits for the device after the restart (60 s in the controller). */
 const DEVICE_WAIT_MS = 6000;
+/** How long the Library's Refresh takes: a few requests to Spotify, 250 ms apart in the controller. */
+const REFRESH_MS = 2000;
 
 /** Thrown inside a simulation when the world is reset under it. */
 class Cancelled extends Error {}
@@ -286,6 +321,8 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
   let planned: QueueItem[] = [];
   /** Back up now while the run starts: these go first once the queue is built (controller: pending_forced). */
   let pendingForced: string[] = [];
+  /** The catalog refresh going on (the Library's Refresh), by its id. */
+  let refreshing: number | null = null;
 
   /** Runs `fn` after `ms`, unless the world is reset first. */
   function later(ms: number, fn: () => void) {
@@ -1000,6 +1037,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       data = initialData(next, step);
       planned = [];
       pendingForced = [];
+      refreshing = null;
       hub.restart();
       if (next === 'running' || next === 'paused') {
         // A scheduled run in a window that ends in 6 h ("stops by 07:00"). Liked Songs was cut off
@@ -1321,6 +1359,43 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       }
       hub.publish('library.item', item);
       return item;
+    },
+    /**
+     * POST /api/library/refresh, after the route's 409s: a `manual` catalog refresh, as the
+     * controller's. A press while one runs joins it. It finds what POST /__mock/new-playlist put in
+     * "Spotify": made playlists join the Library (tracked while auto-tracking is on), each with its
+     * `library.item`, and followed ones become suggestions. `catalog.refresh` `ended` comes last.
+     */
+    refreshLibrary(): LibraryRefresh {
+      if (refreshing !== null) return { state: 'running', refresh_id: refreshing };
+      const id = data.nextRefreshId++;
+      refreshing = id;
+      hub.publish('catalog.refresh', {
+        refresh_id: id, trigger: 'manual', state: 'started', outcome: null,
+        items_changed: null, items_added: null, suggestions_added: null, reason: null,
+      });
+      later(REFRESH_MS, () => {
+        refreshing = null;
+        const found = data.inSpotify;
+        data.inSpotify = [];
+        const made = found.filter((p) => !p.followed).map((p) => madeInSpotify(p.name, data.settings.auto_track_owned));
+        const followed = found.filter((p) => p.followed).map((p) => followedInSpotify(p.name));
+        for (const item of made) {
+          data.library.push(item);
+          hub.publish('library.item', item);
+        }
+        data.foundSuggestions.push(...followed);
+        hub.publish('catalog.refresh', {
+          refresh_id: id, trigger: 'manual', state: 'ended', outcome: 'ok',
+          items_changed: made.length, items_added: made.length, suggestions_added: followed.length, reason: null,
+        });
+      });
+      // As the controller answers: the refresh is asked for; its events carry trigger `manual`.
+      return { state: 'started', refresh_id: null };
+    },
+    /** POST /__mock/new-playlist: a playlist made (or followed) in Spotify, for the next refresh to find. */
+    addInSpotify(name: string, followed: boolean) {
+      data.inSpotify.push({ name, followed });
     },
     /** POST /api/library: a followed or linked playlist joins the Library, tracked. */
     addLibraryItem(item: LibraryItem) {

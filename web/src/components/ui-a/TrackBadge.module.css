@@ -5,7 +5,12 @@
    colour, with the progress in accent from 12 o'clock, clockwise. The ring hangs 8 px outside
    the badge, so the badge stays at the same place on the card in every state.
    The 2 px stroke is the card's colour, so it follows the card's --card-bg when the card lightens
-   on hover (ui-b's Card sets it). Hover (grows 10 %) and focus are ours. */
+   on hover (ui-b's Card sets it). Hover (grows 10 %) and focus are ours.
+   Inline (ours: the list row's first column and the detail header, where web-ui.md had a toggle):
+   the same 24 px check on the page, with no ring in the card's colour. Tracked: accent, pressed
+   accent-press. Not tracked: a hollow circle, a 2 px text-sub stroke that turns white on hover.
+   Labelled (inline with `text`, the detail header): the button holds the circle and its word, so
+   the word toggles too; the circle's hover and pressed looks follow the whole button. */
 
 .badge {
   position: relative;
@@ -42,6 +47,67 @@
 
 .badge:disabled {
   opacity: 0.4;
+}
+
+/* Its request is on its way (useAction): not disabled, so keyboard focus stays. */
+.badge[aria-busy='true'] {
+  cursor: progress;
+}
+
+.inline.tracked {
+  border-color: var(--accent);
+}
+
+.inline.tracked:not(:disabled):active,
+.inline.tracked[data-state='active'] {
+  border-color: var(--accent-press);
+  background: var(--accent-press);
+}
+
+.inline.untracked {
+  border-color: var(--text-sub);
+  background: transparent;
+}
+
+.inline.untracked:not(:disabled):hover,
+.inline.untracked[data-state='hover'] {
+  border-color: var(--text);
+}
+
+.labelled {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  border-radius: var(--r-sm);
+}
+
+.labelled:not(:disabled):hover .badge,
+.labelled[data-state='hover'] .badge {
+  transform: scale(1.1);
+}
+
+.labelled:not(:disabled):hover .inline.untracked,
+.labelled[data-state='hover'] .inline.untracked {
+  border-color: var(--text);
+}
+
+.labelled:not(:disabled):active .inline.tracked,
+.labelled[data-state='active'] .inline.tracked {
+  border-color: var(--accent-press);
+  background: var(--accent-press);
+}
+
+.labelled[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.labelled:disabled {
+  opacity: 0.4;
+}
+
+.labelled[aria-busy='true'] {
+  cursor: progress;
 }
 
 .ring {

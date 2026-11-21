@@ -138,6 +138,7 @@ export function reduce(state: LiveState, event: LiveEvent): LiveState {
     case 'track.skipped':
     case 'library.item':
     case 'album.item':
+    case 'catalog.refresh':
     case 'level':
       return next;
   }

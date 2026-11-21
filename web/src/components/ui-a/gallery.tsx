@@ -1102,6 +1102,52 @@ const otherStates: GallerySection = {
       ),
     },
     {
+      // Not drawn: the list row's first column and the detail header draw a Toggle, which the UI
+      // replaces with the card's check (web-ui.md § List view, § Detail view).
+      id: 'track-badge-inline',
+      title: 'Tracking check, inline (list row, detail header)',
+      ownRow: true,
+      render: () => (
+        <Row>
+          <Spec label="Tracked">
+            <Live initial={true}>
+              {(on, set) => <TrackBadge inline tracked={on} onChange={set} label="Track Chill Mix" />}
+            </Live>
+          </Spec>
+          <Spec label="Not tracked">
+            <Live initial={false}>
+              {(on, set) => <TrackBadge inline tracked={on} onChange={set} label="Track Focus" />}
+            </Live>
+          </Spec>
+          <Spec label="Not tracked · Hover">
+            <TrackBadge inline tracked={false} onChange={noop} label="Track" data-state="hover" />
+          </Spec>
+          <Spec label="Tracked · Hover">
+            <TrackBadge inline tracked onChange={noop} label="Track" data-state="hover" />
+          </Spec>
+          <Spec label="Tracked · Pressed">
+            <TrackBadge inline tracked onChange={noop} label="Track" data-state="active" />
+          </Spec>
+          <Spec label="Focus">
+            <TrackBadge inline tracked={false} onChange={noop} label="Track" data-state="focus" />
+          </Spec>
+          <Spec label="Disabled">
+            <TrackBadge inline tracked onChange={noop} label="Track" disabled />
+          </Spec>
+          <Spec label="With its word (detail header)">
+            <Live initial={true}>
+              {(on, set) => (
+                <TrackBadge inline tracked={on} onChange={set} label="Track Chill Mix" text={on ? 'Tracked' : 'Not tracked'} />
+              )}
+            </Live>
+          </Spec>
+          <Spec label="With its word · Hover">
+            <TrackBadge inline tracked={false} onChange={noop} label="Track" text="Not tracked" data-state="hover" />
+          </Spec>
+        </Row>
+      ),
+    },
+    {
       id: 'brand-wordmark',
       title: 'Logo/Mark 32 and wordmark',
       node: 'LLS4c',
