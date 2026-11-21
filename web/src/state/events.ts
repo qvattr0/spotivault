@@ -8,6 +8,7 @@ import type {
   ClientInstall,
   ClientStatus,
   Connection,
+  ErrorCode,
   HistoryRow,
   ItemState,
   LibraryItem,
@@ -159,6 +160,35 @@ export interface ErrorEvent {
   facts: Record<string, unknown> | null;
 }
 
+/** Why a catalog refresh ran: a run's start, a page open, setup, an item tracked or added, or the Refresh button. */
+export type CatalogRefreshTrigger = 'run' | 'page_open' | 'setup' | 'item_added' | 'manual';
+
+/** Why a catalog refresh failed or was skipped (events.md § Catalog refresh): an ErrorCode. */
+export type CatalogRefreshReason = Extract<
+  ErrorCode,
+  'run_active' | 'not_connected' | 'connection_expired' | 'rate_limited' | 'spotify_unavailable' | 'internal'
+>;
+
+/**
+ * A catalog refresh started or ended (events.md § Catalog refresh). One that was asked for and
+ * didn't run sends only `ended`, with `refresh_id` null and outcome `skipped`.
+ */
+export interface CatalogRefreshEvent {
+  refresh_id: number | null;
+  trigger: CatalogRefreshTrigger;
+  state: 'started' | 'ended';
+  /** Null while started. */
+  outcome: 'ok' | 'partial' | 'failed' | 'skipped' | null;
+  /** The counts are null while started. */
+  items_changed: number | null;
+  /** New Library items: playlists you created since the last refresh. */
+  items_added: number | null;
+  /** New suggestions in the + modal: playlists you follow that aren't in the Library. */
+  suggestions_added: number | null;
+  /** Why it was `failed` or `skipped`; null otherwise. */
+  reason: CatalogRefreshReason | null;
+}
+
 export type ClientInstallEvent = ClientInstall & {
   /** The new log line, or null. */
   log_line: string | null;
@@ -186,6 +216,7 @@ export interface EventMap {
   // Library and Albums
   'library.item': LibraryItem;
   'album.item': Album;
+  'catalog.refresh': CatalogRefreshEvent;
   // Setup, client and connection
   'setup.state': Setup;
   'client.install': ClientInstallEvent;
@@ -224,6 +255,7 @@ export const EVENT_TYPES: readonly EventType[] = [
   'error',
   'library.item',
   'album.item',
+  'catalog.refresh',
   'setup.state',
   'client.install',
   'client.status',

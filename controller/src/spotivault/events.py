@@ -59,6 +59,7 @@ EVENT_TYPES = frozenset(
         "error",
         "library.item",
         "album.item",
+        "catalog.refresh",
         "setup.state",
         "client.install",
         "client.status",

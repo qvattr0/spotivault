@@ -675,6 +675,45 @@ paths:
         '503':
           $ref: '#/components/responses/SpotifyUnavailable'
 
+  /api/library/refresh:
+    post:
+      tags: [library]
+      operationId: refreshLibrary
+      summary: Refresh the Library from Spotify now (the Refresh button)
+      description: >-
+        Asks for a catalog refresh and answers at once, before it runs. Unlike a page open's, it
+        isn't held back by the 15-minute limit. A press while a refresh is going, or already asked
+        for, joins that one instead of starting another. The `catalog.refresh` events (events.md)
+        say when it starts and ends, and what it found; `library.item` events carry the items it
+        changed. Never during a run: each run refreshes the Library at its start. A connection past
+        its expiry date still refreshes, as every refresh does; only Spotify's `invalid_grant`
+        refuses it.
+      responses:
+        '202':
+          description: A refresh was asked for, or one was already going.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryRefresh' }
+              examples:
+                started:
+                  value: { state: started, refresh_id: null }
+                running:
+                  value: { state: running, refresh_id: 57 }
+        '409':
+          description: >-
+            A backup is recording (`run_active`), the Web API isn't connected (`not_connected`), or
+            Spotify ended the connection (`connection_expired`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                runActive:
+                  value:
+                    error: { code: run_active, message: Not available while a backup is recording., details: null }
+                notConnected:
+                  value:
+                    error: { code: not_connected, message: Connect the Spotify Web API first., details: null }
+
   /api/library/{id}:
     parameters:
       - $ref: '#/components/parameters/LibraryId'
@@ -2142,6 +2181,27 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ItemProgress'
             - type: 'null'
+
+    LibraryRefresh:
+      type: object
+      description: >-
+        The answer to the Library's Refresh button. The refresh runs after it; its
+        `catalog.refresh` events (events.md) tell how it went.
+      required: [state, refresh_id]
+      additionalProperties: false
+      properties:
+        state:
+          type: string
+          enum: [started, running]
+          description: >-
+            `started`: this press asked for a refresh, and it starts at once. `running`: a refresh
+            was already going or asked for, and this press joins it.
+        refresh_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: >-
+            The refresh that's going, once it has started; its `catalog.refresh` events carry the
+            same id. Null while it waits for its turn: then its events carry the trigger `manual`.
 
     UrlBody:
       type: object

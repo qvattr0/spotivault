@@ -175,6 +175,45 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 
 **Settled in S5:** Q9, Liked Songs plays as a context, so `LibraryItem` has no playback note. Q10, a linked playlist's name, owner and cover come from `GET /playlists/{id}`, so its `name` is always known; its `cover` is null only while no thumbnail is cached, like any other item's.
 
+### Catalog refresh
+
+| Type | `data` | When |
+|---|---|---|
+| `catalog.refresh` | `{refresh_id, trigger, state, outcome, items_changed, items_added, suggestions_added, reason}` | A catalog refresh starts or ends. The Library's Refresh button (`POST /api/library/refresh`) waits for its `ended`. |
+
+**`catalog.refresh` fields:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `refresh_id` | integer or null | The refresh. Null for one that was asked for but didn't run. |
+| `trigger` | string | Why it ran: `run` (a run's start), `page_open` (the Dashboard, at most once every 15 minutes), `setup`, `item_added` (an item was tracked or added), or `manual` (the Refresh button). |
+| `state` | `started` or `ended` | |
+| `outcome` | string or null | Null while `started`. Then `ok`; `partial` when some track lists couldn't be read; `failed` when the playlist listing couldn't be read; `skipped` when it didn't run, because a run was going when its turn came or the Web API wasn't connected. |
+| `items_changed` | integer or null | Library items it changed, new ones included. Null while `started`. |
+| `items_added` | integer or null | New Library items: playlists you created since the last refresh. Null while `started`. |
+| `suggestions_added` | integer or null | Playlists you follow that the last listing didn't have, and that aren't in the Library: new suggestions in the + modal. Null while `started`. |
+| `reason` | string or null | Why it was `failed` or `skipped`, as an `ErrorCode` (openapi.yaml); null otherwise. See below. |
+
+**`reason` values:**
+
+| Value | Outcome | When |
+|---|---|---|
+| `run_active` | `skipped` | A run was going when its turn came. |
+| `not_connected` | `skipped` or `failed` | No Client ID or no token. |
+| `connection_expired` | `skipped` or `failed` | Spotify answered `invalid_grant`, before or during this refresh. Reconnect; waiting won't help. |
+| `rate_limited` | `failed` | Spotify kept asking to wait while the playlist listing was read. |
+| `spotify_unavailable` | `failed` | Spotify didn't answer the listing after the retries, or answered with another error. |
+| `internal` | `failed` | An error in the controller. |
+
+- **Order:** `started` comes once the refresh begins. `ended` comes after the `library.item` events of the items it changed, and after its `backlog` event. An item sent less than a second earlier gets its `library.item` after `ended`, merged by the once-a-second limit.
+- **A refresh that doesn't run** sends only `ended`, with `refresh_id` null and outcome `skipped`. A page open's refresh that the 15-minute limit drops sends nothing.
+
+```json
+{"seq": 2210, "type": "catalog.refresh", "at": "2026-11-15T09:30:02.418Z", "data": {
+  "refresh_id": 57, "trigger": "manual", "state": "ended", "outcome": "ok",
+  "items_changed": 2, "items_added": 1, "suggestions_added": 0, "reason": null}}
+```
+
 ### Setup, client and connection
 
 | Type | `data` | When |
@@ -204,7 +243,7 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 | Shell (sidebar, bottom bar, banner) | `hello`, `run.state`, `item.state`, `track.started`, `session.state`, `connection`, `setup.state` |
 | Setup wizard | `setup.state`, `client.install`, `client.status`, `connection`, `backlog` |
 | Dashboard | `run.state`, `run.queue`, `item.state`, `run.finished`, `backlog`, `track.*`, `level`, `session.state`, `device.moved`, `error` |
-| Library | `library.item`, `run.state` |
+| Library | `library.item`, `run.state`, `catalog.refresh` |
 | Albums | `album.item`, `run.state` |
 | History | `run.finished` |
 | Player | `run.state` (view-only), `client.status` |

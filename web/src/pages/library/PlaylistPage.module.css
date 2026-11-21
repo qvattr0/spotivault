@@ -1,8 +1,8 @@
-/* The detail view's own bits: the switch with its word, the track table, the footer. */
+/* The detail view's own bits: the tracking check with its word, the track table, the footer.
+   The check's button holds the word and its gap (TrackBadge `text`); the word's type is set here. */
 .tracking {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-3);
   font: var(--type-row-title);
 }
 

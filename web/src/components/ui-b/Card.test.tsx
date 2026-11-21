@@ -10,8 +10,9 @@ describe('Card', () => {
     const onOpen = vi.fn();
     render(<Card title="Late Night Drive" sub="by you" tracking={{ tracked: true, onChange }} onOpen={onOpen} />);
 
-    const badge = screen.getByRole('switch', { name: 'Track Late Night Drive' });
+    const badge = screen.getByRole('checkbox', { name: 'Track Late Night Drive' });
     expect(badge).toBeChecked();
+    expect(badge).toHaveAccessibleDescription('Tracked: included in scheduled backups');
     await user.click(badge);
     expect(onChange).toHaveBeenCalledWith(false);
     expect(onOpen).not.toHaveBeenCalled();
@@ -19,7 +20,9 @@ describe('Card', () => {
 
   it('shows a hollow badge when not tracked', () => {
     render(<Card title="Old Uni Playlist" tracking={{ tracked: false, onChange: () => {} }} />);
-    expect(screen.getByRole('switch', { name: 'Track Old Uni Playlist' })).not.toBeChecked();
+    const badge = screen.getByRole('checkbox', { name: 'Track Old Uni Playlist' });
+    expect(badge).not.toBeChecked();
+    expect(badge).toHaveAccessibleDescription('Not tracked: left out of scheduled backups');
   });
 
   it('draws the recording ring from the progress', () => {
@@ -41,7 +44,7 @@ describe('Card', () => {
 
   it('shows an album without a badge, its pill on the cover', () => {
     render(<Card title="OK Computer" sub="Radiohead · 1997" kind="album" cornerStatus={<span>Queued</span>} />);
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.getByText('Queued').parentElement).toHaveClass('corner');
   });
 });

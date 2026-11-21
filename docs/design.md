@@ -333,7 +333,7 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 
 Recording happens in real time, so a backup takes about as long as the music still to record. The Dashboard's Full backup card, wizard step 9 and the Schedule preview all show this estimate, from one calculation (`GET /api/backlog`).
 
-- **Catalog:** every tracked item's track list with `duration_ms`, kept in SQLite and refreshed as described in [Web API usage](#web-api-usage). It's refreshed at the start of each run, and when the Dashboard or Schedule page opens, at most once every 15 minutes.
+- **Catalog:** every tracked item's track list with `duration_ms`, kept in SQLite and refreshed as described in [Web API usage](#web-api-usage). It's refreshed at the start of each run, and when the Dashboard or Schedule page opens, at most once every 15 minutes. The Library's Refresh button refreshes it at once, whenever no run is going ([web-ui.md § Library › Header](web-ui.md#header)).
 - **What's recorded:** History's per-track records, keyed by Spotify track ID.
 - **Time left:**
   - the sum of `duration_ms` over tracks not recorded yet, counting each track ID once however many items it's in;

@@ -59,8 +59,11 @@
   cursor: pointer;
 }
 
-/* A not-tracked playlist: its cover and text at 60 % (measured in ZGPGu, "Old Uni Playlist"). */
-.muted .item,
+/* A not-tracked playlist: its cover and text at 60 % (measured in ZGPGu, "Old Uni Playlist").
+   Not the whole cell: an opacity there would hold "Back up now" and its tooltip at 60 % too, and
+   trap the tooltip under the next row (opacity makes a stacking context). */
+.muted .coverBox > :not(.action),
+.muted .names,
 .muted .text {
   opacity: 0.6;
 }

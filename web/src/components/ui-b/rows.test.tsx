@@ -18,7 +18,7 @@ function Library({ onOpen = () => {}, onBackUp = () => {} }: { onOpen?: () => vo
         owner="by you"
         tracks="84 / 120 recorded"
         lastBackup="2 days ago"
-        toggle={<input type="checkbox" role="switch" aria-label="Track Late Night Drive" defaultChecked />}
+        tracking={<input type="checkbox" aria-label="Track Late Night Drive" defaultChecked />}
         status={<span>Up to date</span>}
         menu={<MenuButton label="More options for Late Night Drive" items={[{ label: 'Back up now', onSelect: onBackUp }]} />}
         action={<button type="button">Back up now</button>}
@@ -60,7 +60,7 @@ describe('PlaylistRow', () => {
     const onBackUp = vi.fn();
     render(<Library onOpen={onOpen} onBackUp={onBackUp} />);
 
-    await user.click(screen.getByRole('switch', { name: 'Track Late Night Drive' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Track Late Night Drive' }));
     await user.click(screen.getByRole('button', { name: 'Back up now' }));
     await user.click(screen.getByRole('button', { name: 'More options for Late Night Drive' }));
     await user.click(screen.getByRole('menuitem', { name: 'Back up now' }));

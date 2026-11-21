@@ -424,3 +424,4 @@ The docs win. These are recorded, not settled.
 | 8 | Modal and menu surface | `#282828`, a fixed colour. | No token. `$bg-highlight` (`#2A2A2A`) is the nearest. |
 | 9 | Type | 11, 15, 18, 19, 22 and 32 px are used but aren't on the type scale. Page titles are 32/800, between Title (28) and Display (40). | web-ui.md lists "type" as a token group; the scale has eight styles. |
 | 10 | Component list | `ViewSwitch`, `Banner`, `NowPlaying` and `Button/Tertiary`/`Danger`/`Play` exist but aren't in web-ui.md's component list. | web-ui.md § Design language. |
+| 11 | `Row/Playlist`'s first column, Library · Detail's header | A `Toggle` tracks the item. | The grid card's round check, so it isn't taken for "Back up now" (web-ui.md § List view, § Detail view). Built as `TrackBadge` with `inline`, and `TrackCheck` (with its tooltip). In the header, `text` puts "Tracked" or "Not tracked" inside the same button, so the word toggles too. |

@@ -102,6 +102,59 @@ describe('the Library', () => {
     expect(world.setup().steps.find((s) => s.id === 'playlists')?.state).toBe('done');
   });
 
+  it('refreshes the Library as the controller does: one at a time, and finds what was made in Spotify', async () => {
+    const world = worldIn('idle');
+    const seen: { type: string; data: unknown }[] = [];
+    const publish = world.hub.publish.bind(world.hub);
+    world.hub.publish = (type, data) => {
+      if (type === 'catalog.refresh' || type === 'library.item') seen.push({ type, data });
+      publish(type, data);
+    };
+    expect(call(world, 'POST', '/__mock/new-playlist', { name: 'Test Playlist' }).status).toBe(204);
+    expect(call(world, 'POST', '/__mock/new-playlist', { name: 'Friday Mix', followed: true }).status).toBe(204);
+    expect(call(world, 'POST', '/__mock/new-playlist', { name: 'Test Playlist' }).status).toBe(409);
+    expect(call(world, 'GET', '/api/library').body).not.toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ name: 'Test Playlist' })]) });
+
+    expect(call(world, 'POST', '/api/library/refresh')).toEqual({ status: 202, body: { state: 'started', refresh_id: null } });
+    expect(call(world, 'POST', '/api/library/refresh')).toEqual({ status: 202, body: { state: 'running', refresh_id: 57 } });
+    await until(() => seen.some((e) => e.type === 'catalog.refresh' && (e.data as { state: string }).state === 'ended'));
+
+    const id = fakeId('Test Playlist');
+    expect(seen.map((e) => [e.type, (e.data as { state?: string; id?: string }).state ?? (e.data as { id: string }).id])).toEqual([
+      ['catalog.refresh', 'started'],
+      ['library.item', id],
+      ['catalog.refresh', 'ended'],
+    ]);
+    expect(seen.at(-1)?.data).toEqual({
+      refresh_id: 57, trigger: 'manual', state: 'ended', outcome: 'ok', items_changed: 1, items_added: 1, suggestions_added: 1,
+      reason: null,
+    });
+    expect(call(world, 'GET', '/api/library').body).toMatchObject({
+      items: expect.arrayContaining([expect.objectContaining({ id, kind: 'owned', tracked: true, status: 'never_backed_up' })]),
+    });
+    expect(call(world, 'GET', '/api/library/suggestions').body).toMatchObject({
+      items: expect.arrayContaining([expect.objectContaining({ name: 'Friday Mix', kind: 'followed' })]),
+    });
+
+    // Both are known now, as in the controller (one row per playlist): the same again is refused.
+    expect(call(world, 'POST', '/__mock/new-playlist', { name: 'Friday Mix', followed: true }).status).toBe(409);
+    expect(call(world, 'POST', '/__mock/new-playlist', { name: 'Test Playlist' }).status).toBe(409);
+
+    // The next one finds nothing new, and the + modal lists each suggestion once.
+    expect(call(world, 'POST', '/api/library/refresh').body).toEqual({ state: 'started', refresh_id: null });
+    await until(() => seen.filter((e) => e.type === 'catalog.refresh').length === 4);
+    expect(seen.at(-1)?.data).toMatchObject({ refresh_id: 58, items_added: 0, suggestions_added: 0 });
+    const listed = (call(world, 'GET', '/api/library/suggestions').body as { items: { id: string }[] }).items.map((s) => s.id);
+    expect(new Set(listed).size).toBe(listed.length);
+  });
+
+  it('refuses a refresh during a run, and without a connection', () => {
+    expect(call(worldIn('running'), 'POST', '/api/library/refresh')).toMatchObject({ status: 409, body: { error: { code: 'run_active' } } });
+    const world = worldIn('idle');
+    call(world, 'POST', '/__mock/connection', { state: 'disconnected' });
+    expect(call(world, 'POST', '/api/library/refresh')).toMatchObject({ status: 409, body: { error: { code: 'not_connected' } } });
+  });
+
   it('refuses an invalid layout with its reason', () => {
     const world = worldIn('idle');
     const layout = { pattern: '{album_artist}/{genre}', prefix: 'none', underscores: false, strip_accents: false };

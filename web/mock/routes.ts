@@ -120,7 +120,7 @@ function resolveLink(w: World, url: string): PlaylistPreview | Reply {
   const id = match[1];
   if (id.startsWith('37i9dQZF1')) return fail(422, 'spotify_owned', "Playlists made by Spotify aren't available through the API.");
   if (/private/i.test(id)) return fail(422, 'private', 'This playlist is private.');
-  const preview = [...f.suggestions, ...f.linkedPreviews].find((p) => p.id === id);
+  const preview = [...f.suggestions, ...w.data.foundSuggestions, ...f.linkedPreviews].find((p) => p.id === id);
   if (!preview) return fail(422, 'not_found', 'Spotify has no such playlist.');
   return { ...preview, already_added: w.data.library.some((i) => i.id === id) };
 }
@@ -293,7 +293,7 @@ const ROUTES: Record<string, Handler> = {
   },
   'GET /api/library/suggestions': (w, req) => {
     const q = (req.query.get('q') ?? '').toLowerCase();
-    const items = f.suggestions.filter(
+    const items = [...f.suggestions, ...w.data.foundSuggestions].filter(
       (s) => !w.data.library.some((i) => i.id === s.id) && `${s.name} ${s.owner}`.toLowerCase().includes(q),
     );
     return ok({ items } satisfies Answer<'/api/library/suggestions', 'get'>);
@@ -303,6 +303,13 @@ const ROUTES: Record<string, Handler> = {
     if (refused) return refused;
     const preview = resolveLink(w, String(req.body.url ?? ''));
     return isReply(preview) ? preview : ok(preview satisfies Answer<'/api/library/resolve', 'post'>);
+  },
+  'POST /api/library/refresh': (w) => {
+    // Never during a run (the run refreshes at its start), and only with a connection.
+    if (w.runActive()) return runActive();
+    const refused = needsConnection(w);
+    if (refused) return refused;
+    return ok(w.refreshLibrary() satisfies Answer<'/api/library/refresh', 'post', 202>, 202);
   },
   'PATCH /api/library/:id': (w, req) => {
     const item = w.setTracked(req.params.id ?? '', Boolean(req.body.tracked));
@@ -562,6 +569,22 @@ const ROUTES: Record<string, Handler> = {
     return noContent;
   },
   'POST /__mock/setup/next': (w) => ok(w.nextStep()),
+  'POST /__mock/new-playlist': (w, req) => {
+    // {"name": "Road Trip"}: a playlist you made in Spotify; {"followed": true}: one you followed.
+    // The next catalog refresh (the Library's Refresh) finds it.
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) return fail(422, 'validation_failed', 'name is required.', { field: 'name' });
+    // Known already: in the Library, waiting for the next refresh, or a suggestion (the fixtures' or
+    // one a refresh found). The controller keeps one row per playlist, so the mock refuses it.
+    const id = f.fakeId(name);
+    const known =
+      w.data.library.some((i) => i.id === id) ||
+      w.data.inSpotify.some((p) => f.fakeId(p.name) === id) ||
+      [...f.suggestions, ...w.data.foundSuggestions].some((p) => p.id === id);
+    if (known) return fail(409, 'already_added', 'A playlist with that name is already there.');
+    w.addInSpotify(name, req.body.followed === true);
+    return noContent;
+  },
   'POST /__mock/storage': (w, req) => {
     w.data.storage = req.body.mounted === false ? f.storageNotMounted : f.storageOk;
     return ok(w.storageChecked());

@@ -407,6 +407,24 @@ class LibrarySummary(BaseModel):
     auto_track_owned: bool
 
 
+class LibraryRefresh(BaseModel):
+    """
+    The answer to the Library's Refresh button. The refresh runs after it; its `catalog.refresh` events (events.md) tell how it went.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Literal["started", "running"]
+    """
+    `started`: this press asked for a refresh, and it starts at once. `running`: a refresh was already going or asked for, and this press joins it.
+    """
+    refresh_id: Annotated[int | None, Field(ge=1)]
+    """
+    The refresh that's going, once it has started; its `catalog.refresh` events carry the same id. Null while it waits for its turn: then its events carry the trigger `manual`.
+    """
+
+
 class UrlBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",

@@ -2,7 +2,11 @@
 //
 // Two reads of the list: `everything` (no filter) counts the header's line and feeds "Back up all
 // tracked now"; `shown` is what the chips, search and sort ask for. A live `library.item` patches
-// both in place, so a row's status moves while a run records it.
+// both in place, so a row's status moves while a run records it, and an item neither has (one a
+// catalog refresh found) reads both again.
+//
+// Refresh, at the right of the filter chips, asks the controller to read the Library from Spotify
+// now, rather than waiting for the next page open or run (RefreshButton.tsx).
 
 import { useState } from 'react';
 import { Play, Plus } from 'lucide-react';
@@ -20,6 +24,7 @@ import { AddPlaylistsModal } from './AddPlaylistsModal.tsx';
 import { LibraryGrid } from './LibraryGrid.tsx';
 import { LibraryList } from './LibraryList.tsx';
 import { FILTERS, SORTS, librarySummaryText, type LibraryFilter, type LibrarySort } from './library-words.ts';
+import { RefreshButton } from './RefreshButton.tsx';
 import styles from './LibraryPage.module.css';
 
 export function LibraryPage() {
@@ -103,6 +108,7 @@ export function LibraryPage() {
           </>
         }
         bar={<ChipGroup label="Filter" options={FILTERS} value={list.filter} onChange={list.setFilter} />}
+        barEnd={<RefreshButton />}
       />
 
       {failed && shown.error ? <Alert tone="danger" title={errorText(shown.error)} /> : null}

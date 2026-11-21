@@ -57,6 +57,14 @@
   opacity: 1;
 }
 
+/* The badge's and Back up now's tooltips line up with the art's right edge. Kept narrower than the
+   card, on two lines, so a card in the first column doesn't push one past the page's left edge,
+   where the page panel would cut it off. */
+.badge [role='tooltip'],
+.action [role='tooltip'] {
+  max-width: 168px;
+}
+
 .title {
   overflow: hidden;
   color: var(--text);

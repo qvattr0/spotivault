@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { TrackBadge } from '@/components/ui-a';
 import { cx } from '@/lib/cx.ts';
 import { Cover, type CoverKind } from './Cover.tsx';
 import { rowClickHandler } from './row-open.ts';
+import { TrackCheck } from './TrackCheck.tsx';
 import styles from './Card.module.css';
 
 export interface CardTracking {
@@ -11,6 +11,8 @@ export interface CardTracking {
   onChange: (tracked: boolean) => void;
   /** While the item records, from 0 to 1, for the ring around the badge. */
   progress?: number | null;
+  /** Its request is on its way: aria-busy, not disabled, so keyboard focus stays. */
+  busy?: boolean;
 }
 
 export interface CardProps {
@@ -19,7 +21,7 @@ export interface CardProps {
   sub?: string;
   coverSrc?: string | null;
   kind?: CoverKind;
-  /** Playlists: the corner badge (ui-a's TrackBadge), which toggles tracking. Albums have none. */
+  /** Playlists: the corner badge (TrackCheck), which toggles tracking. Albums have none. */
   tracking?: CardTracking;
   /** The status `Pill` under the text (playlists). */
   status?: ReactNode;
@@ -53,11 +55,13 @@ export function Card(props: CardProps) {
         <Cover src={coverSrc} kind={kind} size="fill" />
         {tracking ? (
           <div className={styles.badge}>
-            <TrackBadge
+            <TrackCheck
               tracked={tracking.tracked}
               onChange={tracking.onChange}
               progress={tracking.progress}
               label={`Track ${title}`}
+              aria-busy={tracking.busy || undefined}
+              align="end"
             />
           </div>
         ) : null}

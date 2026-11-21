@@ -455,6 +455,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh the Library from Spotify now (the Refresh button)
+         * @description Asks for a catalog refresh and answers at once, before it runs. Unlike a page open's, it isn't held back by the 15-minute limit. A press while a refresh is going, or already asked for, joins that one instead of starting another. The `catalog.refresh` events (events.md) say when it starts and ends, and what it found; `library.item` events carry the items it changed. Never during a run: each run refreshes the Library at its start. A connection past its expiry date still refreshes, as every refresh does; only Spotify's `invalid_grant` refuses it.
+         */
+        post: operations["refreshLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/library/{id}": {
         parameters: {
             query?: never;
@@ -1239,6 +1259,16 @@ export interface components {
             /** @description True for followed and linked items only. */
             removable: boolean;
             progress: components["schemas"]["ItemProgress"] | null;
+        };
+        /** @description The answer to the Library's Refresh button. The refresh runs after it; its `catalog.refresh` events (events.md) tell how it went. */
+        LibraryRefresh: {
+            /**
+             * @description `started`: this press asked for a refresh, and it starts at once. `running`: a refresh was already going or asked for, and this press joins it.
+             * @enum {string}
+             */
+            state: "started" | "running";
+            /** @description The refresh that's going, once it has started; its `catalog.refresh` events carry the same id. Null while it waits for its turn: then its events carry the trigger `manual`. */
+            refresh_id: number | null;
         };
         UrlBody: {
             url: string;
@@ -2504,6 +2534,35 @@ export interface operations {
             409: components["responses"]["NotConnected"];
             422: components["responses"]["LinkRefused"];
             503: components["responses"]["SpotifyUnavailable"];
+        };
+    };
+    refreshLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A refresh was asked for, or one was already going. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryRefresh"];
+                };
+            };
+            /** @description A backup is recording (`run_active`), the Web API isn't connected (`not_connected`), or Spotify ended the connection (`connection_expired`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     removeLibraryItem: {

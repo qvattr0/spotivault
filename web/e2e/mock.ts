@@ -93,6 +93,12 @@ export function mockControls(request: APIRequestContext) {
     history: (options: { empty: true } | { older: number }) => post('history', options),
     /** Marks the active wizard step done (Output, Playlists, Albums have no write of their own). */
     nextStep: () => post('setup/next'),
+    /**
+     * A playlist made in Spotify (or, with `followed: true`, followed there): the Library's next
+     * Refresh finds it, as a new item or a new suggestion in the + modal.
+     */
+    newPlaylist: (name: string, options: { followed?: boolean } = {}) =>
+      post('new-playlist', { name, followed: options.followed === true }),
   };
 }
 

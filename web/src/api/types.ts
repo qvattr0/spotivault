@@ -35,6 +35,7 @@ export type LibraryKind = Schemas['LibraryKind'];
 export type ItemProgress = Schemas['ItemProgress'];
 export type LibraryStatus = Schemas['LibraryStatus'];
 export type LibrarySummary = Schemas['LibrarySummary'];
+export type LibraryRefresh = Schemas['LibraryRefresh'];
 export type PlaylistPreview = Schemas['PlaylistPreview'];
 export type TrackList = Schemas['TrackList'];
 export type ItemTrack = Schemas['ItemTrack'];

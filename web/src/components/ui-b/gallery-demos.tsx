@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Button, Toggle } from '@/components/ui-a';
+import { Button } from '@/components/ui-a';
 import { createLiveStore, LiveStoreProvider } from '@/state';
 import { envelope } from '@/test/live.ts';
 import { Card, type CardProps } from './Card.tsx';
@@ -10,6 +10,7 @@ import { LiveLevelMeter } from './LiveLevelMeter.tsx';
 import { Modal } from './Modal.tsx';
 import { ToastProvider } from './ToastProvider.tsx';
 import { ToastViewport } from './ToastViewport.tsx';
+import { TrackCheck } from './TrackCheck.tsx';
 import { useToast } from './use-toast.ts';
 import { Row } from './gallery-kit.tsx';
 import styles from './gallery.module.css';
@@ -121,10 +122,10 @@ export function ConfirmDemo() {
   );
 }
 
-/** A row's tracking switch that can be flipped. */
-export function TrackedToggle({ name, initial = true }: { name: string; initial?: boolean }) {
+/** A row's tracking check that can be clicked. */
+export function TrackedCheck({ name, initial = true }: { name: string; initial?: boolean }) {
   const [on, setOn] = useState(initial);
-  return <Toggle checked={on} onChange={setOn} label={`Track ${name}`} />;
+  return <TrackCheck inline tracked={on} onChange={setOn} label={`Track ${name}`} align="start" />;
 }
 
 /** A card whose badge can be clicked. */
