@@ -181,6 +181,8 @@ const ROUTES: Record<string, Handler> = {
   'POST /api/setup/tos': (w, req) =>
     req.body.understood === true ? ok(w.acknowledgeTos()) : fail(422, 'validation_failed', 'understood must be true.', { field: 'understood' }),
   'POST /api/setup/restart': (w) => (w.runActive() ? runActive() : ok(w.restartSetup())),
+  // Step 8's "I'll choose in Albums": the step is done, nothing is queued.
+  'POST /api/setup/albums/later': (w) => ok(w.chooseAlbumsLater()),
   'POST /api/setup/complete': (w) => {
     const result = w.completeSetup();
     return 'error' in result ? fail(409, 'setup_incomplete', 'Finish the setup steps first: ' + result.steps.join(', ') + '.', { steps: result.steps }) : ok(result);

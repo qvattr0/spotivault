@@ -162,6 +162,27 @@ paths:
         '409':
           $ref: '#/components/responses/RunActive'
 
+  /api/setup/albums/later:
+    post:
+      tags: [setup]
+      operationId: chooseAlbumsLater
+      summary: Answer step 8 with "I'll choose in Albums"
+      description: >-
+        Marks step 8 done and queues nothing: albums are added later with the Albums page's +.
+        The step's other answer, "Back up all my saved albums", is `POST /api/albums` with
+        `{all: true}`, which marks the step done too. Done is sticky: calling it again changes
+        nothing, and only "Run setup again" sets the step back to `todo`. A `setup.state` event
+        follows when the step changes.
+      responses:
+        '200':
+          description: The setup state, with step 8 done.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Setup' }
+              examples:
+                albumsAnswered:
+                  $ref: '#/components/examples/SetupAlbumsAnswered'
+
   /api/setup/complete:
     post:
       tags: [setup]
@@ -169,7 +190,7 @@ paths:
       summary: Finish the wizard (step 9's Open Library and Back up now)
       description: >-
         Marks steps 7 to 9 done and `completed` true. Steps 7 and 8 are choices with defaults, so
-        they're accepted as they are; step 8's "I'll choose in Albums" needs no call of its own.
+        they're accepted as they are, even if they weren't answered.
         Refused with 409 `setup_incomplete`, listing the steps in `details.steps`, while a step from
         1 to 6 isn't done. Calling it again once setup is complete changes nothing.
       responses:
@@ -1427,6 +1448,21 @@ components:
           - { id: albums, state: todo }
           - { id: done, state: todo }
         first_unfinished: client_settings
+        completed: false
+        tos_acknowledged_at: '2026-11-15T09:12:44Z'
+    SetupAlbumsAnswered:
+      value:
+        steps:
+          - { id: tos, state: done }
+          - { id: client, state: done }
+          - { id: login, state: done }
+          - { id: client_settings, state: done }
+          - { id: webapi, state: done }
+          - { id: output, state: done }
+          - { id: playlists, state: done }
+          - { id: albums, state: done }
+          - { id: done, state: active }
+        first_unfinished: done
         completed: false
         tos_acknowledged_at: '2026-11-15T09:12:44Z'
     ClientLoggedIn:

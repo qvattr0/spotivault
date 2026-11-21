@@ -83,6 +83,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/albums/later": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer step 8 with "I'll choose in Albums"
+         * @description Marks step 8 done and queues nothing: albums are added later with the Albums page's +. The step's other answer, "Back up all my saved albums", is `POST /api/albums` with `{all: true}`, which marks the step done too. Done is sticky: calling it again changes nothing, and only "Run setup again" sets the step back to `todo`. A `setup.state` event follows when the step changes.
+         */
+        post: operations["chooseAlbumsLater"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/complete": {
         parameters: {
             query?: never;
@@ -94,7 +114,7 @@ export interface paths {
         put?: never;
         /**
          * Finish the wizard (step 9's Open Library and Back up now)
-         * @description Marks steps 7 to 9 done and `completed` true. Steps 7 and 8 are choices with defaults, so they're accepted as they are; step 8's "I'll choose in Albums" needs no call of its own. Refused with 409 `setup_incomplete`, listing the steps in `details.steps`, while a step from 1 to 6 isn't done. Calling it again once setup is complete changes nothing.
+         * @description Marks steps 7 to 9 done and `completed` true. Steps 7 and 8 are choices with defaults, so they're accepted as they are, even if they weren't answered. Refused with 409 `setup_incomplete`, listing the steps in `details.steps`, while a step from 1 to 6 isn't done. Calling it again once setup is complete changes nothing.
          */
         post: operations["completeSetup"];
         delete?: never;
@@ -1942,6 +1962,26 @@ export interface operations {
                 };
             };
             409: components["responses"]["RunActive"];
+        };
+    };
+    chooseAlbumsLater: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The setup state, with step 8 done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Setup"];
+                };
+            };
         };
     };
     completeSetup: {

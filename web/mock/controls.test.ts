@@ -185,6 +185,36 @@ describe('step 5', () => {
   });
 });
 
+describe('step 8', () => {
+  it('answers "I\'ll choose in Albums" as the controller does: the step done, nothing queued, asked again after Run setup again', () => {
+    const world = worldIn('setup');
+    call(world, 'POST', '/__mock/scenario', { scenario: 'setup', step: 'albums' });
+    const published: EventMap['setup.state'][] = [];
+    const publish = world.hub.publish.bind(world.hub);
+    world.hub.publish = (type, data) => {
+      if (type === 'setup.state') published.push(data as EventMap['setup.state']);
+      publish(type, data);
+    };
+    const albums = () => world.setup().steps.find((s) => s.id === 'albums')?.state;
+    expect(albums()).toBe('active');
+
+    const answer = call(world, 'POST', '/api/setup/albums/later');
+    expect(answer.status).toBe(200);
+    expect(answer.body).toMatchObject({ first_unfinished: 'done', completed: false });
+    expect(albums()).toBe('done');
+    // The stepper follows the socket.
+    expect(published.at(-1)?.steps.find((s) => s.id === 'albums')?.state).toBe('done');
+    expect(world.data.albums).toEqual([]);
+    // A repeat changes nothing, so no setup.state goes out (controller setup.py publishes on a change).
+    const sent = published.length;
+    expect(call(world, 'POST', '/api/setup/albums/later').body).toMatchObject({ first_unfinished: 'done' });
+    expect(published).toHaveLength(sent);
+
+    call(world, 'POST', '/api/setup/restart');
+    expect(albums()).toBe('todo');
+  });
+});
+
 describe('runs', () => {
   it("answers Back up now's `added` as the contract says", async () => {
     const world = worldIn('idle');

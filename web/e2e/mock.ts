@@ -91,7 +91,7 @@ export function mockControls(request: APIRequestContext) {
     vnc: (up: boolean) => post('vnc', { up }),
     /** History: empty ("No backups yet"), or the samples plus `older` older runs (paging). */
     history: (options: { empty: true } | { older: number }) => post('history', options),
-    /** Marks the active wizard step done (Output, Playlists, Albums have no write of their own). */
+    /** Marks the active wizard step done, whatever it is: a shortcut past a step's own write. */
     nextStep: () => post('setup/next'),
   };
 }

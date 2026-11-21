@@ -1104,11 +1104,18 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       setConnection(connection);
       return data.connection;
     },
+    /** Marks a step done that no live fact covers. As in the controller, `setup.state` goes out only when the step changes. */
     markDone(step: SetupStepId) {
+      if (setup().steps.find((s) => s.id === step)?.state === 'done') return;
       data.manualDone.add(step);
       publishSetup();
     },
-    /** For steps with no endpoint of their own: marks the active step done. */
+    /** POST /api/setup/albums/later: step 8 answered with "I'll choose in Albums". Nothing is queued. */
+    chooseAlbumsLater(): Setup {
+      world.markDone('albums');
+      return setup();
+    },
+    /** Marks the active step done, whatever it is: a shortcut past a step's own write. */
     nextStep() {
       const first = setup().first_unfinished;
       if (first) world.markDone(first);

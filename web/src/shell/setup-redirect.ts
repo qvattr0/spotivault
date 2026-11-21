@@ -5,10 +5,10 @@
 // - While the setup state is unknown (no hello yet), nothing redirects; the gate shows "Connecting".
 // - A step after the first unfinished one isn't reachable yet; done steps can be reopened
 //   (web-ui.md § Setup wizard: "completed steps can be reopened from the stepper").
-// - Steps 7 and 8 can be passed without a write ("I'll choose in Albums" saves nothing; web-ui.md
-//   § 9: "Steps 7 and 8 keep their defaults if you skipped them"), so once steps 1 to 6 are done,
-//   steps 7 to 9 can all be opened. Otherwise step 9 would be out of reach after "I'll choose".
-//   Routes outside the wizard still go to the first unfinished step.
+// - Steps 7 and 8 are choices with defaults (web-ui.md § 9: "Steps 7 and 8 keep their defaults if
+//   you skipped them"; POST /api/setup/complete accepts them unanswered), so once steps 1 to 6 are
+//   done, steps 7 to 9 can all be opened. Routes outside the wizard still go to the first
+//   unfinished step.
 // - After setup, /setup/<step> stays reachable, so step 9 isn't yanked away when setup completes.
 //   Only the bare /setup goes to the Dashboard.
 // - /gallery is a developer page and is never redirected.
