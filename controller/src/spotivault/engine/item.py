@@ -112,10 +112,12 @@ from spotivault.engine.types import (
     ItemControl,
     ItemHost,
     ItemJob,
+    ItemLeft,
     ItemLive,
     ItemOutcome,
     ItemReport,
     ItemTimings,
+    MissingTrack,
     RunFailure,
     SessionState,
     StopRequest,
@@ -255,15 +257,50 @@ class ItemEngine:
             await self._kill_leftover_recorder()
 
     def live(self) -> ItemLive:
-        """The current phase, the session state, the take recording now and the live track
-        table. Cheap and synchronous: GET /api/status calls it."""
+        """The current phase, the session state, the take recording now, the live track table,
+        and what's left to play. Cheap and synchronous: GET /api/status calls it."""
         takes = self._takes
         return ItemLive(
             phase=self._phase,
             session_state=self._session_state,
             now_playing=takes.now_playing if takes is not None else None,
             tracks=takes.rows() if takes is not None else (),
+            left=self._left(),
         )
+
+    def _left(self) -> ItemLeft | None:
+        """What's left of this item to play, for the run's time left (engine/time_left.py):
+        the rest of the planned take recording now, and the planned tracks that haven't
+        started. None until it's planned. A take steering is about to jump over isn't counted;
+        once playback is over, or after Stop now, nothing is left; after Stop after this track,
+        only the take. Always with the keys it has recorded so far (`done_keys`), so a waiting
+        item that lists them doesn't count them again."""
+        plan = self._plan
+        if plan is None:
+            return None
+        takes = self._takes
+        done = takes.done_keys() if takes is not None else frozenset[str]()
+        nothing = ItemLeft(take_ms=0, take_key=None, tracks=(), done_keys=done)
+        if plan.unavailable or plan.up_to_date_by is not None or self._finishing:
+            return nothing
+        stop = self.control.stop
+        if stop is not None and stop.mode == "now":
+            return nothing
+        take = takes.open_take() if takes is not None else None
+        take_ms, take_key = 0, None
+        if take is not None and take.planned:
+            take_ms, take_key = round(self._take_left_s(take) * 1000), take.key
+        if stop is not None:
+            return ItemLeft(take_ms=take_ms, take_key=take_key, tracks=(), done_keys=done)
+        if plan.mode == "whole":
+            return ItemLeft(take_ms=take_ms, take_key=take_key, tracks=None, done_keys=done)
+        started = self._steering.started if self._steering is not None else set()
+        tracks = tuple(
+            MissingTrack(key=track.key, duration_ms=track.duration_ms)
+            for track in plan.missing
+            if track.position not in started
+        )
+        return ItemLeft(take_ms=take_ms, take_key=take_key, tracks=tracks, done_keys=done)
 
     @property
     def recorder_pid(self) -> int | None:
@@ -749,6 +786,8 @@ class ItemEngine:
             if check == "context_changed":
                 take.planned = False
         await takes.start(take)
+        if take.planned and not take.phantom:
+            await self.host.item_take_started(self.job)  # the run's time left counts it now
         if check != "ok":
             await self._act_on_check(check, state)
 
@@ -1069,7 +1108,12 @@ class ItemEngine:
         takes = self._takes
         assert takes is not None
         take = takes.open_take()
-        if take is None or take.length_ms <= 0:
+        return self._take_left_s(take) if take is not None else 0.0
+
+    def _take_left_s(self, take: Take) -> float:
+        """How much of a take is left to play, in seconds: its length less the time since it
+        started (0 past its end, or when its length is unknown)."""
+        if take.length_ms <= 0:
             return 0.0
         played_s = (self.services.clock.now() - take.started_at).total_seconds()
         return max(0.0, take.length_ms / 1000 - played_s)

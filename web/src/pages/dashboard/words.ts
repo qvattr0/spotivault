@@ -1,7 +1,7 @@
 // What the Dashboard says, as plain functions of the API's data, so the wording is tested on its
 // own (words.test.ts). Wording from web-ui.md § Dashboard; where it gives none, ours, marked so.
 
-import type { Backlog, HistoryRow, QueueItem, RunSummary, RunTrack, ScheduleNext } from '@/api';
+import type { HistoryRow, QueueItem, RunSummary, RunTrack, ScheduleNext } from '@/api';
 import { formatBytes, formatDay, formatHours, formatRunLength, formatTime, formatWhen } from '@/shell';
 import { TRIGGER, trackReasonText } from '@/lib/run-words.ts';
 import { isCurrentItemState } from '@/state';
@@ -95,18 +95,56 @@ export function elapsedText(iso: string, now: number): string {
 
 /**
  * The run header's line (web-ui.md § Run header): "started 01:00 · 0:42 elapsed · Scheduled · stops
- * by 07:00", the last part for scheduled runs only, then the backlog's "about 26 h left".
+ * by 07:00", the last part for scheduled runs only, then this run's own "about 9 min left in this run".
  */
-export function runMetaLine(run: RunSummary, now: number, backlog: Backlog | null): string {
-  return runMetaParts(run, now, backlog).join(' · ');
+export function runMetaLine(run: RunSummary, now: number): string {
+  return runMetaParts(run, now).join(' · ');
 }
 
 /** The run line's parts, which the header draws with wider gaps around the dots. */
-export function runMetaParts(run: RunSummary, now: number, backlog: Backlog | null): string[] {
+export function runMetaParts(run: RunSummary, now: number): string[] {
   const parts = [`started ${formatTime(run.started_at)}`, `${elapsedText(run.started_at, now)} elapsed`, TRIGGER[run.trigger]];
   if (run.window_end) parts.push(`stops by ${formatTime(run.window_end)}`);
-  if (backlog && backlog.seconds_left > 0) parts.push(`about ${formatHours(backlog.seconds_left)} left`);
+  const left = runLeftText(run, now);
+  if (left) parts.push(left);
   return parts;
+}
+
+/**
+ * This run's time left at `now` (RunTimeLeft): the controller's figure, counted down from when it was
+ * worked out while the run records, standing still while it's paused. A scheduled run stops at its
+ * window's end, so until a stop is asked for it's capped at what's left of the window, and nothing of
+ * unknown length is left past it. Null when it isn't known (the run is starting).
+ */
+export function runLeftNow(run: RunSummary, now: number): { seconds: number; unknownItems: number } | null {
+  const left = run.time_left;
+  if (!left) return null;
+  const since = Math.max(0, (now - Date.parse(left.as_of)) / 1000);
+  const seconds = run.state === 'paused' ? left.seconds : Math.max(0, left.seconds - since);
+  if (run.window_end && run.stop_mode === null) {
+    const windowSeconds = Math.max(0, (Date.parse(run.window_end) - now) / 1000);
+    if (seconds >= windowSeconds) return { seconds: windowSeconds, unknownItems: 0 };
+  }
+  return { seconds, unknownItems: left.unknown_items };
+}
+
+/**
+ * This run's own time left (web-ui.md § Run header): "about 9 min left in this run". Items whose
+ * length isn't known (playlists played whole) are said briefly, as step 9 says them: "about 9 min
+ * left in this run + 2 playlists of unknown length", or "2 playlists of unknown length left in this
+ * run" when nothing else is left. Null when there's nothing to say: the run is starting, or nothing
+ * is left.
+ */
+export function runLeftText(run: RunSummary, now: number): string | null {
+  const left = runLeftNow(run, now);
+  if (!left) return null;
+  const unknown = left.unknownItems;
+  const unknownText = unknown > 0 ? `${plural(unknown, 'playlist', 'playlists')} of unknown length` : null;
+  if (left.seconds >= 1) {
+    const known = `about ${formatHours(left.seconds)} left in this run`;
+    return unknownText ? `${known} + ${unknownText}` : known;
+  }
+  return unknownText ? `${unknownText} left in this run` : null;
 }
 
 /** The header's title: "Backing up", or "Paused" (hJlHj). */

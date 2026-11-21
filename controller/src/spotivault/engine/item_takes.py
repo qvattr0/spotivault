@@ -196,6 +196,22 @@ class TakeBook:
     def rows(self) -> tuple[RunTrack, ...]:
         return tuple(self._rows)
 
+    def done_keys(self) -> frozenset[str]:
+        """The Spytify keys this attempt has recorded, for the run's time left: each recorded
+        take's, and each planned take's that plays or played and has no result yet (Spytify
+        saves a take only after the next one started, or in Finishing), with the key of the
+        planned track each one matched (the stored key, should the two differ). Spytify skips
+        them from now on."""
+        keys: set[str] = set()
+        for take in self.takes.values():
+            pending = take.result is None and take.planned and not take.phantom
+            if take.result != "recorded" and not pending:
+                continue
+            keys.add(take.key)
+            if take.track is not None:
+                keys.add(take.track.key)
+        return frozenset(keys)
+
     def heard(self) -> list[Take]:
         """The counted takes that really played, in order: a whole pass's observed tracks."""
         return [take for take in self.takes.values() if take.counted]

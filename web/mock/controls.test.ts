@@ -46,6 +46,17 @@ function recordErrors(world: World): EventMap['error'][] {
   return errors;
 }
 
+/** The time left of each `run.state` the world publishes from now on. */
+function recordTimeLeft(world: World): EventMap['run.state']['time_left'][] {
+  const lefts: EventMap['run.state']['time_left'][] = [];
+  const publish = world.hub.publish.bind(world.hub);
+  world.hub.publish = (type, data) => {
+    if (type === 'run.state') lefts.push((data as EventMap['run.state']).time_left);
+    publish(type, data);
+  };
+  return lefts;
+}
+
 describe('scenarios', () => {
   it('starts the wizard at any step, with the facts behind it', () => {
     const world = worldIn('idle');
@@ -230,6 +241,78 @@ describe('runs', () => {
     const row = world.data.history[0];
     expect(row).toMatchObject({ outcome: 'stopped' });
     expect(call(world, 'GET', `/api/runs/${row?.id}`).body).toMatchObject({ items: [] });
+  });
+
+  it("sends the run's own time left: none while starting, then its tracks, the take alone after Stop after this track", async () => {
+    const world = worldIn('idle', 10);
+    const lefts = recordTimeLeft(world);
+    call(world, 'POST', '/api/runs', { items: ['liked'] });
+    expect(lefts).toEqual([null]); // starting: the queue isn't built yet
+    await until(() => world.data.status.state === 'running');
+    // Liked Songs waits with its 2 new tracks (6 and 7.5 s) and the mock's 3.5 s for an item.
+    expect(lefts.at(-1)).toMatchObject({ seconds: 17, unknown_items: 0 });
+    await until(() => world.data.status.run?.counters.recorded === 1);
+    expect(lefts.at(-1)).toMatchObject({ seconds: 8, unknown_items: 0 }); // the second track, 7.5 s
+    await until(() => world.data.status.track?.title === 'Weightless');
+    call(world, 'POST', '/api/runs/current/stop', { mode: 'after_track' });
+    const stopping = lefts.at(-1);
+    expect(stopping?.seconds).toBeGreaterThan(0);
+    expect(stopping?.seconds).toBeLessThanOrEqual(8); // the rest of the take only
+    call(world, 'POST', '/api/runs/current/stop', { mode: 'now' });
+    expect(lefts.at(-1)).toMatchObject({ seconds: 0, unknown_items: 0 });
+    await until(() => world.data.status.state === 'idle');
+    expect(lefts.at(-1)).toBeNull(); // the last run.state: the run has ended
+  });
+
+  it("keeps the run's time left standing still while it's paused, and works it out again on Resume", async () => {
+    const world = worldIn('idle', 10);
+    const lefts = recordTimeLeft(world);
+    call(world, 'POST', '/api/runs', { items: ['liked'] });
+    await until(() => world.data.status.session_state === 'recording' && world.data.status.track?.title === 'Last Hours');
+    expect(call(world, 'POST', '/__mock/takeover').status).toBe(204);
+    await until(() => world.data.status.state === 'paused');
+    const paused = world.data.status.run?.time_left;
+    expect(paused).toEqual(lefts.at(-1));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(world.data.status.run?.time_left).toEqual(paused);
+    call(world, 'POST', '/api/runs/current/resume');
+    await until(() => world.data.status.state === 'running');
+    // Liked Songs runs again: both tracks are pending, plus its 3.5 s.
+    expect(lefts.at(-1)).toMatchObject({ seconds: 17, unknown_items: 0 });
+    call(world, 'POST', '/api/runs/current/stop', { mode: 'now' });
+    await until(() => world.data.status.state === 'idle');
+  });
+
+  it("works a paused run's time left out again when its queue changes", async () => {
+    const world = worldIn('idle', 10);
+    const lefts = recordTimeLeft(world);
+    call(world, 'POST', '/api/runs', { items: ['liked', fakeId('chillmix')] });
+    await until(() => world.data.status.session_state === 'recording' && world.data.status.track?.title === 'Last Hours');
+    expect(call(world, 'POST', '/__mock/takeover').status).toBe(204);
+    await until(() => world.data.status.state === 'paused');
+    // What the run records once resumed: Liked Songs again (its two tracks and 3.5 s), then the mix.
+    const paused = lefts.at(-1);
+    expect(paused?.seconds).toBeGreaterThan(17);
+    expect(call(world, 'DELETE', `/api/runs/current/items/${fakeId('chillmix')}`).status).toBe(204);
+    expect(lefts.at(-1)).toMatchObject({ seconds: 17, unknown_items: 0 });
+    expect(call(world, 'POST', '/api/runs', { items: [fakeId('indiefinds')] }).body).toMatchObject({ added: [fakeId('indiefinds')] });
+    expect(lefts.at(-1)?.seconds).toBeGreaterThan(17);
+    expect(world.data.status.run?.time_left).toEqual(lefts.at(-1));
+    call(world, 'POST', '/api/runs/current/stop', { mode: 'now' });
+    await until(() => world.data.status.state === 'idle');
+  });
+
+  it("caps a scheduled run's time left at what's left of its window", async () => {
+    const world = worldIn('running', 10); // a scheduled run whose window ends in 6 h
+    await until(() => world.data.status.state === 'running' && (world.data.status.run?.time_left?.seconds ?? 0) > 2);
+    // The window is about to end: the run stops then, and nothing of unknown length runs past it.
+    const run = world.data.status.run;
+    if (run) run.window_end = new Date(Date.now() + 2000).toISOString();
+    const waiting = world.data.queue.find((q) => q.state === 'up_next');
+    expect(call(world, 'DELETE', `/api/runs/current/items/${waiting?.item_id ?? ''}`).status).toBe(204);
+    const left = world.data.status.run?.time_left;
+    expect(left?.seconds).toBeLessThanOrEqual(2);
+    expect(left?.unknown_items).toBe(0);
   });
 
   it('a takeover sends its events in the controller\'s order: item.state, run.state paused, then device.moved', async () => {

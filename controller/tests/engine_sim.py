@@ -77,6 +77,7 @@ class RecordingHost:
 
     phases: list[tuple[ItemState, PlayMode | None, int | None]] = field(default_factory=list)
     counts: list[TrackCounts] = field(default_factory=list)
+    takes_started: int = 0  # item_take_started calls: planned takes that started
 
     async def item_phase(
         self,
@@ -90,6 +91,9 @@ class RecordingHost:
 
     async def item_counts(self, job: ItemJob, counts: TrackCounts) -> None:
         self.counts.append(counts)
+
+    async def item_take_started(self, job: ItemJob) -> None:
+        self.takes_started += 1
 
     def phase_names(self) -> list[ItemState]:
         return [phase for phase, _, _ in self.phases]

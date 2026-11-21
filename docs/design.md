@@ -342,6 +342,7 @@ Recording happens in real time, so a backup takes about as long as the music sti
 - **Finish date:** the controller walks the schedule's active hours forward from now until the time left is used up. With Manual only, there's no date.
 - **Unknown items:** followed and linked playlists have no track list, so their length is unknown. They're left out of the figure and counted separately, unless they're Up to date by their `snapshot_id` (see [Run flow](#run-flow-per-playlist-or-album) step 1). A followed playlist's track count is known from `/me/playlists`, so the UI can show it, but not its duration.
 - **Accuracy:** duplicates are skipped in seconds, so they barely count. The same song can have a different track ID on a single and on its album; it's counted twice but recorded once, so the estimate leans slightly high.
+- **Not the run header:** while a run goes, the Dashboard's run header shows that run's own time left, not this estimate. It's worked out the same way over the run's queue only, from the stored durations: see [web-ui.md § Run header](web-ui.md#running-queue-first).
 
 ## Playlist covers
 

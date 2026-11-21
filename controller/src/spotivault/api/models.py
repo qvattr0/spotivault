@@ -557,30 +557,26 @@ class Counters(BaseModel):
     bytes_added: Annotated[int, Field(ge=0)]
 
 
-class RunSummary(BaseModel):
+class RunTimeLeft(BaseModel):
+    """
+    How long this run still records, worked out by the controller from what it has stored, with no Web API request. Only this run's items count: the whole backlog's time left is `Backlog.seconds_left`, the Full backup card's.
+    """
+
     model_config = ConfigDict(
         extra="forbid",
     )
-    id: Annotated[int, Field(ge=1)]
-    trigger: Literal["scheduled", "run_now", "startup"]
+    seconds: Annotated[int, Field(ge=0)]
     """
-    `run_now` covers Run now, Back up now, Record now and Retry failed.
+    Recording time left at `as_of`, of the items whose length is known. It adds up the rest of the take recording now (its length less the time it has recorded), the current item's planned tracks that haven't started, and each waiting item's missing tracks (Up next, and interrupted items that will retry), from their stored durations, plus 35 s for each waiting item with a track to record, as the backlog estimate counts. A track two items share counts once, as Spytify records it once, and a track this run already recorded doesn't count again. Removed items don't count. A scheduled or start-up run stops at its window's end, so until a stop is asked for, it's at most the time from `as_of` to `window_end`. After Stop after this track, it's just the rest of that track, even past the window's end; after Stop now, 0. While the run is paused, it's what the run records once resumed: the paused item counts as waiting, as it runs again.
     """
-    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
+    unknown_items: Annotated[int, Field(ge=0)]
     """
-    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
+    Items still to run whose length isn't known, so they're left out of `seconds`: playlists played whole (followed and linked ones that aren't Up to date by D13, and any whose track list this run can't trust). The current item counts here while it plays whole. 0 once a stop is asked for, and when the window's end caps `seconds`, since nothing runs past it.
     """
-    started_at: AwareDatetime
-    window_end: AwareDatetime | None
+    as_of: AwareDatetime
     """
-    The window's end, for scheduled and start-up runs ("stops by 07:00").
+    When `seconds` was worked out. While the run is running, finishing or stopping, the time since then counts down: show `seconds` less it, never under 0, and, until a stop is asked for, never more than the time left to `window_end` (then without `unknown_items`). While it's paused, the figure stands still, still capped at `window_end`. The controller works it out again at each planned track's start and end, each phase of the current item, each change to the queue, each change of the run's state and each move of `window_end`, and sends a `run.state` when it moved by 5 s or more from what the last one shows (its count-down; paused, the figure itself), or `unknown_items` changed.
     """
-    paused_reason: Literal["device_moved", "device_busy"] | None
-    stop_mode: Literal["after_track", "now"] | None
-    """
-    Set once a stop is asked for, including the end of a window (`after_track`).
-    """
-    counters: Counters
 
 
 class QueueItemExpect(BaseModel):
@@ -718,36 +714,6 @@ class NowPlaying(BaseModel):
     """
     The track's position in the item, when matched.
     """
-
-
-class Status(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
-    """
-    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
-    """
-    run: RunSummary | None
-    item: QueueItem | None
-    track: NowPlaying | None
-    session_state: Literal["idle", "waiting", "recording", "ad", "paused", "stopping"] | None
-    view_only: bool
-    """
-    The Player locks input (any state but `idle`).
-    """
-
-
-class CurrentRun(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    run: RunSummary | None
-    queue: list[QueueItem]
-    """
-    Every item of the run in display order. Finished items first, then the current one, then Up next and interrupted ones.
-    """
-    current_tracks: list[RunTrack]
 
 
 class RunCreated(BaseModel):
@@ -1420,6 +1386,66 @@ class Album(BaseModel):
     added_at: AwareDatetime
     completed_at: AwareDatetime | None
     progress: ItemProgress | None
+
+
+class RunSummary(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[int, Field(ge=1)]
+    trigger: Literal["scheduled", "run_now", "startup"]
+    """
+    `run_now` covers Run now, Back up now, Record now and Retry failed.
+    """
+    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
+    """
+    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
+    """
+    started_at: AwareDatetime
+    window_end: AwareDatetime | None
+    """
+    The window's end, for scheduled and start-up runs ("stops by 07:00").
+    """
+    paused_reason: Literal["device_moved", "device_busy"] | None
+    stop_mode: Literal["after_track", "now"] | None
+    """
+    Set once a stop is asked for, including the end of a window (`after_track`).
+    """
+    counters: Counters
+    time_left: RunTimeLeft | None
+    """
+    This run's own time left, for the run header ("about 9 min left in this run"). Null while the run starts (its queue isn't built yet), and in the last `run.state`, once it has ended.
+    """
+
+
+class Status(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
+    """
+    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
+    """
+    run: RunSummary | None
+    item: QueueItem | None
+    track: NowPlaying | None
+    session_state: Literal["idle", "waiting", "recording", "ad", "paused", "stopping"] | None
+    view_only: bool
+    """
+    The Player locks input (any state but `idle`).
+    """
+
+
+class CurrentRun(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    run: RunSummary | None
+    queue: list[QueueItem]
+    """
+    Every item of the run in display order. Finished items first, then the current one, then Up next and interrupted ones.
+    """
+    current_tracks: list[RunTrack]
 
 
 class Hours(BaseModel):

@@ -48,6 +48,7 @@ export type SavedAlbum = Schemas['SavedAlbum'];
 export type Status = Schemas['Status'];
 export type RunState = Schemas['RunState'];
 export type RunSummary = Schemas['RunSummary'];
+export type RunTimeLeft = Schemas['RunTimeLeft'];
 export type Trigger = Schemas['Trigger'];
 export type Outcome = Schemas['Outcome'];
 export type Counters = Schemas['Counters'];

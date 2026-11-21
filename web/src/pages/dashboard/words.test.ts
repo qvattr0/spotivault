@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backlog, queueItem, runRunning, scheduleNext } from '@mock/fixtures.ts';
+import { queueItem, runRunning, scheduleNext } from '@mock/fixtures.ts';
 import type { RunTrack } from '@/api';
 import {
   coverageText,
@@ -11,6 +11,7 @@ import {
   lastRunTitle,
   nextBackupTitle,
   queueSections,
+  runLeftText,
   runMetaLine,
   runTitle,
   trackStateText,
@@ -84,12 +85,64 @@ describe('the run header', () => {
     expect(elapsedText('2026-11-17T01:00:00Z', start - 5000)).toBe('0:00');
   });
 
-  it('writes the run line, with the window for scheduled runs and the backlog left', () => {
-    const run = { ...runRunning, started_at: at(1).toISOString(), window_end: at(7).toISOString() };
+  it("writes the run line, with the window for scheduled runs and this run's own time left", () => {
     const now = at(1, 42).getTime();
-    expect(runMetaLine(run, now, backlog)).toBe('started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00 · about 27 h left');
-    expect(runMetaLine({ ...run, trigger: 'run_now', window_end: null }, now, null)).toBe('started 01:00 · 0:42 elapsed · Run now');
-    expect(runMetaLine(run, now, { ...backlog, seconds_left: 0 })).toBe('started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00');
+    const left = { seconds: 540, unknown_items: 0, as_of: new Date(now).toISOString() };
+    const run = { ...runRunning, started_at: at(1).toISOString(), window_end: at(7).toISOString(), time_left: left };
+    expect(runMetaLine(run, now)).toBe('started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00 · about 9 min left in this run');
+    expect(runMetaLine({ ...run, trigger: 'run_now', window_end: null }, now)).toBe('started 01:00 · 0:42 elapsed · Run now · about 9 min left in this run');
+    // Starting (the queue isn't built yet), or nothing left: no time left in the line.
+    expect(runMetaLine({ ...run, time_left: null }, now)).toBe('started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00');
+    expect(runMetaLine({ ...run, time_left: { ...left, seconds: 0 } }, now)).toBe('started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00');
+  });
+
+  it("counts the run's time left down while it records, and holds it while it's paused", () => {
+    const t0 = Date.parse('2026-11-17T01:00:00Z');
+    const run = {
+      ...runRunning,
+      trigger: 'run_now' as const,
+      window_end: null,
+      time_left: { seconds: 540, unknown_items: 0, as_of: '2026-11-17T01:00:00Z' },
+    };
+    expect(runLeftText(run, t0)).toBe('about 9 min left in this run');
+    expect(runLeftText(run, t0 + 4 * 60_000)).toBe('about 5 min left in this run');
+    expect(runLeftText({ ...run, state: 'finishing' }, t0 + 4 * 60_000)).toBe('about 5 min left in this run');
+    expect(runLeftText({ ...run, state: 'stopping' }, t0 + 4 * 60_000)).toBe('about 5 min left in this run');
+    expect(runLeftText({ ...run, state: 'paused' }, t0 + 4 * 60_000)).toBe('about 9 min left in this run');
+    expect(runLeftText(run, t0 + 9 * 60_000)).toBeNull(); // counted down to nothing
+    expect(runLeftText(run, t0 - 60_000)).toBe('about 9 min left in this run'); // never more than sent
+    expect(runLeftText({ ...run, time_left: { ...run.time_left, seconds: 2 * 3600 + 600 } }, t0)).toBe('about 2 h left in this run');
+    expect(runLeftText({ ...run, time_left: { ...run.time_left, seconds: 20 } }, t0)).toBe('about 1 min left in this run');
+  });
+
+  it('says briefly how many playlists are of unknown length', () => {
+    const t0 = Date.parse('2026-11-17T01:00:00Z');
+    const left = { seconds: 540, unknown_items: 2, as_of: '2026-11-17T01:00:00Z' };
+    const run = { ...runRunning, window_end: '2026-11-17T07:00:00Z' };
+    expect(runLeftText({ ...run, time_left: left }, t0)).toBe('about 9 min left in this run + 2 playlists of unknown length');
+    expect(runLeftText({ ...run, time_left: { ...left, seconds: 0, unknown_items: 1 } }, t0)).toBe('1 playlist of unknown length left in this run');
+    expect(runLeftText({ ...run, time_left: null }, t0)).toBeNull();
+  });
+
+  it("stops a scheduled run's time left at its window's end, as the run stops there", () => {
+    const t0 = Date.parse('2026-11-17T06:30:00Z');
+    // 3 h of tracks and 2 playlists of unknown length, with 30 min left of the window.
+    const left = { seconds: 3 * 3600, unknown_items: 2, as_of: '2026-11-17T06:30:00Z' };
+    const run = { ...runRunning, window_end: '2026-11-17T07:00:00Z', time_left: left };
+    expect(runLeftText(run, t0)).toBe('about 30 min left in this run');
+    expect(runLeftText(run, t0 + 20 * 60_000)).toBe('about 10 min left in this run');
+    expect(runMetaLine({ ...run, started_at: '2026-11-17T06:00:00Z' }, t0)).toMatch(/ · stops by \d\d:\d\d · about 30 min left in this run$/);
+    // Paused, the figure holds, but the window's end comes closer.
+    expect(runLeftText({ ...run, state: 'paused', time_left: { ...left, seconds: 20 * 60 } }, t0 + 15 * 60_000)).toBe(
+      'about 15 min left in this run',
+    );
+    // A window longer than the run: the run's own figure.
+    expect(runLeftText({ ...run, time_left: { ...left, seconds: 540 } }, t0)).toBe('about 9 min left in this run + 2 playlists of unknown length');
+    // Once a stop is asked for (the window's end asks for one), the track playing plays on past it.
+    const stopping = { ...run, state: 'stopping' as const, stop_mode: 'after_track' as const };
+    expect(runLeftText({ ...stopping, time_left: { seconds: 180, unknown_items: 0, as_of: '2026-11-17T07:01:00Z' } }, t0 + 31 * 60_000)).toBe(
+      'about 3 min left in this run',
+    );
   });
 
   it('titles a paused run Paused', () => {

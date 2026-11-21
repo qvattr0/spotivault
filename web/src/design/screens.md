@@ -81,7 +81,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 | Frame | ID | Route | State | Differences from web-ui.md | Status |
 |---|---|---|---|---|---|
 | Dashboard · Idle (with expiry banner) | `fzNDm` | `/dashboard` | Idle; yellow expiry banner; Next backup with a small week strip; Last run "Completed with issues" | **The Full backup card isn't drawn.** web-ui.md § Idle has three cards: Next backup, Full backup, Last run. The Next backup variants (No schedule, Held) and "No backups yet" aren't drawn. | Built, with no Full backup card (plan D8) and no "Change schedule" (not in M1). |
-| Dashboard · Running | `t4YEY` | `/dashboard` | Running: header, counters, Stop split button, docked now-playing strip; queue with Done, Up to date, the current item expanded, Up next and "Interrupted · will retry" | The run header doesn't show the backlog's time left ("about 26 h left"). The Finishing and Carried over rows aren't drawn. | Built. |
+| Dashboard · Running | `t4YEY` | `/dashboard` | Running: header, counters, Stop split button, docked now-playing strip; queue with Done, Up to date, the current item expanded, Up next and "Interrupted · will retry" | The run header's time left ("about 9 min left in this run") isn't drawn. The Finishing and Carried over rows aren't drawn. | Built. |
 | Dashboard · Paused (playback moved) | `hJlHj` | `/dashboard` | Paused: warn alert "Playback moved to Lorne's iPhone" with Resume and Stop; current track "Discarded · will redo" | None found. The red Spytify-error alert and the "Stop now" confirm aren't drawn. | Built. |
 
 ## Schedule

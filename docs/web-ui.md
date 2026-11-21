@@ -77,7 +77,7 @@ Where web-ui.md gave no words or rule, S8 built the more cautious answer below. 
 | Add playlists | Cancel and Done in the footer, as drawn. The made-by-Spotify refusal is a standing note over the list, not an inline error. |
 | Add albums | Done only in the footer. The empty state shows only when there's nothing to add. |
 | Albums detail | It reads the whole list of added albums, since the contract has no `GET /api/albums/{id}`. An album's tracks follow its state: recorded first, then Missing. It is never New. |
-| Dashboard | The run header shows the backlog's time left ("about 26 h left") from `GET /api/backlog`. The current item's pill says Stopping, not Waiting, while the last track records after Stop after this track. The Full backup card isn't built (plan D8). The Next backup card has no "Change schedule" in M1. |
+| Dashboard | The run header's time left is the run's own (§ Run header), not the backlog's. Its words for items of unknown length are ours: "+ 2 playlists of unknown length". It counts down between the controller's updates and stands still while the run is paused, at what the run records once resumed. For a scheduled run it's capped at the window's end, so it never says more than "stops by" allows. The current item's pill says Stopping, not Waiting, while the last track records after Stop after this track. The Full backup card isn't built (plan D8). The Next backup card has no "Change schedule" in M1. |
 | Paused after a takeover | The paused item shows the track table as the controller sends it. In the controller it is empty; in the mock it keeps the discarded take as "Discarded · will redo". The contract doesn't say which is right. |
 | History | A run still going is listed first, as the controller lists it, with a Running pill that links to the Dashboard and no counts until it ends. Its run page says so too, and follows the run: "Building the queue…" until the queue is built after the pre-run check, then its items, and an open item's tracks as each take ends. An item's reason shows as a line under its name on the run page. An item stopped while paused after a takeover keeps the controller's "Interrupted, retried" badge. Each take is a row, so the controller's idle-exit take shows as an extra "Skipped (duplicate)" row with no position. |
 | Player | The client's screen is 16 : 10, as 1280 × 800 is, not the drawn 640 × 440 or 520 × 658. Take control asks first. |
@@ -571,7 +571,12 @@ The item queue is the main element. A compact now-playing strip sits above it.
 **Run header**
 - "Backing up · started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00". The last part only appears for scheduled runs.
 - Live counters: Recorded n · Skipped n · Failed n.
-- Time left for the whole backlog, from the Full backup card: "about 26 h left".
+- This run's own time left: "about 9 min left in this run". The controller works it out from what it has stored, with no Web API request (`time_left` in the run's summary):
+  - **What counts:** the rest of the track recording now, the current item's planned tracks still to play, and each waiting item's missing tracks (Up next, and interrupted items that will retry), plus about 35 s for each waiting item with something to record, as the [backlog estimate](design.md#backlog-estimate) counts. A track two items share counts once, and a track this run already recorded doesn't count again. Removed items don't count.
+  - **Unknown length:** followed and linked playlists play whole, so their length isn't known, unless they're Up to date: "about 9 min left in this run + 2 playlists of unknown length", or "2 playlists of unknown length left in this run".
+  - **Scheduled runs:** the run stops at its window's end, so the time left is at most what's left of the window: "stops by 07:00 · about 6 h left in this run". Then nothing of unknown length is said, since it wouldn't run. Once a stop is asked for, it's the rest of the track playing, even past the window's end.
+  - **While it changes:** it counts down while the run records. While it's paused, it stands still at what the run records once resumed (the paused item runs again), and changes only when you remove an item or add one with Back up now. After Stop after this track, it's just the rest of that track. While the run starts, it isn't shown.
+  - The whole backlog's time left is the Full backup card's, not the header's.
 - **Stop, a split button:**
   - **Stop after this track** (the main action): nothing is lost. The header says "Stopping after this track…" until it ends.
   - **Stop now** (from the arrow): first a confirm, "The current track will be discarded and recorded next time."
@@ -632,7 +637,7 @@ Inline alerts sit between the strip and the queue.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/status` | `state` (`idle`, `running`, `paused`, `stopping` or `finishing`), the current run, item and track, and the counters. Read on first load; after that the WS keeps it current. |
+| GET | `/api/status` | `state` (`idle`, `running`, `paused`, `stopping` or `finishing`), the current run, item and track, the counters, and the run's own time left. Read on first load; after that the WS keeps it current. |
 | GET | `/api/schedule/next` | `{at, playlists_to_check, albums_queued, held_reason}` |
 | GET | `/api/runs/last` | The last run's summary and its top issues. |
 | GET | `/api/backlog` | `{tracks_total, tracks_recorded, seconds_total, seconds_left, unknown_items, finish_at, as_of}`. `finish_at` is null with Manual only. Shared with wizard step 9 and the Schedule preview. |

@@ -3,7 +3,6 @@ import { CircleCheck, CircleX, Redo2 } from 'lucide-react';
 import type { RunSummary } from '@/api';
 import { Pill, type PillTone } from '@/components/ui-a';
 import { StopButton, formatCount, useDocumentTitle, useNow } from '@/shell';
-import { useBacklog } from '@/state';
 import { runMetaParts, runTitle } from './words.ts';
 import styles from './Dashboard.module.css';
 
@@ -19,15 +18,14 @@ const STATE_PILL: Record<RunSummary['state'], { label: string; tone: PillTone }>
 };
 
 /**
- * The run header (web-ui.md § Run header; t4YEY): "Backing up" or "Paused", the run's line, the
- * live counters, and Stop. Stop is the shell's split button: "Stop after this track" (then the
+ * The run header (web-ui.md § Run header; t4YEY): "Backing up" or "Paused", the run's line (with
+ * this run's own time left), the live counters, and Stop. Stop is the shell's split button: "Stop after this track" (then the
  * header's button says "Stopping after this track…" until the run ends), and "Stop now", which asks.
  */
 export function RunHeader({ run }: { run: RunSummary }) {
   // The browser tab stays "Dashboard"; the page's own title says what the run is doing.
   useDocumentTitle('Dashboard');
-  const backlog = useBacklog();
-  // "0:42 elapsed" counts minutes.
+  // "0:42 elapsed" counts minutes, and the run's time left counts down.
   const now = useNow(10_000);
   const pill = STATE_PILL[run.state];
   const { counters } = run;
@@ -41,7 +39,7 @@ export function RunHeader({ run }: { run: RunSummary }) {
         </div>
         {/* The text reads "started 01:00 · 0:42 elapsed · …" as before; the dots get room around them. */}
         <p className={styles.runMeta}>
-          {runMetaParts(run, now, backlog).map((part, i) => (
+          {runMetaParts(run, now).map((part, i) => (
             <Fragment key={i}>
               {i > 0 ? (
                 <>

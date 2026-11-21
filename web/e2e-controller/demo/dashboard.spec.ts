@@ -45,6 +45,10 @@ test('Run now: the running Dashboard follows the run live; Remove from this run;
   const current = queue.getByRole('group');
   await expect(current.getByText('Recording', { exact: true })).toBeVisible({ timeout: 90_000 });
   await expect(current.getByRole('list', { name: 'Tracks' }).locator('[data-state="recording"]')).toHaveCount(1);
+  // The header ends with this run's own time left, from the controller (RunSummary.time_left).
+  await expect(
+    page.getByText(/ · Run now · (about \d+ (min|h) left in this run( \+ \d+ playlists? of unknown length)?|\d+ playlists? of unknown length left in this run)$/),
+  ).toBeVisible();
 
   // Up next: take the last item out of this run.
   const upNext = page.getByRole('region', { name: 'Up next' });
