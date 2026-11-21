@@ -1,6 +1,31 @@
 /* The embedded client screen (UzVcR: 640 × 476; wNpTP: 520 × 694): a 1 px border, radius 8, a
    36-tall bar in bg-elevated with the title (13/500 text-sub, a 16 px icon) and the state (12
-   text-muted, a 6 px dot), then the screen. */
+   text-muted, a 6 px dot), then the screen. Expand, at the bar's end, and the expanded panel over
+   its backdrop are ours (web-ui.md § 3: not drawn). */
+
+/* The panel's place on the page. While the panel is out (Expand: `data-lifted`, set by
+   use-expand.ts), the slot keeps its height for this width (the 1 px borders, the 36 px bar and a
+   16:10 screen), and comes over the backdrop (z-index 40, as the Modal's scrim), so the panel in
+   it does: toasts (50) and menus (60) stay above. The empty slot itself lets clicks through to the
+   backdrop, which closes it: only the panel takes them. Step 4 makes the slot sticky; `:where`
+   leaves that alone. */
+.slot[data-lifted] {
+  z-index: 45;
+  pointer-events: none;
+}
+
+.slot:where([data-lifted]) {
+  position: relative;
+}
+
+.slot[data-lifted]::before {
+  content: '';
+  display: block;
+  box-sizing: content-box;
+  aspect-ratio: 16 / 10;
+  margin: 0 1px;
+  padding-top: 38px;
+}
 
 .panel {
   display: flex;
@@ -11,13 +36,46 @@
   background: var(--bg-elevated);
 }
 
+/* Expanded, or on its way: placed and sized by use-expand.ts (left, top, width, height). */
+.panel[data-lifted] {
+  position: fixed;
+  margin: 0;
+  box-shadow: var(--shadow-modal);
+  pointer-events: auto;
+}
+
+/* The dialog takes focus only so Tab starts inside it: no ring on the whole panel (as Modal). */
+.panel:focus {
+  outline: none;
+}
+
+/* While it moves, a click on the screen doesn't reach the client: it would land on a moving target.
+   (A double click on Expand is use-expand.ts's: its second press goes nowhere.) */
+.panel[data-moving] .view {
+  pointer-events: none;
+}
+
+/* Behind the expanded panel: the page dimmed and blurred 12 px. use-expand.ts fades it in and
+   out with `--look`, from 0 (clear) to 1. It catches clicks even while clear. Half black, not the
+   modals' 70 % scrim, under which the blur hardly showed (fixed.css). */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--scrim-expand);
+  opacity: var(--look, 1);
+  -webkit-backdrop-filter: blur(calc(12px * var(--look, 1)));
+  backdrop-filter: blur(calc(12px * var(--look, 1)));
+}
+
+/* The bar's end comes in to the 36 px Expand button. */
 .bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
   height: 36px;
-  padding: 0 14px;
+  padding: 0 var(--s-1) 0 14px;
   background: var(--bg-elevated);
 }
 
@@ -25,9 +83,23 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   color: var(--text-sub);
   font: var(--type-small);
   font-weight: 500;
+}
+
+.end {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The button fills the bar's height, so its focus ring goes inside it: outside, the panel's edge
+   and the screen would cut it. */
+.expand:focus-visible {
+  outline-offset: -2px;
 }
 
 .state {

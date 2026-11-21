@@ -69,7 +69,8 @@ Where web-ui.md gave no words or rule, S8 built the more cautious answer below. 
 | Setup gate | While the setup state is unknown, nothing redirects: the gate shows "Connecting". A step after the first unfinished one can't be opened. Done steps can. Steps 7 to 9 all open once steps 1 to 6 are done, since 7 and 8 can be passed without a write. After setup, `/setup/<step>` stays open, so step 9 isn't taken away when setup completes. |
 | Step 2 | A client that isn't installed and has no install going shows a short note with a button to start it, in place of starting an install by itself. The controller starts the install at start-up, so this shows only for a moment, or in the mock. The same goes for a client that went missing from `/config` after its install: the note says so, with Install. Right after an install ends well, the step shows Installed at once, before the client's own status catches up. |
 | Step 3 | Continue stays a button, enabled once you're logged in. The drawing's hint reads "Continues by itself once you're logged in", but nothing leaves the page by itself. |
-| Step 4 | Crossfade and Gapless are Confirm rows (§ 4, open question 3). Each Auto row shows an "Auto" label before its pill. |
+| Steps 3 and 4: Expand | Not drawn: the button (Lucide `maximize-2`, then `minimize-2` as Collapse), the dialog and its motion are ours (§ 3). The button has a tooltip, "Expand" or "Collapse", as the Player's Fullscreen does. Unlike the other modals, a click on the dimmed page closes it, since it holds no unsaved edits. The page behind is half black (`--scrim-expand`), not the 70 % `$scrim`, under which the blur hardly showed. The button's focus ring is drawn inside it, since it fills the bar's height. |
+| Step 4 | Crossfade and Gapless are Confirm rows (§ 4, open question 3). Each Auto row shows an "Auto" label before its pill. The client's screen takes two thirds of the width, not the drawn 520 px, which showed the client at 40 %. |
 | Step 5 | A stored Client ID shows masked, with a Change button, and Both checks must pass is the hint by Continue. Once connected, the paste field is hidden. In Reconnect, Done doesn't wait for the device check. |
 | Step 8 | "Back up all my saved albums" starts picked, as drawn. Its footer has Done only. |
 | Step 9 | "Schedule: None yet", with no "set it in Schedule" link, since there's no Schedule page in M1. The backup-length line isn't built (plan D8). |
@@ -185,10 +186,21 @@ The prototype found that the Linux client (1.3.4) logs in by QR code. Its login 
   - The controller polls for login, and the step turns green by itself. There is no "I'm logged in" button.
   - **Logged in** means the client's `Users/*-user/` folder exists **and** its window has a title other than plain "Spotify" ("Spotify Premium" when idle, "Artist - Title" while playing). The client publishes MPRIS even when logged out, so MPRIS alone isn't a signal ([open question 2](#open-questions)).
 - **Code expired, or the client showing something else:** a "Reset login screen" button restarts the client. The controller quits it over MPRIS, kills it after 15 s if it's still there, and s6 starts it again, which takes a few seconds.
-- **Larger view:** the same view is available full size on the Player page.
+- **Larger view:** Expand, below, shows the view up to full size over the page. The Player page shows it full size too.
+- **Expand** (steps 3 and 4): an icon button at the end of the view's bar.
+  - **What it does:** the view grows out of the page into a dialog in the middle of the window. It's as large as the window allows, 24 px clear all round, but never over 100 % (1280 × 800, and the bar). In a 1440 × 900 window that's 100 %.
+  - **Motion:** about 300 ms, easing out. The view moves and grows from where it sat, while the page behind fades to dimmed and blurred (12 px). Collapse plays it back. A click while it moves turns it round. If the window changes size on the way, it lands in the new place. With reduced motion, it opens and closes at once.
+  - **Closing:** the same button (Collapse), Escape, or a click anywhere on the dimmed page. Escape pressed in the client's screen goes to the client, as every key does there, unless the view is view-only during a run.
+  - **A double click** on the button opens or closes it once. Its second press goes nowhere: not to the client's screen, which may now be under the pointer, nor to the page.
+  - **The same connection:** the view isn't reconnected. View-only during a run, and the Connecting and Reconnecting states, show in the dialog as on the page.
+  - **A modal dialog:** focus moves into it and stays there, and goes back to Expand when it closes. If the focused part goes away (the screen when the line drops, or Retry), Escape still closes it and Tab brings focus back in, as in the other modals. The page behind doesn't scroll. Leaving the step closes it.
 
 ### 4. Spotify client settings
 Spytify records whatever the player outputs, so anything Spotify does to the sound ends up in the files. You change these once, in the client's Settings, using the noVNC view embedded on the left of this step. The checklist sits on the right.
+
+- **The client's screen:** two thirds of the step's width, so its Settings are big enough to click: about 790 px wide in a 1440 px window, 62 % of the client's 1280. It stays in view while the checklist scrolls. Under 900 px the checklist goes under it.
+- **Short windows:** in a window less than about 840 px tall, the screen's bottom starts below the window. Scroll once with the pointer over the checklist (over the screen, the wheel goes to the client), and the screen holds at the top, all in view.
+- **Expand:** as in step 3, for the client at up to 100 %.
 
 Rows are grouped as they are in the client's Settings. Each row shows the required value, a one-line reason, and a pill for how it is checked:
 - **Auto:** the controller reads it.

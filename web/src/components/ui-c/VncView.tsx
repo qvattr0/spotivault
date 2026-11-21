@@ -11,13 +11,21 @@
 //   security boundary"). The Player draws the dimming and the lock itself.
 // - **Scale:** `fit` scales the screen to the view; `actual` is 100 %, and the view scrolls.
 // - noVNC (about 200 kB) loads when the first view mounts, not with the app.
+// - **Rescale** (`ref`): `rescale()` fits the screen to the view's box at once, for a parent that
+//   just changed the box's size (the wizard's Expand). noVNC does it by itself a frame later.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import type RFB from '@novnc/novnc';
 import { cx } from '@/lib/cx.ts';
 import styles from './VncView.module.css';
 
 export type VncState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
+
+/** What a parent can ask of the view through its `ref`. */
+export interface VncViewHandle {
+  /** Fit the client's screen to the view's box now: the box has just changed size. */
+  rescale(): void;
+}
 
 export interface VncViewProps {
   /** Ignore the mouse and keyboard (a backup is recording). */
@@ -33,6 +41,7 @@ export interface VncViewProps {
   /** Its accessible name. Default "Spotify client screen". */
   label?: string;
   className?: string;
+  ref?: Ref<VncViewHandle>;
 }
 
 /** Tries before it gives up and shows Disconnected. */
@@ -53,6 +62,7 @@ export function VncView({
   overlay = true,
   label = 'Spotify client screen',
   className,
+  ref,
 }: VncViewProps) {
   const target = useRef<HTMLDivElement>(null);
   const rfb = useRef<RFB | null>(null);
@@ -127,6 +137,19 @@ export function VncView({
   useEffect(() => {
     if (rfb.current) rfb.current.viewOnly = viewOnly;
   }, [viewOnly, state]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      rescale() {
+        // Setting scaleViewport makes noVNC measure its box at once. Its own ResizeObserver waits a
+        // frame, and measures with getBoundingClientRect, so a transform going on then counts.
+        const client = rfb.current;
+        if (client) client.scaleViewport = settings.current.scale === 'fit';
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (rfb.current) rfb.current.scaleViewport = scale === 'fit';

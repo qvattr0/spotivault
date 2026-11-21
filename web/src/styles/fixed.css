@@ -1,7 +1,8 @@
 /* Fixed colours and shadows that the drawings type in directly instead of using a .pen variable.
    From components.md § Effects and fixed colours, and § Page layout. They aren't tokens, so they
    can't go in tokens.css (generated); this is the only other file allowed to hold colour values
-   (npm run check:colors enforces that). If one becomes a .pen variable, delete it here. */
+   (npm run check:colors enforces that). If one becomes a .pen variable, delete it here. A few are
+   ours, for parts the drawings leave out: each says so. */
 
 :root {
   /* Surfaces */
@@ -10,6 +11,8 @@
   --menu-item-hover: #ffffff1a; /* a hovered menu item: white at 10 % over the surface (iMmk3) */
   --choice-checked-fill: #1ed76015; /* a chosen large choice card: accent at 8 % (ZJSG0, sUXcW) */
   --player-surround: #0a0a0a; /* the Player's screen area, around the client's screen (ZQChN) */
+  --scrim-expand: #00000080; /* behind the wizard's expanded client screen: half black, lighter than
+                                the scrim, so the page's blur shows (ours, not drawn: web-ui.md § 3) */
 
   /* Cover art placeholders and glyphs */
   --cover-glyph: #ffffff99; /* the music glyph on a 44 px row cover */

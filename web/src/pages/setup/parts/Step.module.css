@@ -124,9 +124,12 @@
   align-items: start;
 }
 
+/* Step 4 (web-ui.md § 4): you change the client's settings through its screen, so it gets two
+   thirds, not the drawn 520 px of wNpTP (the client at 40 % was too small to click). About 790 px
+   wide in a 1440 window, 62 % of the client's 1280. The checklist keeps 340 px or more. */
 .splitWide {
   display: grid;
-  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(340px, 1fr);
   gap: var(--s-8);
   align-items: start;
 }

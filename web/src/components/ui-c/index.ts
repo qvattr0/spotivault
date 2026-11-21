@@ -21,4 +21,4 @@ export { useInsertAtCursor } from './use-insert-at-cursor.ts';
 export { StatusButton, type StatusButtonProps } from './StatusButton.tsx';
 export { DetailHeader, type DetailHeaderProps } from './DetailHeader.tsx';
 export { OutcomePill } from './OutcomePill.tsx';
-export { VncView, VNC_TRIES, vncUrl, type VncState, type VncViewProps } from './VncView.tsx';
+export { VncView, VNC_TRIES, vncUrl, type VncState, type VncViewHandle, type VncViewProps } from './VncView.tsx';

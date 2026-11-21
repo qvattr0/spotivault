@@ -40,6 +40,7 @@ export { Tooltip, type TooltipProps } from './Tooltip.tsx';
 export { TooltipBubble, type TooltipBubbleProps } from './TooltipBubble.tsx';
 
 // Modals and the wizard
+export { focusableIn } from './focusable.ts';
 export { Modal, type ModalProps } from './Modal.tsx';
 export { ModalBox, type ModalBoxProps } from './ModalBox.tsx';
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog.tsx';

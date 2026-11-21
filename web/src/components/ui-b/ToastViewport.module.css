@@ -23,8 +23,9 @@
 /* While a modal is open (Modal portals its scrim, z-index 40, to body), toasts raised from inside
    it (an add that failed or was skipped) show above the scrim, where they can be read: no box
    between them and the root makes a stacking context. Menus (z-index 60) stay above. With no
-   modal open, nothing changes. */
-body:has([aria-modal='true']) .viewport {
+   modal open, nothing changes. The wizard's Expand backdrop (also z-index 40) outlives its dialog
+   while it fades out on Collapse, so it counts too. */
+body:has([aria-modal='true'], [data-expand-backdrop]) .viewport {
   z-index: 50;
 }
 
