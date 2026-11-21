@@ -23,8 +23,10 @@ test('the run header: title, line, live counters and Stop; the strip docked unde
   const counters = page.getByLabel('Counters');
   await expect(counters).toContainText('Recorded 0');
   await expect(counters).toContainText('Failed 0');
-  // Liked Songs first skips a track it already has: Skipped counts it live.
-  await expect(counters).toContainText('Skipped 1', { timeout: 10_000 });
+  // Liked Songs first skips a track it already has. Skipped doesn't count that (only tracks the run
+  // skipped without recording them), so it stays at 0 once the skip shows in the track table.
+  await expect(queue(page).getByText('Skipped (duplicate)').first()).toBeVisible({ timeout: 10_000 });
+  await expect(counters).toContainText('Skipped 0');
   await expect(page.getByRole('button', { name: 'Stop after this track' })).toBeEnabled();
 
   // The strip sits at the top, docked; the global bottom bar is hidden on the Dashboard.

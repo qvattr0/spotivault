@@ -23,6 +23,9 @@ const STATE_PILL: Record<RunSummary['state'], { label: string; tone: PillTone }>
  * live counters, and Stop. Stop is the shell's split button: "Stop after this track" (then the
  * header's button says "Stopping after this track…" until the run ends), and "Stop now", which asks.
  */
+/** The Skipped counter's hint: what it counts. */
+export const SKIPPED_HINT = "Tracks this run skipped without recording them. Tracks already saved aren't counted.";
+
 export function RunHeader({ run }: { run: RunSummary }) {
   // The browser tab stays "Dashboard"; the page's own title says what the run is doing.
   useDocumentTitle('Dashboard');
@@ -58,9 +61,12 @@ export function RunHeader({ run }: { run: RunSummary }) {
             <CircleCheck size={14} aria-hidden className={styles.accent} />
             Recorded {formatCount(counters.recorded)}
           </span>
-          <span className={styles.counter}>
+          {/* Only tracks the run skipped without recording them (an episode jumped over, a take
+              Spytify refused). Tracks already saved are skipped too, in under a second, but that's
+              the normal look of a run, not news: they aren't counted here. */}
+          <span className={styles.counter} title={SKIPPED_HINT}>
             <Redo2 size={14} aria-hidden />
-            Skipped {formatCount(counters.skipped_duplicate + counters.skipped_other)}
+            Skipped {formatCount(counters.skipped_other)}
           </span>
           <span className={styles.counter}>
             <CircleX size={14} aria-hidden className={styles.danger} />
