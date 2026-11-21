@@ -1985,9 +1985,9 @@ export interface operations {
                 /**
                  * @example {
                  *       "rows": {
+                 *         "autoplay": false,
                  *         "crossfade": true,
-                 *         "gapless": true,
-                 *         "autoplay": false
+                 *         "gapless": true
                  *       }
                  *     }
                  */

@@ -89,6 +89,19 @@ async def test_checklist_and_confirm(http: httpx.AsyncClient, stub: StubClient) 
     assert response.status_code == 200
     assert_response(response, "/api/client/checklist")
     assert response.json()["ready"] is False
+    # The rows come in the client's Settings order: Playback starts with Autoplay.
+    assert [row["id"] for row in response.json()["rows"]] == [
+        "autoplay",
+        "crossfade",
+        "gapless",
+        "automix",
+        "normalization",
+        "mono",
+        "equalizer",
+        "streaming_quality",
+        "auto_adjust_quality",
+        "volume",
+    ]
 
     stub.prefs_values = dict(GOOD_PREFS)
     response = await http.post(

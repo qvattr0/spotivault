@@ -57,6 +57,8 @@ The `.pen` file draws most components in their default state only. The UI fills 
 | Level meter | 24 segments, 2 dB each from −48 dBFS, read from `peak_dbfs`. Yellow from −18 dBFS, which gives the drawing's 15 green and 2 yellow. It falls silent 0.6 s after the last reading. |
 | A list row's Back up now | Over the cover, on hover or keyboard focus (components.md § Differences, row 6). |
 | A failed wizard step | Drawn in the stepper as the active step, as Setup 2 · Failed shows it. |
+| A done step on screen | Drawn Done, like the steps before it, with the bar to the next step green. Nothing else marks it as the step you're on; screen readers hear it as the current step. |
+| Stepper motion | A step that turns done without being active (a live check ahead of the step on screen) fills green from its empty ring. A step's label turns white when its dot starts to move. The stepper shows a change 80 ms after it stops changing, so Continue's two updates (the setup state and the page) play as one. A change that comes while a flow is still playing joins it: the parts already playing carry on untouched, and a new part starts in its turn, or at once if its turn has passed. A move back ends the flow at once. |
 | Narrow windows | Under 800 px the sidebar keeps its icons and hides its status card. The bottom bar drops "Item n of m" under 1000 px and the track names under 700 px. |
 | Small grey text on cards and modals | `text-muted` on `bg-elevated` is 4.2:1, and on the modal surface 3.7:1, both under WCAG AA's 4.5:1. Where the drawings put it there, the UI uses `text-sub`: the status card's connection line, the docked strip's track times, the noVNC panel's connection state (steps 3 and 4), step 4's "Auto" labels, the run page's track numbers and file paths, the + modals' list headings, and Edit layout's rule hint and "Insert:" label. The grey dot and the bottom bar's times (on `bg-app`) stay as drawn. |
 
@@ -154,6 +156,14 @@ A linear stepper, styled like the client's onboarding: dark background, a centre
 
 - **Progress:** each step's state is stored in `/config`. Reloading the page, or restarting the container, resumes at the first unfinished step.
 - **Navigation:** completed steps can be reopened from the stepper.
+- **The step on screen** is drawn as the active step until it's done. Then it shows its tick like the steps before it, and the bar to the next step turns green. A done step you reopen keeps its tick.
+- **Stepper motion:** the stepper animates progress as you make it.
+  - **A step reached:** its green centre grows out from the middle of the white dot.
+  - **A step done:** its green centre grows to fill the whole dot, then the tick pops in, then the bar to the next step fills from left to right. A live check plays it the moment it ticks the step.
+  - **Continue:** when Continue itself finishes the step (Welcome, Playlists, Albums), the step fills and ticks, the bar fills, and the next step's centre grows as the bar arrives: one flow of about 1 s. When a live check or Connect finished the step earlier, that part played then, and Continue plays only the next step's centre.
+  - **A change while a flow plays** joins it: what's playing carries on, and the new parts follow in order. So a slow answer to Continue still plays as one flow.
+  - **Nothing plays** on a page load or reload, on a move back to an earlier step, or when the system asks for reduced motion. A move back while a flow plays ends it at once.
+  - The timings and rules are in [components.md § Stepper](../web/src/design/components.md#stepper-stepperdone-ksmqr-active-v0fexw-todo-ugoku).
 - **Re-running:** Settings → About → "Run setup again" reopens the wizard. The Terms notice does not show again.
 
 ### 1. Welcome and Terms notice
@@ -197,13 +207,13 @@ Rows are grouped as they are in the client's Settings. Each row shows the requir
 
 | Section | Setting | Required | Why | Check |
 |---|---|---|---|---|
+| Playback | Autoplay | Off | Stops similar songs from playing after the playlist. It may be hidden for some accounts. **Not a blocker:** the controller also stops when the playing context changes. | Confirm |
 | Playback | Crossfade | Off | Overlapping tracks can't be split. | Confirm |
 | Playback | Gapless playback | Off | A short gap gives clean cuts. Spytify trims the silence. | Confirm |
 | Playback | Automix | Off | Blends and alters transitions. | Auto (prefs `audio.automix`) |
-| Playback | Autoplay | Off | Stops similar songs from playing after the playlist. It may be hidden for some accounts. **Not a blocker:** the controller also stops when the playing context changes. | Confirm |
 | Playback | Volume normalization | Off | Alters levels, and "Loud" compresses. Use ReplayGain at playback instead. | Auto (prefs `audio.normalize_v2`) |
-| Playback | Equalizer | Off | Colours the recording. | Auto (prefs `audio.equalizer_v2`) |
 | Playback | Mono audio | Off | Would record mono. | Auto (prefs `audio.downmixer_v2`) |
+| Playback | Equalizer | Off | Colours the recording. | Auto (prefs `audio.equalizer_v2`) |
 | Audio quality | Streaming quality | Very high (the highest offered) | It is the quality that gets recorded. | Auto (prefs `audio.play_bitrate_enumeration` = 4) |
 | Audio quality | Auto adjust quality | Off | Spotify buffers instead of silently lowering quality. | Auto (prefs `audio.allow_downgrade`) |
 | Player | Volume | 100% | Spytify marks takes below full volume as "(low volume)" and doesn't count them. | Set for you: `player.control full_volume` before every run |

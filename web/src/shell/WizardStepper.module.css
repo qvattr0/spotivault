@@ -26,6 +26,47 @@
   background: var(--accent);
 }
 
+/* A bar that turned green fills from left to right toward its step (components.md § Stepper,
+   Motion): a green strip grows over the grey bar, then the bar is drawn green as it now is. */
+.barDone[data-anim='fill'] {
+  animation: bar-hold-grey var(--stepper-bar) linear var(--anim-delay) backwards;
+}
+
+.barDone[data-anim='fill']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left;
+  opacity: 0;
+  animation: bar-fill var(--stepper-bar) ease-in-out var(--anim-delay) backwards;
+}
+
+@keyframes bar-hold-grey {
+  from,
+  to {
+    background-color: var(--border-strong);
+  }
+}
+
+@keyframes bar-fill {
+  from {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barDone[data-anim='fill'],
+  .barDone[data-anim='fill']::after {
+    animation: none;
+  }
+}
+
 .link {
   display: block;
   border-radius: var(--r-sm);
