@@ -582,7 +582,7 @@ The item queue is the main element. A compact now-playing strip sits above it.
 
 **Run header**
 - "Backing up · started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00". The last part only appears for scheduled runs.
-- Live counters: Recorded n · Skipped n · Failed n.
+- Live counters: Recorded n · Skipped n · Failed n. **Skipped** counts only tracks the run skipped without recording them (an episode jumped over, a take Spytify refused). Tracks already saved are skipped on every run, so they aren't counted; a hint on the counter says so. History still lists them as Skipped (duplicate).
 - Time left for the whole backlog, from the Full backup card: "about 26 h left".
 - **Stop, a split button:**
   - **Stop after this track** (the main action): nothing is lost. The header says "Stopping after this track…" until it ends.
