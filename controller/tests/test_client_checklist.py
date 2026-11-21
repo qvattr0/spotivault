@@ -23,13 +23,13 @@ TICKED = {"crossfade": True, "gapless": True, "autoplay": True}
 
 def test_the_rows_follow_web_ui_md() -> None:
     assert [(r.id, r.section, r.check, r.blocker) for r in ROWS] == [
+        ("autoplay", "playback", "confirm", False),
         ("crossfade", "playback", "confirm", True),
         ("gapless", "playback", "confirm", True),
         ("automix", "playback", "auto", True),
-        ("autoplay", "playback", "confirm", False),
         ("normalization", "playback", "auto", True),
-        ("equalizer", "playback", "auto", True),
         ("mono", "playback", "auto", True),
+        ("equalizer", "playback", "auto", True),
         ("streaming_quality", "audio_quality", "auto", True),
         ("auto_adjust_quality", "audio_quality", "auto", True),
         ("volume", "player", "set_for_you", False),

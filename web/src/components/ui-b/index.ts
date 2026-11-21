@@ -44,4 +44,4 @@ export { focusableIn } from './focusable.ts';
 export { Modal, type ModalProps } from './Modal.tsx';
 export { ModalBox, type ModalBoxProps } from './ModalBox.tsx';
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog.tsx';
-export { StepperStep, type StepperStepProps, type StepperStepState } from './StepperStep.tsx';
+export { StepperStep, type StepperStepAnim, type StepperStepProps, type StepperStepState } from './StepperStep.tsx';

@@ -159,6 +159,20 @@ test.describe('step 4: Spotify client settings', () => {
     for (const section of ['Playback', 'Audio quality', 'Player']) {
       await expect(page.getByRole('heading', { level: 2, name: section })).toBeVisible();
     }
+    // The rows follow the client's Settings order: Playback starts with Autoplay.
+    const order = await page.locator('li[data-row]').evaluateAll((items) => items.map((item) => item.getAttribute('data-row')));
+    expect(order).toEqual([
+      'autoplay',
+      'crossfade',
+      'gapless',
+      'automix',
+      'normalization',
+      'mono',
+      'equalizer',
+      'streaming_quality',
+      'auto_adjust_quality',
+      'volume',
+    ]);
     await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
     await expect(page.getByText('Volume normalization needs to be off')).toBeVisible();
 

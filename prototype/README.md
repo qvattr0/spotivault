@@ -36,13 +36,13 @@ Spytify records whatever Spotify sends to the speakers, so anything Spotify chan
 
 | Setting | Where | Set to | Why |
 | --- | --- | --- | --- |
+| Autoplay | Playback | Off | Stops Spotify playing similar music after a playlist ends. If it's missing, the probe still stops when the playlist changes. |
 | Crossfade songs | Playback | Off | Tracks that overlap can't be split apart again. |
 | Gapless | Playback | Off | A short gap between tracks gives Spytify a clean cut. It trims the silence, and albums that flow from one track into the next are still cut at each track's length. |
 | Automix | Playback | Off | Blends tracks into each other, like crossfade. |
-| Autoplay | Playback, further down | Off | Stops Spotify playing similar music after a playlist ends. If it's missing, the probe still stops when the playlist changes. |
 | Volume normalization | Playback | Off | Changes each track's level, and the **Loud** setting also compresses it. Even out loudness at playback instead, with ReplayGain. |
-| Equalizer | Playback | Off | It would be baked into the files. |
 | Mono audio | Playback | Off | The files would be mono. |
+| Equalizer | Playback | Off | It would be baked into the files. |
 | Streaming quality | Audio quality | Highest offered | Note whether **Lossless** is listed. |
 | Auto adjust quality | Audio quality | Off | Spotify pauses to buffer instead of quietly lowering the quality. Spytify leaves out the silence of a pause. |
 | Volume | Player bar | 100% | Spytify marks a track recorded below full volume as "(low volume)" and doesn't count it as recorded. |
