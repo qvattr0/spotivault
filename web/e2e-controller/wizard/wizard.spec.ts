@@ -159,10 +159,18 @@ test('Run setup again reopens step 2, and the wizard walks on to the Library', a
   await expect(page).toHaveURL(endsWith('/setup/playlists'));
   await expect(page.getByText(/^You have \d+ playlists?$/)).toBeVisible({ timeout: 30_000 });
   await proceed.click();
+  // Step 8, the other answer this time: "I'll choose in Albums" queues nothing, but answers the
+  // step, so step 9's stepper ticks Albums and the controller has step 9 next.
   await expect(page).toHaveURL(endsWith('/setup/albums'));
   await expect(page.getByText(/^You have \d+ saved albums?$/)).toBeVisible({ timeout: 30_000 });
+  await page.getByText("I'll choose in Albums").click();
   await proceed.click();
   await expect(page).toHaveURL(endsWith('/setup/done'));
+  const steps = page.getByRole('list', { name: 'Setup steps' });
+  await expect(steps.getByRole('link', { name: /^Albums\b.*done$/ })).toBeVisible();
+  const setup = await getJson<Setup>(request, '/api/setup');
+  expect(setup.first_unfinished).toBe('done');
+  expect(setup.steps.find((s) => s.id === 'albums')?.state).toBe('done');
   await page.getByRole('button', { name: 'Open Library' }).click();
   await expect(page).toHaveURL(endsWith('/library'));
   expect((await getJson<Setup>(request, '/api/setup')).completed).toBe(true);

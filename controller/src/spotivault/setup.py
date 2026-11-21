@@ -12,7 +12,7 @@ first unfinished step. A step is `done` in one of two ways:
 | 5 `webapi` | S5 calls `mark_done("webapi")` once the token works and our device is listed. |
 | 6 `output` | Check: GET /api/storage's `ok`. `failed`, with the reason, while it isn't. |
 | 7 `playlists` | The step 7 choice is saved: a PUT /api/settings with `auto_track_owned`. |
-| 8 `albums` | S5 calls `mark_done("albums")` after POST /api/albums. |
+| 8 `albums` | The step 8 choice: POST /api/setup/albums/later, or POST /api/albums (S5). |
 | 9 `done` | `complete()`, which also sets `completed`. |
 
 **Done is sticky:** a live check only ever turns a step done, and only "Run setup again"
@@ -221,8 +221,9 @@ class SetupService:
 
     async def mark_done(self, step: StepId) -> Setup:
         """Marks a step done that no live check covers: `webapi` (S5, once the token works and our
-        device is listed), `playlists` (the step 7 choice) and `albums` (S5, after the step 8
-        choice). A no-op once setup is complete."""
+        device is listed), `playlists` (the step 7 choice) and `albums` (the step 8 choice: S5
+        after POST /api/albums, or POST /api/setup/albums/later). A no-op once setup is
+        complete."""
         if step not in MARKED_STEPS:
             raise ValueError(f"step {step!r} isn't marked by hand; see setup.py")
         async with self._lock:

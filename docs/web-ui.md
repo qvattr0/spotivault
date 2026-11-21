@@ -66,12 +66,12 @@ Where web-ui.md gave no words or rule, S8 built the more cautious answer below. 
 
 | Page | Built as |
 |---|---|
-| Setup gate | While the setup state is unknown, nothing redirects: the gate shows "Connecting". A step after the first unfinished one can't be opened. Done steps can. Steps 7 to 9 all open once steps 1 to 6 are done, since 7 and 8 can be passed without a write. After setup, `/setup/<step>` stays open, so step 9 isn't taken away when setup completes. |
+| Setup gate | While the setup state is unknown, nothing redirects: the gate shows "Connecting". A step after the first unfinished one can't be opened. Done steps can. Steps 7 to 9 all open once steps 1 to 6 are done, since 7 and 8 are choices with defaults, which `POST /api/setup/complete` accepts unanswered. After setup, `/setup/<step>` stays open, so step 9 isn't taken away when setup completes. |
 | Step 2 | A client that isn't installed and has no install going shows a short note with a button to start it, in place of starting an install by itself. The controller starts the install at start-up, so this shows only for a moment, or in the mock. The same goes for a client that went missing from `/config` after its install: the note says so, with Install. Right after an install ends well, the step shows Installed at once, before the client's own status catches up. |
 | Step 3 | Continue stays a button, enabled once you're logged in. The drawing's hint reads "Continues by itself once you're logged in", but nothing leaves the page by itself. |
 | Step 4 | Crossfade and Gapless are Confirm rows (§ 4, open question 3). Each Auto row shows an "Auto" label before its pill. |
 | Step 5 | A stored Client ID shows masked, with a Change button, and Both checks must pass is the hint by Continue. Once connected, the paste field is hidden. In Reconnect, Done doesn't wait for the device check. |
-| Step 8 | "Back up all my saved albums" starts picked, as drawn. Its footer has Done only. |
+| Step 8 | "Back up all my saved albums" starts picked, as drawn. Its footer has Done only. Reopened once it's done, it shows the answer given, as step 7 does. Nothing stores that answer: saved albums still off the Albums page (`GET /api/albums/saved`) mean "I'll choose in Albums", since "all" adds every one. Until that list loads, or if it can't, the step shows "I'll choose", which adds nothing. |
 | Step 9 | "Schedule: None yet", with no "set it in Schedule" link, since there's no Schedule page in M1. The backup-length line isn't built (plan D8). |
 | Library | An item's "Show files path" gives `Music/Playlists/<name>.m3u` from its name. No endpoint gives the real path, so a name with odd characters can differ from the file. The row menu adds "Remove from Library" for added items and has no "Change cover…". |
 | Add playlists | Cancel and Done in the footer, as drawn. The made-by-Spotify refusal is a standing note over the list, not an inline error. |
@@ -285,6 +285,8 @@ Followed and other people's playlists are never tracked automatically. They are 
   - It shows how many there are now ("You have 42 saved albums").
 - **"I'll choose in Albums":** nothing is queued yet. You add albums afterwards with the **+** button on the Albums page.
 
+**Either answer marks the step done:** "Back up all my saved albums" through `POST /api/albums`, and "I'll choose in Albums" through `POST /api/setup/albums/later`, which queues nothing. So the stepper ticks Albums, and a reload resumes at step 9. If the call fails, a toast says why and the step stays.
+
 A note under the cards: albums you downloaded in a Spotify app count as saved albums. Albums you save later aren't added on their own; add them from the Albums page.
 
 This is a one-off action, not a setting. Choosing "all" again after "Run setup again" adds the saved albums that aren't on the page yet.
@@ -299,7 +301,7 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 - **Backup length:** how long the first full backup takes, since recording is real time: "About 298 h of music to record". While the track lists load, it shows "Measuring…". Followed playlists add "+ 2 followed playlists (unknown length)". The figure comes from the [backlog estimate](design.md#backlog-estimate).
 - **Primary:** "Open Library".
 - **Secondary:** "Back up now". It starts a first run of everything tracked and opens the Dashboard.
-- **Both buttons finish setup** (`POST /api/setup/complete`), which needs steps 1 to 6 done. Steps 7 and 8 keep their defaults if you skipped them, so "I'll choose in Albums" needs nothing else.
+- **Both buttons finish setup** (`POST /api/setup/complete`), which needs steps 1 to 6 done. Steps 7 and 8 keep their defaults if you skipped them.
 
 ### Setup endpoints
 
@@ -307,6 +309,7 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 |---|---|---|---|
 | GET | `/api/setup` | all steps | Each step's state (`todo`, `active`, `done`, `failed`), plus the first unfinished step. |
 | POST | `/api/setup/tos` | 1 | Stores the acknowledgement and its timestamp. |
+| POST | `/api/setup/albums/later` | 8 | "I'll choose in Albums": marks step 8 done, and queues nothing. "Back up all my saved albums" is `POST /api/albums` with `{all: true}`. |
 | POST | `/api/setup/complete` | 9 | Finishes setup: steps 7 to 9 done, and `completed` true. Refused with `409 setup_incomplete`, listing the steps, while a step from 1 to 6 isn't done. |
 | GET | `/api/client/status` | 2, 3 | Client installed, its version, install progress and whether it's logged in. |
 | POST | `/api/client/install` | 2 | Retries the install. |

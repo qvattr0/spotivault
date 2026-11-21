@@ -92,7 +92,7 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | | `add_listener(fn)` | `fn(keys)` is awaited after a PUT saves those keys (S5: `auto_track_owned`). |
 | `services.storage` | `await check()` → `Storage` | The pre-run check (S6): refuse unless `.ok`; `storage.storage_problem(storage)` gives the message. |
 | `services.setup` | `await is_complete()` | S6: refuse a run with `setup_incomplete`. |
-| | `await mark_done("webapi" \| "albums")`, `await mark_failed("webapi", message)` | S5: step 5 once the token works and our device is listed; step 8 after `POST /api/albums`. |
+| | `await mark_done("webapi" \| "albums")`, `await mark_failed("webapi", message)` | S5: step 5 once the token works and our device is listed; step 8 after `POST /api/albums`. The setup router: step 8 on `POST /api/setup/albums/later` ("I'll choose in Albums"). |
 | | `await refresh()` | After a fact behind a step changes. `complete()` finishes the wizard (`POST /api/setup/complete`). |
 | | `await restart()` | "Run setup again": steps 2 to 9 back to `todo` (the answer), then the live checks at once, so steps 2, 3, 4 and 6 turn done again in their own `setup.state`. It refuses while `runs` has a row with `kind = 'run'` and `state <> 'ended'`, so S6 must keep that row current. |
 | `services.client` | `await status()`, `await refresh()` | The client's `ClientStatus`, as last polled or read now. |

@@ -124,9 +124,15 @@ test.describe('step 8: Albums', () => {
     expect((await added).request().postDataJSON()).toEqual({ all: true });
     await expect(page).toHaveURL(/\/setup\/done$/);
     await expect(page.getByText(new RegExp(` · ${saved} albums$`))).toBeVisible();
+
+    // Coming back from the stepper shows what was chosen.
+    await page.getByRole('list', { name: 'Setup steps' }).getByRole('link', { name: /^Albums\b.*done$/ }).click();
+    await expect(page).toHaveURL(/\/setup\/albums$/);
+    await expect(page.getByText(/^You have \d+ saved albums?$/)).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Back up all my saved albums' })).toBeChecked();
   });
 
-  test('"I\'ll choose in Albums" adds nothing, and step 9 accepts it', async ({ page, request }) => {
+  test('"I\'ll choose in Albums" adds nothing, but answers the step: step 9 shows Albums done', async ({ page, request }) => {
     await useScenario(request, 'setup', { step: 'albums' });
     await openPage(page, '/setup/albums');
     let posted = false;
@@ -135,6 +141,25 @@ test.describe('step 8: Albums', () => {
     });
     await page.getByText("I'll choose in Albums").click();
     await expect(page.getByText('Add albums anytime with the + button on the Albums page.')).toBeVisible();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page).toHaveURL(/\/setup\/done$/);
+    await expect(page.getByText(/ · 0 albums$/)).toBeVisible();
+    expect(posted).toBe(false);
+
+    // The stepper ticks Albums, and GET /api/setup agrees: step 9 is next, so a new visit resumes there.
+    const steps = page.getByRole('list', { name: 'Setup steps' });
+    await expect(steps.getByRole('link', { name: /^Albums\b.*done$/ })).toBeVisible();
+    const setup = await getJson<Setup>(request, '/api/setup');
+    expect(setup.first_unfinished).toBe('done');
+    expect(setup.steps.find((s) => s.id === 'albums')?.state).toBe('done');
+    await openPage(page, '/');
+    await expect(page).toHaveURL(/\/setup\/done$/);
+
+    // Coming back from the stepper shows what was chosen, so Continue keeps it: still nothing added.
+    await steps.getByRole('link', { name: /^Albums\b.*done$/ }).click();
+    await expect(page).toHaveURL(/\/setup\/albums$/);
+    await expect(page.getByText(/^You have \d+ saved albums?$/)).toBeVisible();
+    await expect(page.getByRole('radio', { name: "I'll choose in Albums" })).toBeChecked();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page).toHaveURL(/\/setup\/done$/);
     await expect(page.getByText(/ · 0 albums$/)).toBeVisible();
