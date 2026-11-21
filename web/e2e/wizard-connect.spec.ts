@@ -207,7 +207,7 @@ test.describe('/reconnect: step 5 on its own', () => {
     await openPage(page, '/library');
     await page.getByRole('link', { name: 'Reconnect' }).first().click();
     await expect(page).toHaveURL(/\/reconnect$/);
-    await page.getByRole('button', { name: 'Back' }).click();
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(page).toHaveURL(/\/library$/);
   });
 });
