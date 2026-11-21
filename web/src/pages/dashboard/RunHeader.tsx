@@ -1,9 +1,10 @@
+import { Fragment } from 'react';
 import { CircleCheck, CircleX, Redo2 } from 'lucide-react';
 import type { RunSummary } from '@/api';
 import { Pill, type PillTone } from '@/components/ui-a';
 import { StopButton, formatCount, useDocumentTitle, useNow } from '@/shell';
 import { useBacklog } from '@/state';
-import { runMetaLine, runTitle } from './words.ts';
+import { runMetaParts, runTitle } from './words.ts';
 import styles from './Dashboard.module.css';
 
 /** The pill next to the title, by the run's state. */
@@ -38,7 +39,20 @@ export function RunHeader({ run }: { run: RunSummary }) {
           <h1 className={styles.runTitle}>{runTitle(run)}</h1>
           <Pill tone={pill.tone}>{pill.label}</Pill>
         </div>
-        <p className={styles.runMeta}>{runMetaLine(run, now, backlog)}</p>
+        {/* The text reads "started 01:00 · 0:42 elapsed · …" as before; the dots get room around them. */}
+        <p className={styles.runMeta}>
+          {runMetaParts(run, now, backlog).map((part, i) => (
+            <Fragment key={i}>
+              {i > 0 ? (
+                <>
+                  {' '}
+                  <span className={styles.metaDot}>·</span>{' '}
+                </>
+              ) : null}
+              {part}
+            </Fragment>
+          ))}
+        </p>
         <div className={styles.counters} role="group" aria-label="Counters">
           <span className={styles.counter}>
             <CircleCheck size={14} aria-hidden className={styles.accent} />

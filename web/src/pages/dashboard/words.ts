@@ -98,10 +98,15 @@ export function elapsedText(iso: string, now: number): string {
  * by 07:00", the last part for scheduled runs only, then the backlog's "about 26 h left".
  */
 export function runMetaLine(run: RunSummary, now: number, backlog: Backlog | null): string {
+  return runMetaParts(run, now, backlog).join(' · ');
+}
+
+/** The run line's parts, which the header draws with wider gaps around the dots. */
+export function runMetaParts(run: RunSummary, now: number, backlog: Backlog | null): string[] {
   const parts = [`started ${formatTime(run.started_at)}`, `${elapsedText(run.started_at, now)} elapsed`, TRIGGER[run.trigger]];
   if (run.window_end) parts.push(`stops by ${formatTime(run.window_end)}`);
   if (backlog && backlog.seconds_left > 0) parts.push(`about ${formatHours(backlog.seconds_left)} left`);
-  return parts.join(' · ');
+  return parts;
 }
 
 /** The header's title: "Backing up", or "Paused" (hJlHj). */

@@ -243,6 +243,11 @@
   font: var(--type-body);
 }
 
+/* The dots between the run line's parts: more room than a plain " · ". */
+.metaDot {
+  margin: 0 var(--s-1);
+}
+
 .counters {
   display: flex;
   flex-wrap: wrap;
