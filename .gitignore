@@ -24,3 +24,6 @@ Thumbs.db
 # Python
 __pycache__/
 *.py[cod]
+
+# graphify knowledge graph (built locally, not committed)
+graphify-out/

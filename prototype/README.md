@@ -1,5 +1,7 @@
 # Feasibility prototype
 
+> **Superseded:** the production image ([Dockerfile](../Dockerfile), [image/](../image/)) and the [controller](../controller/) replace this prototype. It's kept for its [findings](FINDINGS.md).
+
 A throwaway image for testing the risky parts of the spotivault design before building the real thing:
 
 - the Spotify Linux client running headless, with login through noVNC
@@ -7,9 +9,7 @@ A throwaway image for testing the risky parts of the spotivault design before bu
 - Spytify recording it
 - detecting when a playlist ends
 
-This is not the production image. It bakes in the Spotify client and uses supervisord to keep iteration fast. Results go in [FINDINGS.md](FINDINGS.md).
-
-The production image supersedes it: the [Dockerfile](../Dockerfile) and [image/](../image/) at the repository root ([design.md § Container](../docs/design.md#container)).
+This is not the production image. It bakes in the Spotify client and uses supervisord to keep iteration fast. Results go in [FINDINGS.md](FINDINGS.md). The production image is described in [design.md § Container](../docs/design.md#container).
 
 ## Run it (Docker Desktop through WSL)
 
@@ -21,7 +21,7 @@ cd prototype && docker compose up -d --build
 
 Open the virtual screen in your Windows browser at <http://localhost:6080/vnc.html> and press **Connect**.
 
-The Spotify client shows up in your Spotify apps as a playback device named after `DEVICE_NAME`, set in `docker-compose.yml` (`LorneNAS`; the image default is `spotivault`).
+The Spotify client shows up in your Spotify apps as a playback device named after `DEVICE_NAME`, set in `docker-compose.yml` (the image default is `spotivault`).
 
 ## One-time steps
 

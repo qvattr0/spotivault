@@ -75,7 +75,7 @@ The first event on every connection. It holds everything the shell needs to draw
 | Type | `data` | When |
 |---|---|---|
 | `run.state` | `RunSummary`, plus `previous_state` | The run's state changes, a stop is asked for, the run pauses or resumes, the window's end moves, or its counters or its time left change. While an item records, those two are batched: at most one `run.state` per second for counters and time left alone. A new time left while no item records (paused, or between items) goes out at once. The time left goes out when it moved by 5 s or more from what the last one shows (its count-down; paused, the figure itself), or its `unknown_items` changed (`RunTimeLeft`), so not every second. |
-| `run.queue` | `{run_id, queue: [QueueItem]}` | The queue's order or membership changes: items added by Back up now, removed, re-queued after an interruption, or carried over. Always the whole queue. |
+| `run.queue` | `{run_id, queue: [QueueItem]}` | The queue's order or membership changes: the queue is built after the pre-run check, items are added by Back up now, removed, or re-queued after a stall, or the run order setting changes. Always the whole queue. Items that end with the run (Stopped, Carried over) come as `item.state` instead. |
 | `item.state` | `{run_id, item: QueueItem, previous_state}` | An item moves to another state, including the phases of the current item (`planning` … `finishing`). |
 | `run.finished` | `{run: HistoryRow}` | A run ends, or a missed, skipped or held row is written. History refreshes its list. |
 
@@ -105,7 +105,7 @@ The first event on every connection. It holds everything the shell needs to draw
 
 | Type | `data` | When |
 |---|---|---|
-| `backlog` | `Backlog` | After each item, and after each catalog refresh that changes it. |
+| `backlog` | `Backlog` | The estimate is worked out again after each run item, each catalog refresh and each album added. It's sent when a figure changed; `as_of` alone doesn't count. |
 
 ### Spytify, relayed
 
@@ -113,9 +113,9 @@ The controller relays the recorder's events for the current item. It adds `run_i
 
 | Type | `data` | Notes |
 |---|---|---|
-| `track.started` | `{run_id, item_id, take_id, artist, title, album, length_ms, cover_url, track_id, position, planned}` | `artist` is the first artist, as MPRIS gives it. `track_id` and `position` come from matching the take to the item's track list (plan D10: `mpris:trackid` first, then `GET /me/player`); null when it didn't match. `planned` is false for a track the controller is about to jump over. |
-| `track.finished` | `{run_id, item_id, take_id, track_id, path, duration_ms, bytes, counted, low_volume, pause_fade, partial}` | Spytify's `track.finished` has no title, so it's matched to `track.started` by `take_id`. `path` is relative to the music folder. `counted` is false for a take that doesn't count as recorded (`low_volume`, `pause_fade` or `partial`); the track stays missing. |
-| `track.skipped` | `{run_id, item_id, take_id, reason, path, track_id}` | `reason` is Spytify's: `duplicate`, `too_short`, `ad`, `incomplete`, `seeked`, `low_quality` or `silent`. `path` is set for `duplicate`, relative to the music folder. |
+| `track.started` | `{run_id, item_id, take_id, artist, title, album, length_ms, cover_url, track_id, position, planned}` | `artist` is the first artist, as MPRIS gives it. `track_id` and `position` come from matching the take to the item's track list (plan D10: `mpris:trackid` first, then `GET /me/player`, then the title); null when it didn't match, and for a take that doesn't count, such as the phantom take at the idle exit or a repeat. `position` counts from 1. `planned` is false for a track the controller is about to jump over. |
+| `track.finished` | `{run_id, item_id, take_id, track_id, path, duration_ms, bytes, counted, low_volume, pause_fade, partial}` | Spytify's `track.finished` has no title, so it's matched to `track.started` by `take_id`. `path` is relative to the music folder. `counted` is false for a take that doesn't count as recorded (`low_volume`, `pause_fade` or `partial`); the track stays missing. `track_id` is null as in `track.started`. |
+| `track.skipped` | `{run_id, item_id, take_id, reason, path, track_id}` | `reason` is Spytify's: `duplicate`, `too_short`, `ad`, `incomplete`, `seeked`, `low_quality` or `silent`. `path` is set for `duplicate`, relative to the music folder. `track_id` is null as in `track.started`. |
 | `level` | `{peak_dbfs, rms_dbfs, channels}` | The level meter. `channels` is `[{peak_dbfs, rms_dbfs}]`, left then right. Throttled; see below. No `run_id`. |
 | `session.state` | `{run_id, item_id, state}` | `state` is a `SessionState`: `idle`, `waiting`, `recording`, `ad`, `paused` or `stopping`. The pill shows Waiting, Recording, Paused or Stopping. |
 
@@ -154,7 +154,7 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 
 | Type | `data` | When |
 |---|---|---|
-| `device.moved` | `{run_id, item_id, device: {id, name, type}, discarded_take_id}` | Playback moved to another device mid-run. The current take is discarded, the item becomes `interrupted`, and the run pauses (`run.state` with `paused_reason: "device_moved"`). Also sent with `item_id` and `discarded_take_id` null when a run starts while another device is playing (D6, `paused_reason: "device_busy"`). |
+| `device.moved` | `{run_id, item_id, device: {id, name, type}, discarded_take_id}` | Playback moved to another device mid-run. The current take is discarded, the item becomes `interrupted` (`partial` if it was already interrupted in this run), and the run pauses (`run.state` with `paused_reason: "device_moved"`). `discarded_take_id` is null when no take was recording. Also sent with `item_id` and `discarded_take_id` null when another device is playing as a run starts, or as its next item is about to start (D6, `paused_reason: "device_busy"`). When the controller can't tell which device it is, `device` is `{id: null, name: "another device", type: "Unknown"}`. |
 | `error` | `{source, code, message, fatal, withdrawn, run_id, item_id, facts}` | A red alert. See below. |
 
 **`error` fields:**
@@ -164,9 +164,9 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 | `source` | `spytify` or `controller` | Who raised it. |
 | `code` | string | For `spytify`, Spytify's `ErrorCode`: `output_dir`, `disk_full`, `temp_file`, `write`, `ring_overflow`, `capture_stalled`, `capture_silent`, `capture_low_quality`, `player_volume_low`, `read`, `encode`, `rename` or `counter_full`. For `controller`: `recorder_exit`, `recorder_timeout`, `steering_guard`, `loop_guard`, `context_changed`, `webapi`, `storage` or `client_restarted`. |
 | `message` | string | English, for the alert and the log. |
-| `fatal` | boolean | True when the current item can't continue. It ends `partial`, and the run moves to the next item. |
+| `fatal` | boolean | True when the current item can't continue. It ends early, and its `item.state` says how. The run moves to the next item, unless the cause also ends the run (`run.finished` says why). Spytify's `capture_silent` and `capture_stalled` end the item `partial` whatever their `fatal` says (plan D12). |
 | `withdrawn` | boolean | Spytify withdraws `capture_silent`, `capture_low_quality` and `player_volume_low` by sending them again with no message. The controller relays that as `withdrawn: true`, and the UI removes the alert. |
-| `run_id`, `item_id` | integer, string or null | Set during a run. |
+| `run_id`, `item_id` | integer, string or null | Set during a run. The pre-run check's errors have `item_id` null and `fatal` false. `storage` and `webapi` come with a failed check, which ends the run. The exception is a `webapi` error while the check waits for our device after a restart: it reads the list again until its 60 s are over. `client_restarted` says the client was restarted because our device wasn't listed, and the run goes on if it shows up. The other pre-run failures send no `error`: `run.finished`'s `reason` tells them. |
 | `facts` | object or null | Spytify's facts (no names or paths), or the controller's. For the log. |
 
 ### Logs
@@ -214,8 +214,10 @@ The follow lasts as long as the connection: after a reconnect, send `logs.follow
 
 | Type | `data` | When |
 |---|---|---|
-| `library.item` | `LibraryItem` | Its status, counts or `progress` change, or a catalog refresh changes it. During a run, at most one per item per second. |
+| `library.item` | `LibraryItem` | Its status, counts or `progress` change, or a catalog refresh changes it. At most one per item per second, during a run or not: changes within the second are merged into one sent at its end. |
 | `album.item` | `Album` | The same, for an album. |
+
+**Removing an item or album** from the Library sends no event in M1.
 
 **Settled in S5:** Q9, Liked Songs plays as a context, so `LibraryItem` has no playback note. Q10, a linked playlist's name, owner and cover come from `GET /playlists/{id}`, so its `name` is always known; its `cover` is null only while no thumbnail is cached, like any other item's.
 
@@ -230,7 +232,7 @@ The follow lasts as long as the connection: after a reconnect, send `logs.follow
 | Field | Type | Meaning |
 |---|---|---|
 | `refresh_id` | integer or null | The refresh. Null for one that was asked for but didn't run. |
-| `trigger` | string | Why it ran: `run` (a run's start), `page_open` (the Dashboard, at most once every 15 minutes), `setup`, `item_added` (an item was tracked or added), or `manual` (the Refresh button). |
+| `trigger` | string | Why it ran: `run` (a run's start), `page_open` (a read of `GET /api/backlog`, at most once every 15 minutes), `setup`, `item_added` (an item was tracked or added), or `manual` (the Refresh button). |
 | `state` | `started` or `ended` | |
 | `outcome` | string or null | Null while `started`. Then `ok`; `partial` when some track lists couldn't be read; `failed` when the playlist listing couldn't be read; `skipped` when it didn't run, because a run was going when its turn came or the Web API wasn't connected. |
 | `items_changed` | integer or null | Library items it changed, new ones included. Null while `started`. |

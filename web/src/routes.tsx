@@ -1,6 +1,6 @@
 // The route table: every page in docs/web-ui.md, at the routes in web-ui.md § Routes. Each page
-// lives in its builder's folder under src/pages/ (web/README.md § S8 ownership) and draws its own
-// frame (Page, with its tint) inside the shell. This file is shared: builders don't edit it.
+// lives in its own folder under src/pages/ and draws its own frame (Page, with its tint) inside
+// the shell.
 //
 // Not routes: modals, menus, hover states and the Library/Albums List-Grid choice (screens.md).
 // No sign-in route: the UI password isn't in M1.

@@ -45,7 +45,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 | Setup 5 · Connect the Spotify Web API | `j8m6AR` | `/setup/web-api` | Connected; the device check failing, with Retry | 1260 tall. The Reconnect flow (this step on its own, from Settings or the banner) isn't drawn. | Built, and `/reconnect` (not drawn). |
 | Setup 6 · Output | `Mj5zE` | `/setup/output` | `/music` mounted and writable; AAC 256 picked; More formats collapsed | The folder text says each playlist gets an `.m3u` in `Music/Playlists/`, but not "and its cover". The line "Tracks are AAC with tags and a 640 px cover" is missing. The red "not mounted" alert isn't drawn. | Built. The folder text follows web-ui.md. |
 | Setup 7 · Playlists | `ZJSG0` | `/setup/playlists` | "Back up all my playlists" picked, Include Liked Songs on | The stepper calls the step "Playlists"; web-ui.md calls it "What to back up". | Built |
-| Setup 8 · Albums | `sUXcW` | `/setup/albums` | "Back up all my saved albums" picked | None found. | Built. The footer has Done only. |
+| Setup 8 · Albums | `sUXcW` | `/setup/albums` | "Back up all my saved albums" picked | None found. | Built. The footer has Back and Continue. |
 | Setup 9 · Done | `BAzX6` | `/setup/done` | The summary, Back up now, Open Library | The backup-length line ("About 298 h of music to record", "Measuring…") isn't drawn. Already listed in features.md's Known gaps. | Built, without the backup-length line (plan D8, needs your review). "Schedule: None yet" has no link (no Schedule page in M1). |
 
 ## Library
