@@ -642,10 +642,9 @@ async def test_the_context_before_the_play_isnt_taken_for_autoplay(
     [take] = [row for row in await results(sim, job) if row["title"] == "Three"]
     assert (take["planned"], take["result"]) == (1, "recorded")
     calls = sim.webapi_calls()[before:]
-    assert calls[:8] == [  # run 4's requests
+    assert calls[:7] == [  # run 4's requests, less its pause: nothing played, so none is sent
         "GET /me/player/devices",
         "GET /me/player",
-        "PUT /me/player/pause",
         "PUT /me/player/seek",
         "PUT /me/player/shuffle",
         "PUT /me/player/repeat",
@@ -654,7 +653,7 @@ async def test_the_context_before_the_play_isnt_taken_for_autoplay(
     ]
     # Then the 60 s check. MPRIS naming the item's track settles the first; MPRIS late, it's
     # read again 2 s later (and D10's fallback reads it at "Four"'s start).
-    assert player_reads(calls[7:]) == (2 if mpris_lag_s == 0 else 4)
+    assert player_reads(calls[6:]) == (2 if mpris_lag_s == 0 else 4)
 
 
 async def test_autoplay_is_still_stopped_after_a_stale_start(sim: Sim) -> None:
