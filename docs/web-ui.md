@@ -77,7 +77,7 @@ The prototype found that the Linux client (1.3.4) logs in by QR code. Its login 
     3. Approve the login. Use the account whose playlists you want to back up.
 - **Completion:**
   - The controller polls for login, and the step turns green by itself. There is no "I'm logged in" button.
-  - Detection works through MPRIS, confirmed working in the prototype.
+  - **Logged in** means the client's `Users/*-user/` folder exists **and** its window has a title other than plain "Spotify" ("Spotify Premium" when idle, "Artist - Title" while playing). The client publishes MPRIS even when logged out, so MPRIS alone isn't a signal ([open question 2](#open-questions)).
 - **Code expired, or the client showing something else:** a "Reset login screen" button restarts the client.
 - **Larger view:** the same view is available full size on the Player page.
 
@@ -91,19 +91,20 @@ Rows are grouped as they are in the client's Settings. Each row shows the requir
 
 | Section | Setting | Required | Why | Check |
 |---|---|---|---|---|
-| Playback | Crossfade | Off | Overlapping tracks can't be split. | Auto (Spytify `core.info` warning) |
-| Playback | Gapless playback | Off | A short gap gives clean cuts. Spytify trims the silence. | Auto (Spytify `core.info` warning) |
+| Playback | Crossfade | Off | Overlapping tracks can't be split. | Confirm |
+| Playback | Gapless playback | Off | A short gap gives clean cuts. Spytify trims the silence. | Confirm |
 | Playback | Automix | Off | Blends and alters transitions. | Auto (prefs `audio.automix`) |
 | Playback | Autoplay | Off | Stops similar songs from playing after the playlist. It may be hidden for some accounts. **Not a blocker:** the controller also stops when the playing context changes. | Confirm |
 | Playback | Volume normalization | Off | Alters levels, and "Loud" compresses. Use ReplayGain at playback instead. | Auto (prefs `audio.normalize_v2`) |
-| Playback | Equalizer | Off | Colours the recording. | Confirm |
-| Playback | Mono audio | Off | Would record mono. | Confirm |
-| Audio quality | Streaming quality | Very high (the highest offered) | It is the quality that gets recorded. | Confirm |
-| Audio quality | Auto adjust quality | Off | Spotify buffers instead of silently lowering quality. | Confirm |
+| Playback | Equalizer | Off | Colours the recording. | Auto (prefs `audio.equalizer_v2`) |
+| Playback | Mono audio | Off | Would record mono. | Auto (prefs `audio.downmixer_v2`) |
+| Audio quality | Streaming quality | Very high (the highest offered) | It is the quality that gets recorded. | Auto (prefs `audio.play_bitrate_enumeration` = 4) |
+| Audio quality | Auto adjust quality | Off | Spotify buffers instead of silently lowering quality. | Auto (prefs `audio.allow_downgrade`) |
 | Player | Volume | 100% | Spytify marks takes below full volume as "(low volume)" and doesn't count them. | Set for you: `player.control full_volume` before every run |
 
 - **Notes:**
-  - "Auto" rows read Spotify's local prefs file (`/config/home/.config/spotify/Users/*-user/prefs`) or Spytify's `core.info`. Crossfade and gapless aren't in the prefs file because they're stored on Spotify's servers. Spytify's warning "turn crossfade and gapless playback off in the player" covers them.
+  - "Auto" rows read Spotify's local prefs file (`/config/home/.config/spotify/Users/*-user/prefs`). Crossfade and gapless aren't in it: they're stored on Spotify's servers (the file only says `audio.crossfade_migrated_to_ps=true`). Spytify's `core.info` always prints "turn crossfade and gapless playback off in the player", whatever the settings, so it can't check them either. Both are Confirm rows.
+  - A setting at its default isn't written: the client drops `audio.equalizer_v2` and `audio.downmixer_v2` when they're turned off again, so a missing key means off. The client saves the file a moment after a change, so Re-check can lag by a second or two.
   - Pill states: OK, Needs change, or Unknown (it can't be read).
   - **Re-check** reads every Auto row again.
 - **Continue:** allowed when every Auto row is OK and every Confirm row is ticked. Autoplay can be left unticked, with a note.
@@ -224,7 +225,7 @@ The Library is where you choose what gets backed up. It follows the client's own
 - **Added by you:** through the **+** button.
   - Playlists you follow.
   - Any playlist pasted as a link.
-- **Not supported:** playlists made by Spotify (Discover Weekly, Daily Mixes). They aren't available through the API, so a pasted link to one is refused with that message.
+- **Not supported:** playlists made by Spotify (Discover Weekly, Daily Mixes, editorial playlists). The API answers 404 for them, with no name, cover or track list, so a pasted link to one is refused with that message. The controller tells them from a missing playlist by their ID, which starts with `37i9dQZF1`. They would play by link (S0), but without a name or track list they can't be shown or checked.
 
 ### Header
 - **Title:** "Library", with a one-line summary: "18 of 23 tracked · last backup 03:12 today".
@@ -257,7 +258,7 @@ A Spotify-style table, one row per item:
 |---|---|
 | Toggle | Track / don't track (switch). |
 | Cover + name | Cover thumbnail, name, and the owner below it ("by you", "by Lorde", "added by link"). |
-| Tracks | "84 / 120 recorded". For followed or linked playlists, whose totals the API won't give, it's "32 recorded" with an info tooltip. |
+| Tracks | "84 / 120 recorded". Followed playlists have a total in `/me/playlists` but no track list, so they show "32 / 35 recorded" with an info tooltip. Linked playlists have neither, so they show "32 recorded". |
 | Last backup | Relative time ("2 days ago"), or "Never". |
 | Status | The pill. |
 | ⋯ | Row menu: Back up now · Change cover… (not for Liked Songs) · Open in Spotify · Show files path · Remove from Library (added items only). |
@@ -888,21 +889,21 @@ View-only is set on the noVNC client, which is a guard against mistakes, not a s
 
 ## Open questions
 
-The feasibility prototype (`prototype/`, on a parallel branch) settles these. The UI above takes the more cautious answer until then.
+The feasibility prototype (`prototype/`) and step S0 of the M1 plan settle these; the evidence is in `prototype/FINDINGS.md`. The UI above takes the more cautious answer until then.
 
 1. ~~**Login in Xvfb:** does the client's login work inside Xvfb through noVNC?~~ **Resolved:** yes, by QR code scanned with the phone app. No browser hand-off. See step 3.
-2. **Detecting login:** MPRIS works in the container, but which signal reliably means "logged in"? Candidates: MPRIS metadata appearing, the client's user folder in `/config`, or the Web API device list.
-3. **Reading client settings:** Spytify's `core.info` reports crossfade and gapless. Can the controller also read autoplay and streaming quality from the client's prefs file in `/config`? If not, those two rows are manual checkboxes.
+2. ~~**Detecting login:**~~ **Resolved** (S0, 2026-11-15): a logged-out client still publishes MPRIS, so MPRIS is no signal. Logged in means the `Users/*-user/` folder exists and the client's window is titled something other than plain "Spotify". The Web API device list confirms it. See step 3.
+3. ~~**Reading client settings:**~~ **Resolved** (S0, 2026-11-15): streaming quality, Auto adjust, Automix, normalization, equalizer (`audio.equalizer_v2`) and mono (`audio.downmixer_v2`) are in the prefs file, so they're Auto rows. Crossfade, gapless and autoplay are stored on Spotify's servers (toggling autoplay writes nothing locally), and Spytify's crossfade/gapless warning is always printed, so those three are Confirm rows.
 4. ~~**OAuth redirect:**~~ **Resolved:** PKCE with `http://127.0.0.1:8888/callback`. You paste the error page's address back. Refresh tokens expire 6 months after you authorize, so there's a Reconnect flow.
 5. ~~**Container client as a device:**~~ **Resolved:** yes. It's a Connect "Computer" named after the container's hostname, set by the `DEVICE_NAME` env var (default `spotivault`).
 6. ~~**Lossless:**~~ **Resolved:** not available. The client tops out at Ogg Vorbis 320, so FLAC and WAV are marked "no benefit".
 7. ~~**Playlists made by Spotify:**~~ **Decided:** not supported. There is no link input.
 8. ~~**Client login surviving a recreate:**~~ **Resolved:** the login survives. The prototype recreated the container with `--force-recreate`, and the device kept its name and ID. This needs a stable `/config/machine-id` and an unchanged `DEVICE_NAME`; the container's real hostname doesn't matter. Image updates don't need a new QR scan. Changing `DEVICE_NAME` is untested, so Settings keeps its warning. A "client logged out" Dashboard state is still useful as a fallback.
-9. **Liked Songs playback:** can `PUT /me/player/play` start Liked Songs as a context, or must the controller pass its track URIs in batches? Either way, the end of the item has to be detected the same way.
-10. **Linked playlists:** for a public playlist you don't follow, does `GET /playlists/{id}` return name and cover (for the modal's preview) when `/items` returns 403? And does playback work, as it does for followed playlists? **Documented, not tested:** Spotify's February 2026 migration guide says such playlists return metadata without `items`. Playback still needs a live test.
-11. **Saved albums access:** do the saved-album endpoints (`/me/albums`, and album tracks) work for a 2026 dev-mode app? The Albums page depends on them. **Documented, not tested:** the February 2026 changelog lists both as still available, and `/me/albums` still includes each album's tracks with `duration_ms`. Needs a live test.
+9. ~~**Liked Songs playback:**~~ **Resolved** (S0): `PUT /me/player/play` with `context_uri` `spotify:user:<id>:collection` plays Liked Songs, and `offset` follows `/me/tracks` order. `GET /me/player` then reports the context as a playlist alias (`spotify:playlist:37i9dQZF1F…`), which the controller must treat as the same context.
+10. ~~**Linked playlists:**~~ **Resolved** (S0, 2026-11-15): for a public playlist you don't follow, `GET /playlists/{id}` returns its name, owner, cover and `snapshot_id`, enough for the modal's preview, with no track list or total. `/items` returns 403. It plays by `context_uri`, like a followed playlist.
+11. ~~**Saved albums access:**~~ **Resolved:** `/me/albums` (with each album's tracks under `album.tracks.items`) and `/albums/{id}/tracks` answer 200 for the dev-mode app (prototype, and S0 on 2026-11-15).
 12. **Browser notifications over HTTP:** notifications need a secure context. Can the image serve HTTPS itself (for example, with a self-signed certificate on a second port)? Or should the docs point to the UGOS reverse proxy? With a self-signed certificate the browser shows a warning, and Chrome may still refuse notifications.
-13. **Client install timing:** is installing the client on first start (not baked into the image) fast and reliable enough to show as a wizard step?
+13. ~~**Client install timing:**~~ **Resolved** (S0): 17.6 s on Docker Desktop, with the signature and checksums verified and 387 MB unpacked into `/config`. That's fine as a wizard step. Spotify's repository now redirects to https.
 14. **Covers in media servers:** do Plex, Jellyfin and Navidrome show `<name>.jpg` as the cover of `<name>.m3u` when they import it? If one of them doesn't, is there a name it does read, such as `<name>.m3u.jpg`?
-15. **Cover changes:** when you change a playlist's cover in Spotify, does the image ID in the `images` URL change? The controller relies on that to know when to download it again. Does the `images` field also come back on `/me/playlists` under the 2026 rules?
-16. **File layout in Spytify:** can Spytify name files from the Settings layout itself (its placeholders, prefix, underscores and accent options), or does the controller have to move each file after `track.finished`? Either way, the per-track records must keep the final path, so a layout change never makes a recorded track look missing.
+15. **Cover changes:** when you change a playlist's cover in Spotify, does the image ID in the `images` URL change? The controller relies on that to know when to download it again. **Partly tested** (S0): `images` does come back on `/me/playlists`, from `image-cdn-ak.spotifycdn.com`. Whether the ID changes with the cover is still untested.
+16. ~~**File layout in Spytify:**~~ **Resolved:** Spytify names files itself. The layout maps to `output.group_by` (none, `artist`, `artist/album`), `output.template` (the six placeholders), `output.prefix` (`none`, `counter`, `album_track`), `output.underscores` and `output.ascii_filenames`, passed with `--set` for each item. The controller never moves files, and the per-track records keep `track.finished`'s path. One catch: Spytify adds " (YYYY)" to the album folder whenever the client sends a year, and the Linux client hasn't so far.
