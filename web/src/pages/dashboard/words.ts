@@ -3,7 +3,7 @@
 
 import type { HistoryRow, QueueItem, RunSummary, RunTrack, ScheduleNext } from '@/api';
 import { formatBytes, formatDay, formatHours, formatRunLength, formatTime, formatWhen } from '@/shell';
-import { TRIGGER, trackReasonText } from '@/lib/run-words.ts';
+import { PARTIAL_TAKE, TRIGGER, skipReasonText, trackReasonText } from '@/lib/run-words.ts';
 import { isCurrentItemState } from '@/state';
 
 // --- Idle: Next backup -------------------------------------------------------------------------
@@ -209,9 +209,10 @@ export function trackStateText(track: Pick<RunTrack, 'state' | 'reason' | 'size_
     case 'skipped_duplicate':
       return 'Skipped (duplicate)';
     case 'skipped':
-      return `Skipped (${trackReasonText(track.reason) ?? 'other'})`;
+      return `Skipped (${skipReasonText(track.reason) ?? 'other'})`;
     case 'failed': {
-      const reason = trackReasonText(track.reason);
+      // This run's takes: a failed `discarded` is a partial take (Stop now's take is skipped).
+      const reason = track.reason === 'discarded' ? PARTIAL_TAKE : trackReasonText(track.reason);
       return reason ? `Failed · ${reason}` : 'Failed';
     }
     case 'recording':

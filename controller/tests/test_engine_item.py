@@ -18,6 +18,7 @@ from engine_sim import ELSEWHERE, RecordingHost, Sim
 from spotivault.clock import iso_ms
 from spotivault.engine.item import RECHECK_S, RECHECK_TRIES, ItemEngine
 from spotivault.engine.item_outcome import AttemptFacts, Ending, decide, partial_reason
+from spotivault.engine.item_takes import CutReason, Take, TakeBook
 from spotivault.engine.planning import ItemPlan, PlannedTrack, plan_item
 from spotivault.engine.states import check_item_transition
 from spotivault.engine.steering import ContextCheck, Steering, same_context
@@ -1043,13 +1044,16 @@ async def test_stop_after_this_track(sim: Sim) -> None:
 
 
 async def test_stop_now_discards_the_take(sim: Sim) -> None:
+    """The take Stop now cut isn't a failure: it's skipped `discarded`, counted under
+    skipped_other, and the item is stopped with no failed track."""
     album, job = await album_job(sim, [])
     control = stop_at(sim, 30, StopRequest("now", "user"))
     report, _ = await run(sim, job, control=control)
     assert report.outcome == "stopped"
     assert sim.recorded_titles(album) == set()
     [take] = await results(sim, job)
-    assert (take["result"], take["reason"]) == ("failed", "discarded")
+    assert (take["result"], take["reason"]) == ("skipped", "discarded")
+    assert (report.counts.skipped_other, report.counts.failed) == (1, 0)
     assert sim.world.player.status == "Paused"
 
 
@@ -1097,6 +1101,29 @@ async def test_stop_now_while_finishing_keeps_the_last_take(sim: Sim, cause: str
     assert ended < 40  # inside the SIGTERM bound
 
 
+@pytest.mark.parametrize("cause", [None, "user", "shutdown"])
+async def test_a_take_lost_after_a_stop_now_while_finishing_still_fails(
+    sim: Sim, cause: str | None
+) -> None:
+    """While finishing, Stop now goes out as {now: false}: it cuts nothing. So when the last
+    take is lost anyway (the recorder never ends its encode, and is killed at the finishing
+    deadline), it fails `interrupted`, as with no stop at all, not skipped `discarded`."""
+    _, job = await album_job(sim, [0, 1, 2, 3])
+    sim.world.recorder.final_encode_s = 100_000.0  # the last take's encode never ends
+    control = None
+    if cause is not None:
+        request = StopRequest("now", cause)  # type: ignore[arg-type]
+        control = stop_once_the_album_ends(sim, request, after_s=5)
+    report, _ = await run(sim, job, control=control)
+    take = (await results(sim, job))[0]
+    assert (take["title"], take["result"], take["reason"]) == (
+        "Last Hours",
+        "failed",
+        "interrupted",
+    )
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
+
+
 async def test_the_end_of_a_window_is_carried_over(sim: Sim) -> None:
     album, job = await album_job(sim, [])
     control = stop_at(sim, 30, StopRequest("after_track", "window_end"))
@@ -1125,8 +1152,10 @@ async def test_shutdown_is_interrupted(sim: Sim) -> None:
     sim.at(30, shutdown)
     report, _ = await run(sim, job, control=control)
     assert report.outcome == "interrupted" and report.interrupted_by == "shutdown"
+    # The take the container's stop cut isn't a failure either: skipped `discarded`.
     [take] = await results(sim, job)
-    assert (take["result"], take["reason"]) == ("failed", "interrupted")
+    assert (take["result"], take["reason"]) == ("skipped", "discarded")
+    assert (report.counts.skipped_other, report.counts.failed) == (1, 0)
     assert sim.clock.monotonic() - asked[0] < 40  # docker's stop grace, with room to spare
 
 
@@ -1141,7 +1170,7 @@ async def test_a_stall_is_interrupted(sim: Sim) -> None:
     assert report.reason == "Playback paused for more than 20 s."
     [take] = await results(sim, job)
     assert (take["title"], take["result"], take["reason"]) == ("Passage", "failed", "interrupted")
-    assert report.counts.failed == 1
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
 
 
 async def test_a_short_stall_saves_the_take_with_pause_fade(sim: Sim) -> None:
@@ -1165,8 +1194,23 @@ async def test_a_takeover_is_interrupted_with_the_discarded_take(sim: Sim) -> No
     [take] = await results(sim, job)
     assert report.takeover.discarded_take_id == take["take_id"]
     assert (take["result"], take["reason"]) == ("failed", "interrupted")
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
     assert sim.mpris_calls() == []  # the player is left alone: the phone plays on
     assert sim.world.player.remote is not None and sim.world.player.remote.is_playing
+
+
+async def test_a_stop_now_after_a_takeover_leaves_its_take_failed(sim: Sim) -> None:
+    """The first cut decides. The takeover cut the take (its session.stop {now} hangs, so the
+    take ends at the idle exit, 20 s after the pause); a Stop now in between doesn't turn it
+    into a skip: it stays failed `interrupted`."""
+    _, job = await album_job(sim, [])
+    sim.world.recorder.hang_methods = {sp.SESSION_STOP}
+    sim.take_over_at(30)  # the stop's answer never comes: SIGTERM at about 40 s
+    control = stop_at(sim, 45, StopRequest("now", "user"))
+    report, _ = await run(sim, job, control=control)
+    [take] = await results(sim, job)
+    assert (take["result"], take["reason"]) == ("failed", "interrupted")
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
 
 
 async def test_the_client_going_away_is_interrupted(sim: Sim) -> None:
@@ -1390,6 +1434,73 @@ async def test_track_results_and_files_rows(sim: Sim) -> None:
         "SELECT last_backup_at, completed_at FROM items WHERE id = ?", (album.album.id,)
     )
     assert item["last_backup_at"] is not None and item["completed_at"] is not None
+
+
+def planned_take(sim: Sim, take_id: str, title: str) -> Take:
+    """A planned take of one of Elsewhere's tracks, for a TakeBook on its own."""
+    return Take(
+        take_id=take_id,
+        artist="fakename",
+        title=title,
+        album="Elsewhere",
+        length_ms=90_000,
+        cover_url="",
+        key=track_key("fakename", title),
+        started_at=sim.clock.now(),
+        planned=True,
+    )
+
+
+async def take_book(sim: Sim) -> tuple[TakeBook, ItemJob]:
+    _, job = await album_job(sim, [])
+    plan = await plan_item(sim.services, job)
+    return TakeBook(sim.services, job, plan, file_format="aac", bitrate=256), job
+
+
+async def test_a_partial_take_still_fails_discarded(sim: Sim) -> None:
+    """Spytify's partial take (a held take saved with track.keep) is a failed track, `discarded`,
+    unlike a take a stop cut (skipped `discarded`)."""
+    book, job = await take_book(sim)
+    await book.start(planned_take(sim, "t1", "Passage"))
+    path = sim.services.config.music_dir / "fakename" / "Elsewhere" / "01 - Passage (partial).m4a"
+    finished = sp.TrackFinished(
+        id="t1", path=str(path), duration_ms=40_000, bytes=600_000, tagged=True, partial=True
+    )
+    assert await book.finish(finished)
+    [take] = await results(sim, job)
+    assert (take["result"], take["reason"]) == ("failed", "discarded")
+    counts = book.counts()
+    assert (counts.failed, counts.skipped_other, counts.recorded) == (1, 0, 0)
+    assert book.failed_reasons() == Counter({"discarded": 1})
+
+
+@pytest.mark.parametrize(
+    ("cut_reason", "result", "skipped_other", "failed"),
+    [
+        ("discarded", ("skipped", "discarded"), 1, 0),  # Stop now or a shutdown
+        ("interrupted", ("failed", "interrupted"), 0, 1),  # a stall, takeover or capture problem
+    ],
+)
+async def test_a_cut_take_is_skipped_or_failed_by_its_cut(
+    sim: Sim,
+    cut_reason: CutReason,
+    result: tuple[str, str],
+    skipped_other: int,
+    failed: int,
+) -> None:
+    """A planned take cut short, whether Spytify says so (track.skipped incomplete) or nobody
+    does (the recorder was killed): skipped `discarded` when a stop cut it, else failed."""
+    book, job = await take_book(sim)
+    await book.start(planned_take(sim, "t1", "Passage"))
+    await book.start(planned_take(sim, "t2", "Distant Peak"))
+    skipped = sp.TrackSkipped(id="t1", reason="incomplete")
+    assert await book.skip(skipped, cut_reason=cut_reason)
+    assert await book.close_unfinished(cut_reason=cut_reason, file_error=False)
+    rows = await results(sim, job)
+    assert [(row["result"], row["reason"]) for row in rows] == [result, result]
+    counts = book.counts()
+    assert (counts.skipped_other, counts.failed) == (2 * skipped_other, 2 * failed)
+    assert [row.state for row in book.rows() if row.take_id] == [result[0], result[0]]
 
 
 async def test_relayed_events_match_the_contract(sim: Sim) -> None:

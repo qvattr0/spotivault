@@ -607,7 +607,8 @@ The item queue is the main element. A compact now-playing strip sits above it.
 
 **Run header**
 - "Backing up · started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00". The last part only appears for scheduled runs.
-- Live counters: Recorded n · Skipped n · Failed n. **Skipped** counts only tracks the run skipped without recording them (an episode jumped over, a take Spytify refused). Tracks already saved are skipped on every run, so they aren't counted; a hint on the counter says so. History still lists them as Skipped (duplicate).
+- Live counters: Recorded n · Skipped n · Failed n. **Skipped** counts only tracks the run skipped without recording them (an episode jumped over, a take Spytify refused, the track Stop now cut short). Tracks already saved are skipped on every run, so they aren't counted; a hint on the counter says so. History still lists them as Skipped (duplicate).
+  - **Failed** counts only real failures. The track that Stop now, or the container stopping, cuts short isn't one: it counts as Skipped, and the next run records it.
 - This run's own time left: "about 9 min left in this run". The controller works it out from what it has stored, with no Web API request (`time_left` in the run's summary):
   - **What counts:** the rest of the track recording now, the current item's planned tracks still to play, and each waiting item's missing tracks (Up next, and interrupted items that will retry), plus about 35 s for each waiting item with something to record, as the [backlog estimate](design.md#backlog-estimate) counts. A track two items share counts once, and a track this run already recorded doesn't count again. Removed items don't count.
   - **Unknown length:** followed and linked playlists play whole, so their length isn't known, unless they're Up to date: "about 9 min left in this run + 2 playlists of unknown length", or "2 playlists of unknown length left in this run".
@@ -616,7 +617,7 @@ The item queue is the main element. A compact now-playing strip sits above it.
   - The whole backlog's time left is the Full backup card's, not the header's.
 - **Stop, a split button:**
   - **Stop after this track** (the main action): nothing is lost. The header says "Stopping after this track…" until it ends.
-  - **Stop now** (from the arrow): first a confirm, "The current track will be discarded and recorded next time."
+  - **Stop now** (from the arrow): first a confirm, "The current track will be discarded and recorded next time." That track counts as Skipped, not Failed.
   - Either way, the run ends as **Stopped**. Items left in the queue aren't recorded this time, and their rows in History carry the **Stopped** badge. Tracked playlists are picked up by the next run, and albums stay Queued.
   - After **Stop after this track**, the main action is disabled, but **Stop now** stays in the arrow: it upgrades the stop (openapi.yaml). This also holds when the end of a window asked for the stop. Once Stop now is asked for, both are disabled.
 
@@ -825,7 +826,8 @@ Duplicate skips are cheap. In the prototype, a re-run of an already-recorded alb
     - **Recorded:** the size, and the file path with a copy button.
     - **Skipped (duplicate).**
     - **Skipped (ad):** Spytify's other skip reasons are shown the same way.
-    - **Failed:** the reason, such as "low volume", "recorder error", "track unavailable", "interrupted" or "discarded by Stop now".
+    - **Skipped (backup stopped mid-track):** the track that was recording when you pressed Stop now, or when the container stopped. It isn't a failure: the next run records it.
+    - **Failed:** the reason, such as "low volume", "recorder error", "track unavailable", "interrupted" or "partial take". Older runs, from before the track Stop now cut short counted as Skipped, show that track here as "discarded by Stop now".
 - **Actions:**
   - **Retry failed** on an item with failures: adds that item to a forced run. Only the missing tracks get recorded; the rest are skipped as duplicates.
   - **Retry all failed** in the header: does the same for every such item.

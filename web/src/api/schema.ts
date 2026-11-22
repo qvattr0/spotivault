@@ -1458,7 +1458,7 @@ export interface components {
         Counters: {
             recorded: number;
             skipped_duplicate: number;
-            /** @description Ads and Spytify's other skip reasons. */
+            /** @description Ads, Spytify's other skip reasons, and a take dropped because the backup was stopped mid-track (Stop now, or the container stopping): not failures. */
             skipped_other: number;
             failed: number;
             bytes_added: number;
@@ -1664,9 +1664,11 @@ export interface components {
             result: "recorded" | "skipped" | "failed";
             /**
              * @description - `skipped`: Spytify's skip reason: `duplicate`, `ad`, `too_short`, `incomplete`, `seeked`,
-             *       `low_quality` or `silent`.
-             *     - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`
-             *       (Stop now).
+             *       `low_quality` or `silent`; or `discarded`: the backup was stopped mid-track (Stop now,
+             *       or the container stopping), so the take was dropped. It's recorded next time.
+             *     - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`:
+             *       a partial take, which has a file; with no file, a take Stop now cut in an older run,
+             *       from before such a take was skipped.
              */
             reason: string | null;
             size_bytes: number | null;

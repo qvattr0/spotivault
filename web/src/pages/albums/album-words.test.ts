@@ -41,6 +41,8 @@ describe('the albums page words', () => {
     expect(trackView(track({}))).toEqual({ kind: 'recorded', text: 'Recorded · 9.4 MB' });
     expect(trackView(track({ state: 'skipped_duplicate', size_bytes: null }))).toEqual({ kind: 'skipped', text: 'Skipped (duplicate)' });
     expect(trackView(track({ state: 'failed', reason: 'low_volume' }))).toEqual({ kind: 'failed', text: 'Failed · low volume' });
+    // A failed `discarded` row has no file: a take Stop now cut in an older run (run-words.ts).
+    expect(trackView(track({ state: 'failed', reason: 'discarded' }))).toEqual({ kind: 'failed', text: 'Failed · discarded by Stop now' });
     expect(trackView(track({ state: 'missing', size_bytes: null }))).toEqual({ kind: 'missing', text: 'Missing' });
     expect(trackView(track({ state: 'new', size_bytes: null }))).toEqual({ kind: 'new', text: 'New' });
   });

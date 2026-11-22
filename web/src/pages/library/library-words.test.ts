@@ -107,6 +107,8 @@ describe('trackView', () => {
 
   it('words failures with their reason', () => {
     expect(trackView(track({ state: 'failed', reason: 'low_volume' }))).toEqual({ kind: 'failed', text: 'Failed · low volume' });
+    // A failed `discarded` row has no file: a take Stop now cut in an older run (run-words.ts).
+    expect(trackView(track({ state: 'failed', reason: 'discarded' }))).toEqual({ kind: 'failed', text: 'Failed · discarded by Stop now' });
   });
 
   it('words the other states', () => {

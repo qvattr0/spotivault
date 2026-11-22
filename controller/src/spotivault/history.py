@@ -73,12 +73,16 @@ _FILTER_SQL: dict[RunFilter, str] = {
 }
 
 # Spytify's failure reasons, in words for the one-line messages (openapi.yaml TrackResult.reason).
+# A failed `discarded` with a file is a partial take. `discarded_by_stop` isn't a stored reason:
+# _issues gives it to a failed `discarded` with no file, a take Stop now cut in an older run, from
+# before such a take was skipped.
 _FAILED_REASON_WORDS: dict[str, str] = {
     "low_volume": "low volume",
     "recorder_error": "recorder error",
     "unavailable": "track unavailable",
     "interrupted": "interrupted",
-    "discarded": "discarded by Stop now",
+    "discarded": "partial take",
+    "discarded_by_stop": "discarded by Stop now",
 }
 
 
@@ -111,7 +115,7 @@ def decode_cursor(cursor: str) -> tuple[str, int]:
 
 def issue_message(state: str, failed: int, failed_reasons: list[str], reason: str | None) -> str:
     """One line for a Last run issue: "2 tracks failed: low volume". `failed_reasons` are the
-    failed takes' Spytify reasons, most common first."""
+    failed takes' Spytify reasons, most common first (and `discarded_by_stop`, see _issues)."""
     if failed > 0:
         words = [_FAILED_REASON_WORDS.get(r, r.replace("_", " ")) for r in failed_reasons]
         message = f"{failed} {'track' if failed == 1 else 'tracks'} failed"
@@ -232,15 +236,18 @@ class HistoryService:
         )
         issues: list[LastRunIssue] = []
         for row in rows:
+            # A failed `discarded` with no file is an older run's Stop now (_FAILED_REASON_WORDS).
             reasons = await store.fetchall(
-                "SELECT reason FROM track_results WHERE run_item_id = ? AND result = 'failed' "
-                "GROUP BY reason ORDER BY count(*) DESC, reason",
+                "SELECT CASE WHEN reason = 'discarded' AND file_id IS NULL "
+                "THEN 'discarded_by_stop' ELSE reason END AS failure "
+                "FROM track_results WHERE run_item_id = ? AND result = 'failed' "
+                "GROUP BY failure ORDER BY count(*) DESC, failure",
                 (row["id"],),
             )
             message = issue_message(
                 row["state"],
                 row["failed"],
-                [r["reason"] for r in reasons if r["reason"]],
+                [r["failure"] for r in reasons if r["failure"]],
                 row["reason"],
             )
             issues.append(LastRunIssue(item_id=row["item_id"], name=row["name"], message=message))
