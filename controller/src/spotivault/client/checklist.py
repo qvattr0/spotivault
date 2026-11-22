@@ -14,10 +14,7 @@ Spotify client, and the run engine's pre-run check (S6) all use `ClientManager.c
 writes a setting that differs from it (FINDINGS row 26). Equalizer and mono default to off, so
 missing means OK (web-ui.md says so). The other four default to on (Automix, normalization, Auto
 adjust) or Automatic quality, which is why the file holds `false` and `4` once they're changed:
-missing means Needs change. That's the cautious reading; web-ui.md doesn't say.
-
-Note: web-ui.md (the spec) makes equalizer and mono Auto rows; openapi.yaml's ChecklistM1 example
-still shows them as Confirm. The spec wins.
+missing means Needs change (web-ui.md § 4).
 """
 
 import sqlite3

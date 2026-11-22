@@ -44,13 +44,13 @@ Add `SPOTIVAULT_FAKE_SCENARIO=wizard` to the first command to walk the wizard fr
 | Project | Tests | Controller |
 |---|---|---|
 | `wizard` | [e2e-controller/wizard/](e2e-controller/wizard/) | The `wizard` scenario at real speed: a fresh container. The client isn't installed: step 2's Install (`POST /api/client/install`) installs it in about 18 s. It logs itself in 20 s after it starts (a click on the fake VNC screen does it at once); its prefs turn tidy 30 s after that. `foundation.spec.ts` runs first: the app loads, the live socket says `hello`, the gate, step 1's Continue (so the wizard tests start at step 2), and a failed REST read with the socket refused. |
-| `demo` | [e2e-controller/demo/](e2e-controller/demo/) | The `demo` scenario, 10 times faster (`E2E_DEMO_SPEED`): set up at start-up, 18 playlists (Liked Songs first), 124 saved albums and no album added, never run, no schedule. A track records in 10 to 30 s. |
+| `demo` | [e2e-controller/demo/](e2e-controller/demo/) | The `demo` scenario, 10 times faster (`E2E_DEMO_SPEED`): set up at start-up, 18 playlists (Liked Songs first), 124 saved albums and no album added, never run, no schedule. A track records in 10 to 30 s. Its `foundation.spec.ts` runs first: every app page opens, and the helpers work. |
 
 Each project's tests share its controller, in file order, one at a time: leave the controller as you found it. Helpers are in [e2e-controller/helpers.ts](e2e-controller/helpers.ts): `demoReady` (wait for the demo's setup and Library), `startRun`, `stopAnyRun` (use it in `afterEach`), `waitForRunState`, `getJson`, `gatePath`, `endsWith`, `openPage`. There are no `/__mock` controls: reach states through the API, as a user would. CI runs it in the `web` job.
 
 **Two e2e runs at once** (two worktrees) would share the mock and `test-results/`. Give the second its own: `E2E_PORT=5299 E2E_MOCK_PORT=8299 E2E_OUTPUT=test-results-2 npm run e2e`. `E2E_OUTPUT` also names `npm run e2e:controller`'s folder (default `test-results-controller`); its ports are its own already.
 
-**The noVNC view:** the mock serves a small fake screen on `WS /vnc` ([mock/vnc.ts](mock/vnc.ts), like fake mode's): black while the client isn't running, a login screen with a QR-like code while it's logged out (a click on it logs the client in), and a player window once logged in. `SPOTIVAULT_VNC=http://localhost:8080 npm run dev` sends only `/vnc` to a running container instead (the S2 image bridges `/vnc` already), with the same Host and `Origin` handling.
+**The noVNC view:** the mock serves a small fake screen on `WS /vnc` ([mock/vnc.ts](mock/vnc.ts), like fake mode's): black while the client isn't running, a login screen with a QR-like code while it's logged out (a click on it logs the client in), and a player window once logged in. `SPOTIVAULT_VNC=http://localhost:8080 npm run dev` sends only `/vnc` to a running container instead (its controller bridges `/vnc` to the client's screen), with the same Host and `Origin` handling.
 
 ## Folder layout
 

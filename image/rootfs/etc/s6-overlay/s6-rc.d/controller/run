@@ -5,7 +5,7 @@
 #   from the image    DISPLAY, DBUS_SESSION_BUS_ADDRESS, XDG_RUNTIME_DIR, PULSE_SERVER, HOME,
 #                     SPYTIFY_*, SPOTIVAULT_IMAGE_VERSION
 # umask 077 keeps /config private. UMASK applies to /music only: the controller sets it on the
-# recorder. On SIGTERM it stops within 30 s, inside s6's 50 s grace time.
+# recorder. On SIGTERM it stops within 40 s, inside s6's 50 s grace time.
 umask 077
 # The venv is byte-compiled and read-only for app; -P keeps the service folder off sys.path.
 export PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1

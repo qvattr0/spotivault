@@ -6,7 +6,7 @@ Each entry says:
 - **Symptom:** what goes wrong.
 - **Repro:** how to make it happen, with a fake-player script where possible.
 - **Impact:** what it costs spotivault.
-- **Workaround:** what the controller does instead.
+- **Workaround:** what the controller does instead. Its code paths are under [controller/src/spotivault/](../../controller/src/spotivault/).
 - **Upstream:** the issue link, or the draft until it's posted.
 - **Local patch:** none, planned or applied. A patch lives in `image/spytify/patches/`, is applied when the image builds `spytifyd` from source, and needs a fake-player regression test. It's only adopted with the user's OK, and dropped once upstream releases the fix.
 
@@ -29,7 +29,7 @@ Each entry says:
 - **Symptom:** at the end of an album or playlist, Spotify loads track 1 again and pauses on it. Track 1 is already recorded, so Spytify announces a duplicate take and, with `recorder.skip_duplicates_forward=true`, presses **Next**. Next on a paused player starts playback again. Live, the whole album can replay, every track skipped as a duplicate. At the idle exit, a phantom `track.started` + `track.skipped` is emitted, and the Next can race the process exit.
 - **Repro:** [prototype/upstream-issue-draft.md](../../prototype/upstream-issue-draft.md), with a fake-player scenario.
 - **Impact:** playback after the item ended, inflated skip counts, possibly a loop.
-- **Workaround:** run the recorder with `recorder.skip_duplicates_forward=false` and let the controller play only the missing tracks. Pause the player after the recorder exits. Count distinct tracks, not events. Followed playlists, which play whole with skip-forward on, get a loop guard: two tracks in a row coming round again in the order first heard pause the player (one repeat alone is a track the playlist lists twice). Code: the flag is set per item in `settings.py` (`build_recorder_settings`); `engine/item.py` pauses the player at the finish and again after the exit; `engine/steering.py` holds the loop guard.
+- **Workaround:** run the recorder with `recorder.skip_duplicates_forward=false` and let the controller play only the missing tracks. Pause the player after the recorder exits. Count distinct tracks, not events. Followed playlists, which play whole with skip-forward on, get a loop guard: two tracks in a row coming round again in the order first heard pause the player (one repeat alone is a track the playlist lists twice). Code: the flag is set per item in `settings.py` (`build_recorder_settings`); `engine/item.py` pauses the player at the finish, and again 2 s after the exit (`_settle_player`); `engine/steering.py` holds the loop guard.
 - **Upstream:** draft, not posted.
 - **Local patch:** none.
 
@@ -56,7 +56,7 @@ Each entry says:
 - **Symptom:** a take stopped with `now` is held for `track.keep`, and its WAV is deleted when the next track is saved. `--once` exits without calling `Shutdown`, so that WAV stays in `<output>/.spytify/`. Spytify's start-up sweep only removes WAVs 10 minutes old or more.
 - **Repro:** read from the 2.0.1 source (`keep.go`, `runOnce`). Not reproduced yet.
 - **Impact:** stale WAVs in the music share.
-- **Workaround:** the controller removes WAVs in `<music>/.spytify/` older than 60 s while no recorder runs. Code: `files.py` `cleanup_stale`, before each recorder starts (that folder only) and at start-up.
+- **Workaround:** the controller removes WAVs in `<music>/.spytify/` older than 60 s while no recorder runs. Code: `files.py` `cleanup_stale`, called by `engine/item.py` before each recorder starts (that folder only) and by `engine/recovery.py` at start-up.
 - **Upstream:** not filed.
 - **Local patch:** none.
 
@@ -65,7 +65,7 @@ Each entry says:
 - **Symptom:** encoding writes `<final>.part` and renames it into place. Nothing removes a `.part` left by a crash.
 - **Repro:** read from the 2.0.1 source (`finisher.go`). Not reproduced yet.
 - **Impact:** partial files next to recordings.
-- **Workaround:** the controller removes Spytify's own `.part` files (`<name>.mp3.part`, `.m4a.part`, `.flac.part`, `.wav.part`) older than 60 s while no recorder runs, walking the whole music folder: at start-up, and once after a recorder was killed by a signal (the first cleanup before an item at least 60 s later). Another program's `.part` files are left alone. Code: `files.py` `cleanup_stale` and `recorder_killed`.
+- **Workaround:** the controller removes Spytify's own `.part` files (`<name>.mp3.part`, `.m4a.part`, `.flac.part`, `.wav.part`) older than 60 s while no recorder runs, walking the whole music folder: at start-up, and once after a recorder was killed by a signal (the first cleanup before an item at least 60 s later). Another program's `.part` files are left alone. Code: `files.py` `cleanup_stale` and `recorder_killed`; `engine/item.py` calls `recorder_killed` when a recorder ended by a signal or the item engine killed one (`_note_if_killed`), and `engine/recovery.py` when it killed orphan recorders at start-up.
 - **Upstream:** not filed.
 - **Local patch:** none.
 

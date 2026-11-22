@@ -25,7 +25,7 @@ spotivault is a single Docker image for a UGREEN NASync DXP4800+ (x86_64, UGOS P
 
 **Recording order:** Spytify never records a track that was already playing when the session started. The controller starts the session before playback.
 
-**Formats:** AAC (`.m4a`), MP3, FLAC or WAV, at 128, 160, 256 or 320 kbps. The default is AAC 256. The prototype found that the Linux client (1.3.4) streams at most Ogg Vorbis 320 kbps, with no Lossless, so FLAC and WAV add size without quality.
+**Formats:** Spytify writes AAC (`.m4a`), MP3, FLAC or WAV, at 128, 160, 256 or 320 kbps. Settings › Recording offers AAC 256 (the default), AAC 320 and MP3 320, with FLAC and WAV under "More formats". The prototype found that the Linux client (1.3.4) streams at most Ogg Vorbis 320 kbps, with no Lossless, so FLAC and WAV add size without quality.
 
 **Login:**
 - **Client:** logs in by QR code scanned with the Spotify phone app, shown through noVNC. No browser is needed in the image.
@@ -48,9 +48,13 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 | `dbus` | The D-Bus session bus, for MPRIS and the client's IPC. |
 | `pulseaudio` | A null sink at 44.1 kHz ([spotivault.pa](../image/rootfs/etc/pulse/spotivault.pa)). Spytify records from it with `parec`. |
 | `spotify` | The Spotify client. It isn't in the image: `spotify-install` puts it in `/config`, and the service waits until it's there. |
-| `controller` | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. Python ([controller/](../controller/)); see [Stack](#stack). s6 runs `/opt/spotivault/venv/bin/python -m spotivault`. It also serves the `/vnc.html` page, with noVNC's core from its web root, `/usr/local/share/spotivault/web`. |
+| `controller` | Web UI and REST/WS API, run engine, scheduler, SQLite in `/config`. Python ([controller/](../controller/)); see [Stack](#stack). s6 runs `/opt/spotivault/venv/bin/python -P -m spotivault`. It also serves the `/vnc.html` page, with noVNC's core from its web root, `/usr/local/share/spotivault/web`. |
 
-`spytifyd` is not a service. The controller starts it for each item (`--once --serve --idle-exit 20s`) and passes the recorder settings in at the start. The full command is `--once --serve --idle-exit 20s --wait-target 60s --log-file … --events …`, with one `--set key=value` per recorder setting. Its own socket is per item, and its environment is fixed (`recorder/process.py`, `command_line`). Its log and events files are `/config/logs/spytify/<run>-<item>.log` and `.events.jsonl`, one pair per item, and a second attempt gets `-2` in its name.
+`spytifyd` is not a service. The controller starts it for each item (`--once --serve --idle-exit 20s`) and passes the recorder settings in at the start. The full command is `--once --serve --idle-exit 20s --wait-target 60s --log-file … --events …`, with one `--set key=value` per recorder setting (see [Spytify 2.0.2's settings](#configuration) below). The rest is fixed in [recorder/process.py](../controller/src/spotivault/recorder/process.py) (`command_line`):
+- **Socket:** its own per item, `$XDG_RUNTIME_DIR/spytify-<run>-<n>.sock`. The controller talks only to a `spytifyd` it started.
+- **Environment:** only what `command_line` lists, never the controller's own: `HOME`, a fixed `PATH`, `LANG`, `TZ`, `XDG_RUNTIME_DIR`, the display, bus and sound addresses, `SPYTIFY_SOCKET`, `SPYTIFY_CONFIG` (`/config/spytify/config.toml`), `SPYTIFY_FFMPEG` (`/usr/local/bin/ffmpeg`), and the client's process and MPRIS names.
+- **Process:** its own process group, with `UMASK`. Its working folder is an empty one, because Spytify loads a `.env` file from there.
+- **Files:** its log and events files are `/config/logs/spytify/<run>-<item>.log` and `.events.jsonl`, one pair per item, and a second attempt gets `-2` in its name.
 
 ### Users and processes
 
@@ -58,9 +62,12 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 - **Root:** only s6's own supervision tree, which `/init` starts (`s6-svscan`, `s6-supervise`, the s6-rc fd holder), and the `init-spotivault` oneshot.
 - **Logs:** each service has an `s6-log` that writes to docker's stdout, prefixed with the service name, and to `/config/logs/<service>/current` with timestamps. It keeps 10 files of 1 MB. See [Logs](#logs).
 - **Shutdown:** the client ignores SIGTERM, SIGINT and SIGHUP. Its service quits it over MPRIS (`org.mpris.MediaPlayer2.Quit`) and kills it after 15 s. A clean quit also writes the client's `prefs` file. s6 gives the services 50 s to stop, inside the compose file's `stop_grace_period: 60s`.
+  - **A run going:** on SIGTERM the controller does Stop now, within 40 s. The current item ends Interrupted, its cut take counts as Skipped, and the run ends Failed, "container restarted" ([web-ui.md Q17](web-ui.md#open-questions)).
 - **Restarting the client** (wizard step 3's Reset login screen, the Player's Restart client): s6's control pipes belong to root, so the controller, as `app`, can't use `s6-svc`. It does what the service does on a stop: MPRIS Quit, then a kill after 15 s if the client is still there. s6 then starts the client again, in a few seconds.
 - **Login detection:** the controller reads the client's main window title with `xwininfo -root -tree` (x11-utils). The logged-out client's window is `"Spotify": ("spotify" "Spotify")`, 1280 × 800.
-- **Health check:** `curl http://127.0.0.1:8080/api/health`, every 30 s.
+- **Health check:** `curl http://127.0.0.1:8080/api/health`, every 30 s with a 5 s timeout, after a 60 s start period ([health.py](../controller/src/spotivault/api/routers/health.py)).
+  - **Unhealthy:** the controller doesn't answer, or can't open its database (503).
+  - **`degraded`:** the screen (Xvfb) or the sound server (PulseAudio) doesn't answer. The container stays healthy, so the UI can still show what's wrong.
 
 ### Startup checks
 
@@ -68,7 +75,7 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 
 | Setting | Rule |
 |---|---|
-| `UMASK` | 3 or 4 octal digits. It applies to `/music` only; the controller sets it on the recorder. `/config` stays private (mode 0700, umask 077), because it holds the client's login and the tokens. |
+| `UMASK` | 3 or 4 octal digits. It applies to `/music` only: the controller sets it on the recorder and the `.m3u` files, and after each item it gives the recorded files 0666 less `UMASK`, since Spytify leaves tagged files at 0600 ([Spytify bugs](upstream/spytify-bugs.md) #7). `/config` stays private (mode 0700, umask 077), because it holds the client's login and the tokens. |
 | `TZ` | A zone in the image's tz database, such as `Europe/Berlin`. |
 | `DEVICE_NAME` | 1 to 64 bytes, with no `/` and no control characters, because it becomes the client's hostname. |
 
@@ -81,7 +88,7 @@ It also:
 
 ### Logs
 
-Everything History › Logs shows, and the zip holds, is in `/config/logs` ([web-ui.md § Logs tab](web-ui.md#logs-tab)). The controller reads it in [logview/](../controller/src/spotivault/logview/).
+Everything History › Logs shows, and the zip holds, is in `/config/logs` ([web-ui.md § Logs tab](web-ui.md#logs-tab)). The Logs tab and the retention below moved into M1 on 2026-11-22. The controller reads the logs in [logview/](../controller/src/spotivault/logview/).
 
 | Log | Where | A line |
 |---|---|---|
@@ -113,7 +120,7 @@ It prints one JSON object per line (`{"stage":"download","percent":42,…}`), wh
 
 ### What's in the image
 
-The image is 337 MB uncompressed (112 MB compressed). The controller is 62 MB of it: 39 MB of Python and 23 MB of venv. Without one, the S2 image was 274 MB. The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
+The image is 337 MB uncompressed (112 MB compressed), as recorded for S5's build, before the web UI's 0.9 MB was added. The controller is 62 MB of it: 39 MB of Python and 23 MB of venv. Without one, the S2 image was 274 MB. The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
 
 | Part | How it's kept small |
 |---|---|
@@ -141,18 +148,33 @@ The excludes are in [spotivault-excludes](../image/rootfs/etc/dpkg/dpkg.cfg.d/sp
 - `ENV`:
   - `TZ` (default `UTC`)
   - `UMASK` (default `000`)
-  - `UI_PASSWORD` (optional): requires a password for the web UI. It can also be set in Settings.
+  - `UI_PASSWORD` (optional): meant to require a password for the web UI. **Not enforced in M1** (plan D11): when it's set, the controller logs a warning at start-up, and `GET /api/container` reports it (`ui_password_env_set`). Settings doesn't show it yet. Keep the UI on your LAN until the password feature comes.
   - `DEVICE_NAME` (default `spotivault`): the name of the Spotify Connect device ("Playing on …"). A small preloaded library ([hostname-shim.c](../image/hostname-shim.c)) sets it, because the client takes its name from `gethostname()`. Recreating the container keeps the login: tested with `--force-recreate` and with an image update, and the device kept its name and ID. That relies on a stable `/config/machine-id` and an unchanged `DEVICE_NAME`. Changing `DEVICE_NAME` is untested.
 - `shm_size: 1g`: the client is Chromium, which passes data through `/dev/shm`.
 - **The controller's own variables** (`SPOTIVAULT_*`: port, folders, log level, fake mode) are for development and tests. They're listed in [controller/ARCHITECTURE.md § Environment](../controller/ARCHITECTURE.md#environment); the image needs none of them. One is for users: `SPOTIVAULT_ALLOWED_HOSTS`, to reach the UI by a name other than an IP address or a home-network name ([web-ui.md § Security](web-ui.md#security)).
 - **Compose files:** [docker-compose.yml](../docker-compose.yml) builds from source for Docker Desktop, with data in `./data`. The one for the UGOS Docker app's Project feature comes in M2.
 - Avoids host ports 9999 and 9443, which UGOS uses.
 
-**Spytify defaults** (its booleans take `true` or `false`):
-- `privacy.bug_tracker=false`. The image's `spytifyd` is built without a crash-report address, so it sends nothing either way.
-- `recorder.duplicates=skip`
-- `recorder.skip_duplicates_forward`: off for items played as missing tracks only, on for items played whole (see [Run flow](#run-flow-per-playlist-or-album))
-- File naming from Settings › Files › Layout, passed in with the other recorder settings. The default is `{album_artist}/{album}/{track} - {title}`. How Spytify takes it is [open question 16](web-ui.md#open-questions).
+**Spytify 2.0.2's settings:** the controller passes these to each item's `spytifyd`, one `--set key=value` each, in this order ([settings.py](../controller/src/spotivault/settings.py), `build_recorder_settings`). Booleans take `true` or `false`. Every other setting keeps Spytify's default. A change saved in Settings applies from the next item.
+
+| Setting | Spytify's default | What the controller passes |
+|---|---|---|
+| `output.dir` | `~/Spytify` | `/music` |
+| `encode.format` | `mp3` | Settings › Recording's format: `aac` (the default), `mp3`, `flac` or `wav`. Always passed, since Spytify's own default is MP3 160. |
+| `encode.bitrate_kbps` | `160` | 256 or 320. Left out for FLAC and WAV. |
+| `output.group_by` | `artist/album` | The layout's folder part: `none`, `artist` for `{album_artist}`, or `artist/album` for `{album_artist}/{album}`. |
+| `output.template` | `{album_artist} - {title}` | The layout's file name, after the last `/`. The default layout is `{album_artist}/{album}/{track} - {title}`. |
+| `output.prefix` | `none` | The layout's Prefix: `none`, `counter` or `album_track` (Album track number). |
+| `output.underscores` | `false` | The layout's "Underscores instead of spaces". |
+| `output.ascii_filenames` | `false` | The layout's "Remove accents from file names". |
+| `output.playlist` | `false` | `false`: the controller writes the `.m3u` itself. |
+| `recorder.duplicates` | `skip` | `skip` |
+| `recorder.skip_duplicates_forward` | `false` | `false` for items played as missing tracks only, `true` for items played whole (see [Run flow](#run-flow-per-playlist-or-album)). |
+| `recorder.stop_with_player` | `false` | `false` |
+| `tags.cover_size` | `medium` | `medium` |
+| `privacy.bug_tracker` | `true` | `false`. The image's `spytifyd` is built without a crash-report address, so it sends nothing either way. |
+
+The layout's rules, and how it maps to these settings, are [web-ui.md Q16](web-ui.md#open-questions) (resolved) and `contracts/vectors/layouts.json`. The controller never moves files: Spytify names them.
 
 ## Stack
 
@@ -162,16 +184,16 @@ Chosen at Gate A of the M1 plan (2026-11-15). The sizes were measured on test bu
 |---|---|---|
 | Controller | Python 3.12, from Ubuntu's `python3` package, on asyncio | The maintainer reads Python. probe.py's tested logic carries over. |
 | Controller libraries | FastAPI (with pydantic), uvicorn (no extras) with wsproto, httpx, jeepney (D-Bus) and the stdlib `sqlite3` | About +62 MB on the image, worked out from the measured parts; the S4 image measured +62 MB (Python 39 MB, the venv 23 MB). FastAPI is used for its request validation and typed models. Starlette on its own measured about +48 MB. uvicorn without extras has no WebSocket support, so `WS /api/events` and `WS /vnc` need wsproto (92 KB, pure Python, on the h11 uvicorn already uses; uvicorn sends the 20 s pings with it). Any other library must be worth its size, measured as in S2. |
-| Web UI | React 19, TypeScript, Vite | Built in a Node builder stage. Only the built files ship in the image, and the controller serves them. |
-| UI packages | `openapi-typescript` (the typed client, from `contracts/openapi.yaml`), `lucide-react`, `@novnc/novnc`, self-hosted Figtree | |
-| Tests | pytest for the controller, with the simulated player and recorder; Playwright for the UI, against fake mode | |
+| Web UI | React 19, TypeScript, Vite ([web/](../web/)) | Built in a Node builder stage. Only the built files ship in the image, and the controller serves them. |
+| UI packages | `openapi-typescript` and `openapi-fetch` (the typed client, from `contracts/openapi.yaml`), `react-router`, `lucide-react`, `@novnc/novnc`, self-hosted Figtree and JetBrains Mono (`@fontsource`) | |
+| Tests | pytest for the controller, on the fake world and the engine simulator, plus the real `spytifyd --fake` when its binaries are given. Vitest for the UI's parts and pages. Playwright for the UI, against a mock backend ([web/mock/](../web/mock/)) and against the controller in fake mode. | |
 
 Go was the other finalist. It measured +11 MB and matches Spytify's track keys by construction, but Python is the language the maintainer can edit.
 
 **Track keys:**
 - **The rule:** Spytify lowercases with Go's `strings.ToLower` and trims with `strings.TrimSpace`. The controller uses probe.py's `go_lower` and `go_trim`, which match Go on every Unicode code point under Python 3.12 (all 1,112,064 checked at Gate A).
 - **Python upgrades:** Python 3.13 and later use a newer Unicode version and would drift. `ubuntu:24.04` stays on 3.12. If the Python version ever changes, switch to a lowercase table generated from Go.
-- **CI:** checks `contracts/vectors/track-keys.json` against Spytify's own Go code (`generate.py --go`; 34 of 34 agreed at Gate A), so the vectors aren't only checked against our own port.
+- **Checked against Go:** the keys in `contracts/vectors/track-keys.json` were also produced by Spytify's own Go code when the file was written (`generate.py --write --go`; 34 of 34 agreed at Gate A), so the vectors aren't only checked against our own port. CI recomputes the vectors from their inputs, and the controller's tests check its keys against them.
 
 **The contract stays the source:** FastAPI builds its API description from the code, but `contracts/openapi.yaml` is the spec. The pydantic models are generated from the contract (with `datamodel-code-generator`, at development time only), and a test compares FastAPI's `/openapi.json` with the contract, so the code can't drift from it.
 
@@ -216,29 +238,48 @@ The controller runs on one asyncio event loop: the REST API, both WebSockets, th
 
 ## Run flow, per playlist or album
 
-Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implications for the design" and the S0 section). An item is played one of two ways:
+Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implications for the design" and the S0 section). The run engine is [engine/](../controller/src/spotivault/engine/): `run.py` runs the queue, and `item.py` plays one item. An item is played one of two ways (plan D1):
 - **Missing tracks only:** albums, Liked Songs and playlists you own or collaborate on. The controller has the track list, so it plays only what isn't recorded yet.
 - **Whole:** followed and linked playlists, which have no track list (see [Web API usage](#web-api-usage)).
 
-1. **Plan.**
-   - **Missing tracks only:** fetch the track list with `market=from_token`. Leave out entries with `is_playable: false`, local files, episodes and empty entries. Look each one up in Spytify's duplicate index (`/music/.spytify/recorded.jsonl`) by Spytify's own key: the first artist and the title, trimmed and lowercased the Go way. An entry counts only while its file exists. **Nothing missing:** the item is Up to date, and no recorder starts.
+**Before the first item,** the pre-run check runs, in this order ([precheck.py](../controller/src/spotivault/engine/precheck.py)). A failed step ends the run Failed, with its reason.
+- **Setup** is complete, and the Web API is connected.
+- **The client** is installed and, while it runs, logged in.
+- **Our device** is listed. If it isn't, the client is restarted once, and the device has 60 s to show up.
+- **The Auto checklist rows** haven't drifted.
+- **`/music`** is writable, with at least 2 GB free.
+- **The catalog refresh.** It never fails the run: an item whose track list it couldn't read plays whole, or keeps its stored list.
+
+**Another device playing** (plan D6): when the check finds one, the run starts Paused, and never takes playback from you. Resume pauses that device, then starts the item.
+
+1. **Plan.** No Web API call here: the run's catalog refresh already stored every track list.
+   - **Missing tracks only:** the stored track list, fetched with `market=from_token`. Leave out entries with `is_playable: false`, local files, episodes and empty entries. Look each one up in Spytify's duplicate index (`/music/.spytify/recorded.jsonl`) by Spytify's own key: the first artist and the title, trimmed and lowercased the Go way. An entry counts only while its file exists. **Nothing missing:** the item is Up to date, and no recorder starts.
+     - **No list to trust:** an item whose list was never fetched, or that isn't tracked (the run's refresh doesn't fetch those, so its stored list may be old), plays whole instead. An empty or old list would look like "nothing missing". An item whose list this run's refresh couldn't read keeps the list stored before.
    - **Whole:** the item is Up to date without playing if its `snapshot_id` is the one from its last clean full pass **and** every track seen in that pass is still in the index. A deleted file forces a full pass. A clean full pass is one that ended normally and was heard to its end (Spotify went back to the playlist's first track), with no failed track, no track skipped for a reason a later pass could fix (seeked, low quality, silent, incomplete), and no interruption. A pass the loop guard paused is never clean.
      - **A fresh `snapshot_id`:** the run's own catalog refresh reads linked playlists' `snapshot_id` first, before any track list. If the refresh couldn't read an item's `snapshot_id` (the listing failed, Spotify stopped answering, or it's a linked playlist that isn't tracked: Back up now runs those too), the stored one may be stale, so the item plays whole.
-2. **Prepare the player:** pause, seek to 0, and turn shuffle and repeat off. The pause is sent only when the `GET /me/player` of the device check shows something playing: with nothing playing, Spotify answers it 403 "Restriction violated". Spytify won't record a track the player is paused on more than 300 ms in, and it misses a restart within 2 s of that point, so seeking to 0 first matters ([Spytify bugs](upstream/spytify-bugs.md) #2).
+   - **Unavailable:** an item removed from the Library, or found gone by the run's refresh, isn't played. Neither is an album with no track playable in your country.
+2. **Check, then prepare the player.**
+   - **Check:** our device must still be listed and `/music` must pass the storage check, or the run fails. If another device is playing, the item goes back to the head of the queue and the run pauses, as in D6 above.
+   - **Prepare:** pause, seek to 0, and turn shuffle and repeat off. The pause is sent only when the check's `GET /me/player` shows something playing: with nothing playing, Spotify answers it 403 "Restriction violated". Spytify won't record a track the player is paused on more than 300 ms in, and it misses a restart within 2 s of that point, so seeking to 0 first matters ([Spytify bugs](upstream/spytify-bugs.md) #2).
 3. **Start the recorder:** `spytifyd --once --serve --idle-exit 20s` for this item, with every recorder setting passed as `--set` (see [Container](#container)). `recorder.skip_duplicates_forward` is **off** for missing-tracks-only items and **on** for whole items. With it on, Spytify presses Next on the paused track 1 at the end of an album ([Spytify bugs](upstream/spytify-bugs.md) #1), and the whole playlist can play again, every track a duplicate. So whole items get a loop guard: two tracks in a row that come round again in the order they were first heard pause the player. One repeat alone doesn't: a playlist can list a track twice, and Spytify skips it and moves on. Then `player.control full_volume`.
 4. **Play:** `PUT /me/player/play` with the container's `device_id`, the item's `context_uri` and an `offset`.
    - **The offset is by URI**, at the first missing track. `offset.position` counts only playable entries, so after an unplayable entry it lands on a later track.
    - **A 404 from the play:** Spotify answers 404 for a device it doesn't know, too. If our device isn't listed any more, the run fails (device missing). Otherwise the item is Unavailable in this run only; whether it's gone for good is the catalog refresh's to decide.
    - **Liked Songs** is the context `spotify:user:<id>:collection`. The Web API then reports it as a playlist URI (`spotify:playlist:37i9dQZF1F…`), and the controller treats that as the same context.
 5. **Steer:** on each `track.started`, identify the loaded track by MPRIS `mpris:trackid`, which names the context's own entry. `GET /me/player` can report a relinked track ID, and `linked_from` is gone. If the track is planned, it plays. If not, the controller jumps to the next missing track (another play with an `offset` by URI) or, when none is left, pauses. A jump costs about 2 s of a track that's never saved. A planned track that Spytify skips as a duplicate (it's listed twice, or the keys differ) is jumped over the same way: with skip-forward off, it would play to its end unrecorded.
+   - **Fallbacks** (plan D10): MPRIS's metadata can lag, so its track ID counts only once its title agrees with the take's. Otherwise `GET /me/player`'s track ID is used, but only when it names an entry with that title. When neither names an entry, the track is matched by its title.
+   - **Steering guard:** a planned track that starts a second time pauses the player and ends the item, so a misfire can't loop.
 6. **End:** Spotify pauses at the end of an album or playlist, and the controller pauses when the plan is done. After 20 s of silence, `spytifyd` saves the last track and exits (`--idle-exit 20s`), about 20–27 s after the pause.
    - **Telling the end from a stall:** Spotify ends a context by loading its first track and pausing within 1.5 s of its start. The controller checks the loaded track against MPRIS: the item's first playable track, or for a whole item the first track heard. A pause anywhere else is a stall, even at the start of a track.
    - **Stop now while the item is finishing:** playback is already over, and the last track, often played in full, waits for the idle exit to be saved. A stop now would make Spytify reject it, so the controller stops after this track instead, and the track is saved at the idle exit, well inside the 40 s shutdown bound.
    - **No client restart is needed.**
    - **Read every event**, including those written as the process exits. The last take's `track.finished` arrives then, and the `--events` file holds it too.
    - **Pause the player** in case it started again, and recompute what's missing from the index. **Count distinct tracks, not events:** a phantom `track.started` + `track.skipped` for the paused track 1 is normal at the idle exit.
-   - **A pause of more than 20 s in the middle of an item** ends it early. This happens when another device takes over or the network stalls. The controller re-queues the item once, and the tracks already recorded are skipped. A second interruption in the same run ends the item as Partial.
-   - **The context moves on** (autoplay): the controller stops the session at once and ends the item.
+   - **A pause nobody here asked for**, in the middle of an item, is a takeover or a stall. `GET /me/player`, read on the pause, tells them apart.
+     - **Another device takes over** (it's the active device, on a pause or at a check): the controller stops the session at once, and never touches the player again, since pausing our client then could pause your phone. The take playing fails, the item ends Interrupted, and the run pauses ("Playback moved to …"). Resume pauses that device and runs the item again first.
+     - **A stall** (the network, or the client): the item ends Interrupted when the recorder's idle exit ends the session, 20 s after the pause. It's re-queued once, at the end of the queue, and the tracks already recorded are skipped.
+     - **A second interruption** of the same item in the same run, of either kind, ends it Partial.
+   - **The context moves on** (autoplay): the controller stops the session at once and ends the item. A whole item then ends Partial, and its pass isn't a clean full pass.
    - **`GET /me/player` lags a play:** for a moment after the play, it can still report the context and device from before it. A real run read the album of two runs before, 1.3 s after the play answered. So until it has shown the container's device on the item's context once, a takeover by the device that was active before the play, or the context that was playing then, isn't acted on at once. Any other device or context can't be the old state, so it's acted on at once: autoplay's radio is still stopped at its first track. For the old state, if MPRIS names one of the item's tracks at a track's start or the 60 s check, the context hasn't moved on. Otherwise the controller reads it again 2 s later, 3 times at most, then acts on what it still reports. MPRIS never vouches at a pause: a takeover pauses our player, and the old state could hide it. For the same reason, a pause during the re-reads isn't taken for the end of the context until they're over. When Liked Songs was playing before the play, its alias is learned from a read naming the track playing now.
    - **Timeouts** (as built; the numbers are the defaults in `engine/types.py`, `Timeouts`):
      - **Recorder socket:** it must answer within 15 s, or the start fails with the recorder's exit code (see [Exit codes](#exit-codes)).
@@ -248,10 +289,14 @@ Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implicatio
      - **Pause nobody here caused:** the item ends Interrupted when the recorder's idle exit ends the session. A recorder still running 60 s after the pause gets SIGTERM.
      - **Stopping the recorder:** SIGTERM (it finishes the current take), then after 45 s SIGTERM again (it stops at once), then after 15 s SIGKILL. When SIGTERM stands in for a stop after this track (the socket didn't answer, or spytifyd dropped it), the first wait lasts at least until the take's end plus 30 s.
      - **Web API checks:** `GET /me/player` every 60 s during an item, at each track start (at least 5 s apart) and on each pause. Before it has caught up with the play, a mismatch that could be the state from before the play is read again every 2 s, 3 times at most, so a real takeover or context change waits 6 s at most.
-     - **Client restart as the fallback** (the spec above): not built. A timeout fails the item, and only the pre-run check restarts a client that isn't running. Open for the user: see [controller/ARCHITECTURE.md](../controller/ARCHITECTURE.md#whats-left-to-build).
-7. **Files:** write a `.m3u` for the playlist, in the Web API's track order, with paths relative to the `.m3u`. A recorded track that has since become unplayable stays listed while its file is there. For a whole item, use the order the tracks were recorded in: the last clean full pass's, then the tracks recorded since. A file with the playlist's name that the controller didn't write is never replaced: the playlist gets the name with " (<first 6 characters of its id>)". Save its cover next to it (see [Playlist covers](#playlist-covers)). After each item, its recorded files get the mode `UMASK` gives them, since Spytify leaves tagged files at 0600 ([Spytify bugs](upstream/spytify-bugs.md) #7).
+     - **No client restart on a timeout:** an earlier version of this spec restarted the client as the fallback. That isn't built: a timeout fails the item, and only the pre-run check restarts the client, when our device isn't listed. Whether to add it is open for the user: see [controller/ARCHITECTURE.md](../controller/ARCHITECTURE.md#whats-left-to-build).
+7. **Files** ([files.py](../controller/src/spotivault/files.py)): for a playlist or Liked Songs, never an album, and only while "Write .m3u playlists" is on, write `Music/Playlists/<name>.m3u`, in the Web API's track order, with paths relative to the `.m3u`. An Up to date item's is written again too, so a reordered playlist's stays current. A recorded track that has since become unplayable stays listed while its file is there. For a whole item, use the order the tracks were recorded in: the last clean full pass's, then the tracks recorded since. A file with the playlist's name that the controller didn't write is never replaced: the playlist gets the name with " (<first 6 characters of its id>)". After each item, its recorded files get the mode `UMASK` gives them, since Spytify leaves tagged files at 0600 ([Spytify bugs](upstream/spytify-bugs.md) #7).
+   - **Its cover file** next to the `.m3u` (see [Playlist covers](#playlist-covers)) isn't built in M1. It waits on [web-ui.md Q14 and Q15](web-ui.md#open-questions).
 
 The scheduler queues items. An item forced from the UI goes right after the current item. One item records at a time.
+- **Run now** covers every tracked playlist, Liked Songs included, and the Queued and Partial albums. Unavailable items are left out.
+- **Stop after this track** lets the take playing finish. **Stop now** discards it, and it counts as Skipped, not Failed: the next run records the track anyway.
+- **A schedule window's end** stops the run after the current track, and the item it cuts is Carried over (plan D5). The window grid is set with `PUT /api/schedule`; its page comes after M1.
 
 ### Exit codes
 
@@ -302,14 +347,19 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 
 | Endpoint | Used for | Page size |
 |---|---|---|
+| `POST https://accounts.spotify.com/api/token` | The PKCE code exchange, and refreshing the token. | — |
 | `GET /me` | The display name ("Connected as …"). | — |
 | `GET /me/playlists` | The playlist list, each with its owner, `snapshot_id` and `items.total`. | 50 |
 | `GET /playlists/{id}/items` | A playlist's tracks. It replaces the removed `/playlists/{id}/tracks`. | 50 |
-| `GET /playlists/{id}` | Name, owner and cover for a pasted link. | — |
+| `GET /playlists/{id}` | Name, owner, cover and `snapshot_id` for a pasted link, and a linked playlist's `snapshot_id` at a run's start. | — |
 | `GET /me/tracks` | Liked Songs, newest first. | 50 |
 | `GET /me/albums` | Saved albums, each with its first page of tracks. | 50 |
 | `GET /albums/{id}/tracks` | The rest of an album longer than that first page. | 50 |
-| `GET /me/player/devices` and the player controls (`play`, `pause`, `shuffle`, `repeat`) | Finding the container's device and starting each item. | — |
+| `GET /me/player/devices` | Finding the container's device (wizard step 5, and the run's checks). | — |
+| `GET /me/player` | During a run: another device playing (D6, takeovers), the context moving on (autoplay), and the fallback for the loaded track (D10). | — |
+| The player controls: `PUT /me/player/play`, `pause`, `seek`, `shuffle` and `repeat` | Preparing the player and playing each item. Resume also pauses another device that's playing (D6). | — |
+
+**This list is the whole allow-list.** [webapi/endpoints.py](../controller/src/spotivault/webapi/endpoints.py) builds every request from it, so the controller can't reach any other endpoint, Spotify's internal ones included. A new endpoint needs a change to this list first, then a migration for its `api_endpoints` row, then its entry in `endpoints.py`. `GET /me` and the listings run in the catalog lane, the device list and the player in the playback lane, and the token in a lane of its own (see Requests below). The scopes asked for are `playlist-read-private`, `playlist-read-collaborative`, `user-library-read`, `user-read-playback-state` and `user-modify-playback-state`.
 
 **The 2026 rules that shape the design:**
 - **Item access:** `/items` returns tracks only for playlists you own or collaborate on. Any other playlist returns 403. So followed and linked playlists have no track list until they're recorded. `/me/playlists` still gives a followed playlist's `items.total` (tested 2026-11-15, although the migration guide says it's left out). A linked playlist has no total: `GET /playlists/{id}` returns its name, owner, images and `snapshot_id`, with no `items`. A followed playlist you collaborate on has access and behaves like your own.
@@ -321,11 +371,11 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 - **Rate limits:** Spotify publishes no Development Mode numbers. Limits apply over a rolling 30 s window, plus quota buckets shared by every app on the developer account. A `429` carries `Retry-After`; see Requests below for how the controller handles it.
 
 **Load:**
-- Each request names only the fields it needs through the `fields` parameter: track ID, title, artists, album, cover, `duration_ms` and `is_local`.
+- **Fields:** the two playlist endpoints, `GET /playlists/{id}` and `/items`, ask only for what the controller stores, through the `fields` parameter. For a track that's its ID, title, artists, album, cover, `duration_ms`, `is_local` and `is_playable`. Spotify documents `fields` on those two only, so the other listings answer whole objects. Track listings add `market=from_token`, so `is_playable` comes back.
 - **Playlists:** the controller stores each one's `snapshot_id` and refetches its items only when that changes.
 - **Liked Songs:** it has no `snapshot_id`. The controller reads from the newest page until it reaches a track it already has, then compares `total`. If the total doesn't match, it refetches the whole list.
 - **Albums:** they don't change, so they're fetched once, when added.
-- **Example:** a first fetch of 23 playlists with 3,000 tracks, 2,000 Liked Songs and 100 saved albums is about 110 requests. A refresh where nothing changed is a few.
+- **Example:** a first fetch of 23 playlists with 3,000 tracks, 2,000 Liked Songs and 100 saved albums is about 110 requests. A refresh where nothing changed costs at most 3 (a test checks it). A run's own refresh adds one per tracked linked playlist, for its `snapshot_id`.
 
 **Requests:**
 - **One at a time:** the controller sends one Web API request at a time, with a short pause between them (250 ms by default) during catalog refreshes. Playback calls during a run aren't delayed.
@@ -353,19 +403,24 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 Recording happens in real time, so a backup takes about as long as the music still to record. The Dashboard's Full backup card, wizard step 9 and the Schedule preview all show this estimate, from one calculation (`GET /api/backlog`).
 
 - **Catalog:** every tracked item's track list with `duration_ms`, kept in SQLite and refreshed as described in [Web API usage](#web-api-usage). It's refreshed at the start of each run, and when the Dashboard or Schedule page opens, at most once every 15 minutes. The Library's Refresh button refreshes it at once, whenever no run is going ([web-ui.md § Library › Header](web-ui.md#header)).
+- **Items counted:** tracked playlists, Liked Songs included, and the albums on the Albums page. Unavailable items are left out.
 - **What's recorded:** History's per-track records, keyed by Spotify track ID.
+  - **As built, waiting on review:** S5 built it on Spytify's duplicate index (`recorded.jsonl`) instead: the tracks whose Spytify key is in it, the same test the run's planning uses ([Run flow](#run-flow-per-playlist-or-album) step 1). Every file History records is in that index, so the estimate agrees with what a run would record. It's open for the user ([controller/ARCHITECTURE.md](../controller/ARCHITECTURE.md#whats-left-to-build)).
 - **Time left:**
   - the sum of `duration_ms` over tracks not recorded yet, counting each track ID once however many items it's in;
   - plus about 35 s for each item with something to record: a few seconds to start, and the 25–30 s Finishing tail;
-  - local files (`is_local`) and entries with no `item` are left out, because they can't be played.
+  - local files (`is_local`), unplayable entries and entries with no `item` are left out, because they can't be played.
 - **Finish date:** the controller walks the schedule's active hours forward from now until the time left is used up. With Manual only, there's no date.
-- **Unknown items:** followed and linked playlists have no track list, so their length is unknown. They're left out of the figure and counted separately, unless they're Up to date by their `snapshot_id` (see [Run flow](#run-flow-per-playlist-or-album) step 1). A followed playlist's track count is known from `/me/playlists`, so the UI can show it, but not its duration.
+- **Unknown items:** followed and linked playlists have no track list, so their length is unknown. They're left out of the figure and counted separately, unless they're Up to date by their `snapshot_id` and Spytify's index (plan D13; see [Run flow](#run-flow-per-playlist-or-album) step 1). A followed playlist's track count is known from `/me/playlists`, so the UI can show it, but not its duration.
+- **Code:** [backlog.py](../controller/src/spotivault/backlog.py), checked against `contracts/vectors/backlog.json`. The estimate is worked out again after each catalog refresh, each album added and each run item, and a `backlog` event goes out when a figure changed.
 - **Accuracy:** duplicates are skipped in seconds, so they barely count. The same song can have a different track ID on a single and on its album; it's counted twice but recorded once, so the estimate leans slightly high.
 - **Not the run header:** while a run goes, the Dashboard's run header shows that run's own time left, not this estimate. It's worked out the same way over the run's queue only, from the stored durations: see [web-ui.md § Run header](web-ui.md#running-queue-first).
 
 ## Playlist covers
 
 Each playlist's cover is saved next to its `.m3u`, with the same base name: `Music/Playlists/<name>.m3u` and `Music/Playlists/<name>.jpg` (or `.png`). When the playlist is renamed, both files are renamed.
+
+**In M1, only the UI's cached covers are built** ([catalog/covers.py](../controller/src/spotivault/catalog/covers.py)), downloaded only from Spotify's image hosts. The cover files below, and custom covers, wait on [web-ui.md Q14 and Q15](web-ui.md#open-questions).
 
 **Why you can upload your own:** Spotify doesn't keep a sharp copy of a playlist cover. Tested on 2026-11-15 against Spotify's image CDN, trying each size code:
 
@@ -382,9 +437,9 @@ Spotify's own upload endpoint takes a JPEG of at most 256 KB, so a sharper origi
 3. **Liked Songs never has a cover file,** and you can't set a custom cover for it. The UI shows the Liked Songs tile everywhere instead: the client's gradient heart, drawn in our own style ([web-ui.md § Design language](web-ui.md#design-language)).
 
 **Spotify's cover:**
-- **Source:** the `images` URL from `GET /me/playlists`, which the catalog refresh already fetches (`images(url)` is added to its `fields`). For a linked playlist, it comes from `GET /playlists/{id}`.
+- **Source:** the `images` URL from `GET /me/playlists`, which the catalog refresh already fetches (its answer carries `images`; it takes no `fields`). For a linked playlist, it comes from `GET /playlists/{id}`.
 - **Largest size:** the controller rewrites the URL before downloading, following [Spotify's image CDN](#spotifys-image-cdn) below. If the rewritten URL fails, it downloads the URL as returned.
-- **When:** at step 6 of the run flow, only when the image ID (the part after the size) has changed since the last download. A playlist with a new grid of covers gets a new ID, so it's downloaded again.
+- **When:** at step 7 of the run flow, only when the image ID (the part after the size) has changed since the last download. A playlist with a new grid of covers gets a new ID, so it's downloaded again.
 - **No stored URLs:** Spotify documents that playlist image URLs expire in less than a day, so a URL is used straight away and never kept as the cover.
 - **Load:** one CDN request per changed cover. These go to `i.scdn.co` or `mosaic.scdn.co`, not the Web API, so they're not in the Web API request count.
 
@@ -442,10 +497,13 @@ Every other code tried returned 404, including `82c1`, the code that gives album
 
 ## Distribution
 
-- **CI:** [.github/workflows/ci.yml](../.github/workflows/ci.yml) runs shellcheck, builds the amd64 image and runs the [smoke test](../image/test/smoke.sh) on every pull request and every push to main. It pushes nothing.
+- **CI:** two workflows. Neither pushes anything.
+  - **[ci.yml](../.github/workflows/ci.yml),** on every pull request and every push to main: shellcheck; the controller's ruff and pytest; the web UI's `npm run check` (tokens, API types, colors, lint, typecheck, Vitest, the build, and Playwright on the mock) and its Playwright tests against the controller in fake mode; and, in a job of its own, the amd64 image build, then the [smoke test](../image/test/smoke.sh) with the client install.
+  - **[contracts.yml](../.github/workflows/contracts.yml),** when `contracts/` or `prototype/probe.py` changes: Spectral lints `openapi.yaml`, the vectors are recomputed from their inputs, and `schema.sql` loads.
+- **M1:** a local image only, built from source with [docker-compose.yml](../docker-compose.yml). M1 ends with the git tag `v0.1.0`, and no image is pushed.
 - **Docker Hub:** publishing comes in M3, with its secrets.
 
-The smoke test runs the same way by hand: `docker build -t spotivault:ci .`, then `image/test/smoke.sh spotivault:ci --install`. It checks that the container turns healthy, that only s6 runs as root, that `WS /vnc` reaches VNC, the `spytifyd` version and the shim, fake recordings in AAC, MP3 and FLAC, that bad settings stop the container, the client install, and a quick stop.
+The smoke test runs the same way by hand: `docker build -t spotivault:ci .`, then `image/test/smoke.sh spotivault:ci --install`. It checks that the container turns healthy, that only s6 runs as root, that `WS /vnc` reaches VNC and the web UI is served, the controller's venv, the setup endpoints of wizard steps 1, 2, 4 and 6, the `spytifyd` version and the shim, fake recordings in AAC, MP3 and FLAC, that bad settings stop the container, the client install with its progress on `WS /api/events`, a quick stop, and that `init-spotivault` writes `/config` as `app`.
 
 ## Terms of Service
 
@@ -480,10 +538,21 @@ Step S0 of the M1 plan settled these (2026-11-15, Spytify 2.0.2):
 - **Login detection**, the **runtime client install** and **`--disable-dev-shm-usage`** work as described in web-ui.md (Q2, Q13).
 - **Linked playlists** (public, not followed) give their name, owner, cover and `snapshot_id`, and play by `context_uri` (Q10).
 
-Spytify's own bugs, and what the controller does about them, are in [upstream/spytify-bugs.md](upstream/spytify-bugs.md).
+Real runs on Docker Desktop settled these (2026-11-21 and 22, Spytify 2.0.2; details in [testing/e2e.md](testing/e2e.md)):
+- **An album** records, and its re-run is Up to date in seconds.
+- **A deleted file** records again, alone.
+- **A phone takeover** pauses the run and names the phone, and Resume brings it back.
+- **Both stop modes**, a `docker restart` mid-item, and a schedule window ending mid-item (Carried over).
+- **A music folder `app` can't write** stops the run in its pre-run check.
+- **The Web API load:** 250 requests over the session, with no 429s and no retries.
+
+**Spytify's own bugs**, and what the controller does about them, are in [upstream/spytify-bugs.md](upstream/spytify-bugs.md). Nine are logged so far. No local patch is applied: [image/spytify/patches/](../image/spytify/patches/) holds none yet, and one is added only with the user's OK.
 
 Still to validate:
 - **Cover sizes on the CDN:** the size rewrites in [Spotify's image CDN](#spotifys-image-cdn) rely on undocumented naming. Tested on public playlists on 2026-11-15; re-check before release, and whenever the fallback warning starts showing up.
+- **A playlist with a gap, and a followed playlist, on a real account:** an owned playlist with an unplayable entry in the middle, and a followed playlist that plays whole, then is skipped as unchanged (D13). S0 recorded a playlist with unplayable entries and played a followed playlist with probe.py, but neither has run through the controller yet, and D13's skip hasn't run on a real account ([testing/e2e.md](testing/e2e.md), S6 4 and S6 5).
+- **The session's fixes in the real container:** they pass the tests and the smoke test, but no real run has used a rebuilt image yet.
+- **Long unattended runs:** step S10 of the M1 plan, a 2–3 h scheduled run, then an analysis of its metrics.
 
 ## Component Rules
 

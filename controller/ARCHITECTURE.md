@@ -25,7 +25,7 @@ Everything runs from `controller/`. uv is at `~/.local/bin/uv`; the venv is `con
   - **Speed** (`SPOTIVAULT_FAKE_SPEED`): the simulated world runs that many times faster, to watch whole runs.
   - Delete `controller/.dev/` to start again from nothing.
 - **In the container**, s6 runs `python -m spotivault` as the `app` user on port 8080, in real mode.
-- **In the image** (the [Dockerfile](../Dockerfile), owned by image-ci):
+- **In the image** (the [Dockerfile](../Dockerfile)):
   - **The venv** is `/opt/spotivault/venv`, built from `uv.lock` without the dev group, on Ubuntu's Python 3.12. The package is installed as a wheel and byte-compiled; `app` can't write there. s6 runs `/opt/spotivault/venv/bin/python -P -m spotivault` ([its run script](../image/rootfs/etc/s6-overlay/s6-rc.d/controller/run)).
   - **The web root**, `/usr/local/share/spotivault/web`, holds noVNC's core in `novnc/` (`core/`, `vendor/` and the licences, pinned by sha256). `/vnc.html` is the controller's own copy, `web/static/vnc.html`, which imports `novnc/core/rfb.js` from there. The UI build (S7) goes in the same folder and must keep `novnc/`.
   - **A new runtime dependency** goes in `pyproject.toml` and `uv.lock`; the image picks it up from the lock file. A new system tool goes in the Dockerfile's controller runtime layer (`python3`, `x11-utils` for `xwininfo`).
@@ -40,7 +40,7 @@ Everything runs from `controller/`. uv is at `~/.local/bin/uv`; the venv is `con
 | `TZ` | `UTC` | The schedule's time zone. Set in the UGOS Docker app. |
 | `UMASK` | `000` | 3 or 4 octal digits. Applies to `/music` only, through the recorder. |
 | `DEVICE_NAME` | `spotivault` | The Spotify Connect device name. |
-| `UI_PASSWORD` | unset | Not enforced in M1 (plan D11). Only reported, and never logged. |
+| `UI_PASSWORD` | unset | Not enforced in M1 (plan D11). When it's set, `container.py` logs a warning at start-up, and `GET /api/container` reports it (`ui_password_env_set`). The web UI doesn't show it yet. Its value is never logged. |
 | `SPOTIVAULT_FAKE` | `0` | **New.** `1` turns on fake mode, like `--fake`. |
 | `SPOTIVAULT_HOST` | `0.0.0.0` | **New.** The address to listen on. `--host` overrides it. |
 | `SPOTIVAULT_PORT` | `8080` | **New.** The port. `--port` overrides it. |
@@ -50,7 +50,7 @@ Everything runs from `controller/`. uv is at `~/.local/bin/uv`; the venv is `con
 | `SPOTIVAULT_LOG_LEVEL` | `INFO` | **New.** `DEBUG`, `INFO`, `WARNING` or `ERROR`. |
 | `SPOTIVAULT_IMAGE_VERSION` | `dev` | **New.** The image's version, for Settings › Container. Set when the image is built. |
 | `SPOTIVAULT_VNC` | `127.0.0.1:5900` | **New.** The VNC server that `WS /vnc` bridges to. |
-| `SPOTIVAULT_ALLOWED_HOSTS` | empty | **New.** More names, separated by commas, the UI may be reached by: your own domain, a reverse proxy's. IP addresses, `localhost`, names without a dot and `.local`, `.lan`, `.internal` and `.home.arpa` names always work ([web/guard.py](src/spotivault/web/guard.py)). The tests set `spotivault.test`. |
+| `SPOTIVAULT_ALLOWED_HOSTS` | empty | **New.** More names, separated by commas, the UI may be reached by: your own domain, a reverse proxy's. IP addresses, `localhost`, names without a dot and `.local`, `.lan`, `.internal`, `.home.arpa` and `.localhost` names always work ([web/guard.py](src/spotivault/web/guard.py)). The tests set `spotivault.test`. |
 | `SPOTIVAULT_FAKE_SCENARIO` | `demo` (tests: `fresh`) | **New.** Fake mode's starting point: `fresh`, `demo` or `wizard` ([fake/world.py](src/spotivault/fake/world.py)). |
 | `SPOTIVAULT_FAKE_SPEED` | `1` | **New.** Fake mode's clock runs this many times faster than real time. |
 
@@ -77,7 +77,7 @@ __main__.py ─ load_config() ─ build_services(config) ─ create_app(services
   services.add_shutdown("client", self.stop)  # awaited at shutdown, newest first
   ```
 
-- **Routers** (`api/routers/`, one per area) get the Services object with `services: ServicesDep` and raise `ApiError` for error answers. An endpoint a later step builds raises `not_built("operationId")`: 501 with the error envelope.
+- **Routers** (`api/routers/`, one per area) get the Services object with `services: ServicesDep` and raise `ApiError` for error answers. Every endpoint in the contract is built. `errors.not_built("operationId")` (501 with the error envelope) stays for an endpoint added to the contract before its code.
 - **The lifespan** is `services.running()`: it opens the store, runs the start-up hooks, then the background tasks in one `TaskGroup`. A background task that fails is logged with its traceback and stops the controller, so no error is ever lost. If the database can't be opened, the controller still serves, and `GET /api/health` answers 503.
   - **Shutdown order:** the shutdown hooks (newest first), then the background tasks are cancelled and awaited, then the ports' HTTP clients close (`webapi`, `cdn`), then the store. A refresh still going never meets a closed client.
 
@@ -126,7 +126,7 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 
 **Restarting the client** (`services.client.restart()`): s6's control pipes belong to root, so the controller can't use `s6-svc` as `app`. It quits the client over MPRIS, kills its processes after 15 s if they're still there, and s6 starts it again, as the `spotify` service does on a stop. A Quit with no answer gets the 15 s too, since the client may be on its way out; only `MprisNoClient` (no bus, or nobody owns the name) means it's killed at once. The smoke test checks it on the real client.
 
-**Shared files:** several modules call these, so a change to one means running its callers' tests too. `test_contract_routes.py` covers the API. Keep the constructors stable, because `services.py` builds them: `XService(services)` for each feature module, and the real port classes `LocalClientControl(config, mpris)`, `JeepneyMpris(config)`, `LocalStorageProbe()`, `LocalDesktop(config)`, `SpotifyWebApi(config, clock, store, auth, *, transport=None)` and `HttpImageCdn(*, transport=None, ...)`.
+**Shared files:** several modules call these, so a change to one means running its callers' tests too. `test_contract_routes.py` covers the API. Keep the constructors stable, because `services.py` builds them: `XService(services)` for each feature module, and the real port classes `LocalClientControl(config, mpris)`, `JeepneyMpris(config)`, `LocalStorageProbe()`, `LocalDesktop(config)`, `SpytifyRecorder(config, clock)`, `SpotifyWebApi(config, clock, store, auth, *, transport=None)` and `HttpImageCdn(*, transport=None, ...)`.
 
 - `ports.py`: `ImageCdn`, `FetchedImage`, the image errors, `spotify_image_url_allowed`, `WebApi.aclose`, `Ports.cdn`.
 - `webapi/endpoints.py`: the only endpoints allowed (= the `api_endpoints` rows), their lanes and URLs, `REDIRECT_URI`, `SCOPES`, `endpoint_for`.
@@ -158,7 +158,7 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | `loopwatch.py` | The event-loop lag watchdog (over 250 ms: a warning). | foundation |
 | `api/models.py` | Pydantic models generated from `openapi.yaml`. Never edited by hand. | foundation |
 | `api/deps.py`, `api/params.py` | `ServicesDep`, and the shared path and query parameters. | foundation |
-| `api/routers/*.py` | One router per area. S5 filled those for the Web API, Spotify, library, albums, covers, backlog. S6 fills `status`, `runs`, `history` and `schedule`. | S4, S5, S6 |
+| `api/routers/*.py` | One router per area. S5 filled those for the Web API, Spotify, library, albums, covers, backlog. S6 filled `status`, `runs`, `history` and `schedule`, and S8 added `logs` (History › Logs). | S4, S5, S6, S8 |
 | `settings.py` | Settings, layout validation, the `--set` mapping, and the settings keys the controller reads itself (`run_order`, `webapi_burst_threshold`). | settings-storage-setup |
 | `storage.py` | The storage check; `LocalStorageProbe`. | settings-storage-setup |
 | `container.py` | Read-only container facts. | settings-storage-setup |
@@ -178,17 +178,18 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 
 ## What's left to build
 
-- **S5 is built:** the Web API port, the connection, the catalog refresh, the Library, Albums, covers (thumbnails), matching and the backlog. Tested on the mock Spotify and the fake world only; the real-account check is still to do. Every S5 endpoint answers; nothing in S5 answers 501.
-- **S6 is built:** the real recorder port, the item and run engines, the scheduler engine, History, the `.m3u` writer, the stale-file cleanup and the run metrics. Every endpoint answers; none answers 501. Tested on the fakes, the simulator and a stub spytifyd. The real `spytifyd --fake` tests run only when `SPOTIVAULT_TEST_SPYTIFYD` and `SPOTIVAULT_TEST_FFMPEG` name the binaries. On the image's build (spytifyd 2.0.2 with its ffmpeg), 13 pass and `test_umask_reaches_tagged_files` is an expected failure (spytify-bugs.md #7); two of them check that `session.stop {now: false}` in the album-end wait saves the last take and `{now: true}` rejects it. The check on the real client is still to do.
+- **S5 is built:** the Web API port, the connection, the catalog refresh, the Library, Albums, covers (thumbnails), matching and the backlog. Every S5 endpoint answers; nothing in S5 answers 501. The real-account check (S5 in [docs/testing/e2e.md](../docs/testing/e2e.md)) passed in the hands-on session of 2026-11-21 and 22.
+- **S6 is built:** the real recorder port, the item and run engines, the scheduler engine, History, the `.m3u` writer, the stale-file cleanup and the run metrics. Every endpoint answers; none answers 501. Tested on the fakes, the simulator and a stub spytifyd. The real `spytifyd --fake` tests run only when `SPOTIVAULT_TEST_SPYTIFYD` and `SPOTIVAULT_TEST_FFMPEG` name the binaries. On the image's build (spytifyd 2.0.2 with its ffmpeg), 13 pass and `test_umask_reaches_tagged_files` is an expected failure (spytify-bugs.md #7); two of them check that `session.stop {now: false}` in the album-end wait saves the last take and `{now: true}` rejects it. On the real client, the hands-on session passed S6 1–3 and 6–9 ([docs/testing/e2e.md](../docs/testing/e2e.md)). **Still to run:** S6 4 (an owned playlist with a gap) and S6 5 (a followed playlist, then D13).
   - **Removing an item or album** from the Library doesn't take it out of the current run's queue yet (`DELETE /api/runs/current/items/{id}` does).
   - **No removal event:** removing an item or album sends no event yet.
   - **Cover files** next to the `.m3u` are deferred (Q14 and Q15).
-  - **Contract gaps** (not changed; the contract is the user's to decide): events.md lists `error` codes for only some pre-run failures; `HistoryRow.reason` and the `runs.reason` comment in schema.sql don't list `webapi`, `not_connected` or `setup_incomplete`; openapi.yaml's listRuns has no 422.
+  - **Contract gaps** (not changed; the contract is the user's to decide): `HistoryRow.reason` and the `runs.reason` comment in schema.sql don't list `webapi`, `not_connected` or `setup_incomplete`; openapi.yaml's listRuns has no 422.
   - **A missing binary** has no exit code, so it reads as `killed` and fails the item, not the run. A "can't be run" cause in `recorder/protocol.py` would fix it.
   - **Tests:** `test_schedule.py` uses stand-ins (`FakeRuns`, `FakeHistory`) for the run engine and History. Using the real ones is open. `test_ws_server.py::test_shutdown_closes_with_1012` failed once under load in one full run (not an S6 file) and passed in the others.
+- **S8 is built:** what the slice pages and the hands-on session needed: `POST /api/setup/albums/later`, the Library's Refresh button (`request_manual`, migration 004, `catalog.refresh`), the run's own time left (`engine/time_left.py`), Stop now's cut take counted as Skipped, a pause only when something plays, the confirmed context and takeover checks after a play, and History › Logs (below).
 - **Open for the user** (left as built; each is in the spec, see `docs/`):
   - **S6's decisions** (web-ui.md Open questions 17 to 22): the container's stop during a run (Failed or Stopped), items that never started (Stopped or a new badge), a track listed twice, a whole item's time limit, an hour turned on mid-window, and episodes the plan jumps over. Q23, Spytify's logs, is resolved: they follow the Logs tab's retention (§ History › Logs below).
-  - **Client restart as the fallback** (design.md § Run flow step 6): the spec says it, and nothing does it on a timeout yet.
+  - **Client restart as the fallback** (design.md § Run flow step 6): isn't built. A timeout fails the item, and only the pre-run check restarts the client (`engine/precheck.py`), when our device isn't listed. Whether to add it is open.
   - **"Recorded" in the backlog** is a track whose key is in Spytify's index. design.md § Backlog estimate says History's per-track records, keyed by track ID. See the settled answers below.
   - **The finish date** can go past the 21-day window horizon on a slow schedule. The contract allows `finish_at` null only for Manual only, or when nothing is left.
   - **Cover downloads:** each changed cover costs two CDN requests, a thumbnail and a full copy. design.md says "one CDN request per changed cover" and "the UI never loads a full-size file". The contract has `size=full`, and migration 002 has `items.full_path`.
@@ -238,9 +239,9 @@ The answers the built code takes. Each one is also in the spec where it matters 
 **The database:**
 - `await store.fetchone/fetchall/fetchval/execute(sql, params)` for one statement.
 - `await store.transaction(fn)` runs `fn(conn)` on the database thread inside `BEGIN IMMEDIATE … COMMIT`, rolled back if it raises. Keep `fn` short and plain.
-- A schema change is a new migration, `store/migrations/002_<what>.sql`. Never edit `001_initial.sql`: a test keeps it identical to `contracts/schema.sql`.
+- A schema change is a new migration with the next number, `store/migrations/005_<what>.sql` (001 to 004 exist). Never edit an existing one. `001_initial.sql` must stay identical to `contracts/schema.sql`: a test checks it.
 
-**Events:** publish only after the change is committed: `services.bus.publish("client.status", model)`. The type must be one of `events.EVENT_TYPES`. `level` and `log.lines` are the volatile ones (`seq` null), with their own paths: `bus.publish_level`, and `Subscription.push_logs` to one following connection (the logs module). The hello's five keys (`setup`, `status`, `connection`, `client`, `backlog`) each have an owning module that replaces its placeholder with `add_snapshot`; `status` is the last one, until S6.
+**Events:** publish only after the change is committed: `services.bus.publish("client.status", model)`. The type must be one of `events.EVENT_TYPES`. `level` and `log.lines` are the volatile ones (`seq` null), with their own paths: `bus.publish_level`, and `Subscription.push_logs` to one following connection (the logs module). The hello's five keys (`setup`, `status`, `connection`, `client`, `backlog`) each have an owning module that replaces its placeholder with `add_snapshot`. `status` has no placeholder: the run engine registers it (`engine/run.py`).
 
 **The Web API:**
 - Only the endpoints in `webapi/endpoints.py`, the ones design.md § Web API usage lists. A new one is a spec change first, then a row there. Never Spotify's internal endpoints.
@@ -266,7 +267,7 @@ The answers the built code takes. Each one is also in the spec where it matters 
 - **No outside world:** tests never touch the network, real Spotify, Docker or the running containers. They run on fake ports. `world_of(services.ports)` gives the FakeWorld behind them, to change the world from the outside (`world.player.take_over("Pixel 9")`); `tests/fake_helpers.py` has `make_world`, `recorder_spec` and `Notes`.
 - **Fixtures** (`tests/conftest.py`): `config_dir`, `music_dir`, `web_root` (temporary folders), `env`, `config`, `fake_clock`, `services`, `app`, `running_app` (lifespan entered) and `client` (an `httpx.AsyncClient` on the app).
 - **Connecting a test's app:** on the fake ports, `await services.auth.set_client_id(...)` and `save_grant(...)` (any token strings) connect it. `world_of(services.ports).webapi` then steers the fake Web API: `failures`, `expired` and `catalog`. The fake CDN is `world.cdn` (`missing`, `failures`, `fetched`).
-- **Skipped tests:** only `test_recorder_integration.py`'s, unless `SPOTIVAULT_TEST_SPYTIFYD` and `SPOTIVAULT_TEST_FFMPEG` name a real spytifyd and ffmpeg (the verify stage takes them from the built image).
+- **Skipped tests:** `test_recorder_integration.py`'s, unless `SPOTIVAULT_TEST_SPYTIFYD` and `SPOTIVAULT_TEST_FFMPEG` name a real spytifyd and ffmpeg (copy them out of a built image: `/usr/local/bin/spytifyd` and `/usr/local/bin/ffmpeg`). CI's controller job skips them. CI's image job records with the image's own spytifyd instead (`image/test/smoke.sh`). A few others skip only on a machine that lacks what they need: `dbus-daemon` for `test_client_mpris.py`'s private bus, and a user other than root for one `test_storage.py` test.
 - **Engine-run tests** swap `services.runs.make_item_engine` for a scripted item engine. A test that leaves a run going makes the app's shutdown wait up to 40 s of real time (the SIGTERM bound) unless it moves the fake clock: end runs before teardown.
 - **The blocked-loop guard:** every test's loop runs in asyncio debug mode, and a callback slower than 100 ms fails the test. Build heavy things (apps, parsed files) in sync fixtures, not inside the test's coroutine. A test that blocks on purpose takes `@pytest.mark.allow_slow_callbacks`. After collection, conftest.py freezes what's loaded (`gc.freeze()`), so the garbage collector's full passes stay short under load.
 - **S6's simulator:** the `sim` fixture (`tests/engine_sim.py`): a controller set up as after the wizard on the fake world, with an empty library, scripted on the fake clock. See § S6's parts, "The simulator".

@@ -4,7 +4,7 @@
 // - By default, to the mock backend (mock/server.ts). Vite starts it itself on MOCK_PORT (8081).
 // - With SPOTIVAULT_BACKEND=http://localhost:8080, to a real controller instead, and no mock starts.
 // - With SPOTIVAULT_VNC=http://localhost:8080 as well, only /vnc goes there: the mock API plus a real
-//   container's noVNC bridge (the S2 image has one).
+//   container's noVNC bridge (the controller's /vnc).
 
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { isIP } from 'node:net';

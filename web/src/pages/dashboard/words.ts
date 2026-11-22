@@ -95,7 +95,7 @@ export function elapsedText(iso: string, now: number): string {
 
 /**
  * The run header's line (web-ui.md § Run header): "started 01:00 · 0:42 elapsed · Scheduled · stops
- * by 07:00", the last part for scheduled runs only, then this run's own "about 9 min left in this run".
+ * by 07:00", the last part for runs with a window (scheduled and start-up), then this run's own "about 9 min left in this run".
  */
 export function runMetaLine(run: RunSummary, now: number): string {
   return runMetaParts(run, now).join(' · ');
