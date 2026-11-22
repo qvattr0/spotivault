@@ -23,7 +23,8 @@ prototype/FINDINGS.md and docs/upstream/spytify-bugs.md):
   takeovers (`take_over_at`: a phone takes playback), autoplay moving the context
   (`autoplay()`), silent or stalled capture (`capture_at`), MPRIS metadata arriving late
   (`world.mpris.metadata_lag_s`), skip-forward's Next racing the exit (bug 1), relinked ids in
-  GET /me/player (Playlist 7 in the fixtures library), Web API failures (`world.webapi.failures`).
+  GET /me/player (Playlist 7 in the fixtures library), GET /me/player still reporting the state
+  from before a play (`world.player.state_lag_s`), Web API failures (`world.webapi.failures`).
 
 Everything runs on the FakeClock: `advance_until` jumps from one timer to the next, so an item
 of several minutes takes milliseconds. Owner: the S6 foundation (frozen while the builders work).

@@ -17,6 +17,9 @@ next playable entry starts, and so on. It follows what the prototype found on th
   "Playing only the missing tracks").
 - **Another device** can take playback over: ours pauses and the other becomes active. A play on
   our device takes it back.
+- **GET /me/player lags a play** when `state_lag_s` is set (0 by default): for that long after
+  PUT /me/player/play it still reports the state from before the play, its context, track and
+  active device. A real run read the album played two runs before, 1.3 s after the play.
 
 Everything that changes is announced to `listeners` as a PlayerEvent, synchronously and in order:
 SimMpris turns them into MPRIS changes, and the SimRecorder reacts to them as Spytify does. The
@@ -112,6 +115,9 @@ class SimPlayer:
         self.volume = 100  # Spytify marks takes below 100 % as "(low volume)"
         self.active_device_id: str | None = None  # Connect: where playback is
         self.remote: RemotePlayback | None = None  # playback on another device
+        self.state_lag_s = 0.0  # GET /me/player reports the state from before a play this long
+        self._lagged: PlayerState | None = None  # what it reports until `_lag_until`
+        self._lag_until = float("-inf")
         self.listeners: list[Callable[[PlayerEvent], None]] = []
         self._anchor_ms = 0.0  # position at `_anchor_t`
         self._anchor_t = clock.monotonic()
@@ -319,7 +325,13 @@ class SimPlayer:
         return listed
 
     def player_state(self) -> PlayerState | None:
-        """GET /me/player, or None (204) when no device is active."""
+        """GET /me/player, or None (204) when no device is active. For `state_lag_s` after a
+        play, still the state from before that play."""
+        if self._now() < self._lag_until:
+            return self._lagged
+        return self._state_now()
+
+    def _state_now(self) -> PlayerState | None:
         if self.remote is not None and self.active_device_id == self.remote.device.id:
             remote = self.remote
             entry = None
@@ -351,7 +363,15 @@ class SimPlayer:
         self, device_id: str, context_uri: str, offset_uri: str | None, position_ms: int
     ) -> None:
         """PUT /me/player/play: the context on that device, from `offset_uri`. On our device it
-        takes playback over from any other (Connect)."""
+        takes playback over from any other (Connect). GET /me/player may lag it (`state_lag_s`)."""
+        before = self.player_state()
+        self._play(device_id, context_uri, offset_uri, position_ms)
+        if self.state_lag_s > 0:
+            self._lagged, self._lag_until = before, self._now() + self.state_lag_s
+
+    def _play(
+        self, device_id: str, context_uri: str, offset_uri: str | None, position_ms: int
+    ) -> None:
         spec = self._device_for(device_id)
         if context_uri == "spotify:collection:tracks":
             return  # 204, and nothing plays (row 17)

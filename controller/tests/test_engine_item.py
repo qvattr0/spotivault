@@ -16,7 +16,7 @@ import pytest
 
 from engine_sim import ELSEWHERE, RecordingHost, Sim
 from spotivault.clock import iso_ms
-from spotivault.engine.item import ItemEngine
+from spotivault.engine.item import RECHECK_S, RECHECK_TRIES, ItemEngine
 from spotivault.engine.item_outcome import AttemptFacts, Ending, decide, partial_reason
 from spotivault.engine.planning import ItemPlan, PlannedTrack, plan_item
 from spotivault.engine.states import check_item_transition
@@ -586,6 +586,333 @@ async def test_autoplay_after_the_last_missing_track_just_pauses(sim: Sim) -> No
     assert report.outcome == "done"
     assert errors(sim, "context_changed") == []
     assert sim.mpris_calls() == ["Pause"]
+
+
+# --- GET /me/player lagging a play ---------------------------------------------------------------
+#
+# Right after our play, Spotify can still report the player as it was before it (item.py, "GET
+# /me/player lags a play"). `state_lag_s` makes the simulated player do the same.
+
+LAG_S = 4.0  # longer than the first track's check and the first re-read 2 s later
+FOREVER_S = 100_000.0  # a state that never catches up
+
+
+async def owned_playlist(sim: Sim, titles: list[str]) -> CatalogPlaylist:
+    """An owned playlist (missing tracks only), tracked, with its track list stored."""
+    catalog = sim.world.catalog
+    entries = [catalog.entry(title, artist="Band", duration_ms=90_000) for title in titles]
+    playlist = sim.playlist("Mine", entries)
+    await sim.refresh()
+    await sim.track(playlist.playlist.id)
+    await sim.refresh()
+    return playlist
+
+
+def player_reads(calls: list[str]) -> int:
+    return calls.count("GET /me/player")
+
+
+def seconds_between(earlier: datetime | None, later: datetime | None) -> float:
+    assert earlier is not None and later is not None
+    return (later - earlier).total_seconds()
+
+
+@pytest.mark.parametrize("mpris_lag_s", [0.0, 4.0], ids=["mpris_names_it", "mpris_late"])
+async def test_the_context_before_the_play_isnt_taken_for_autoplay(
+    sim: Sim, mpris_lag_s: float
+) -> None:
+    """A real run: run 2 recorded an album; a file of an owned playlist was deleted; run 4's
+    check at the track's start, 1.3 s after the play, still read the album as the context. The
+    item was stopped as autoplay and the track stayed missing. With MPRIS late (no id within
+    3 s), steering goes by the title and GET /me/player is read again instead."""
+    album, album_item = await album_job(sim, [])
+    await run(sim, album_item)  # run 2: the player is left on the album
+    await end_run(sim, album_item.run_id)
+    playlist = await owned_playlist(sim, ["One", "Two", "Three", "Four"])
+    sim.prerecord(playlist, [0, 1, 3])  # "Three"'s file was deleted
+    sim.world.player.state_lag_s = LAG_S
+    sim.world.mpris.metadata_lag_s = mpris_lag_s
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert errors(sim, "context_changed") == []
+    assert sim.recorded_titles(playlist) == {"One", "Two", "Three", "Four"}
+    [take] = [row for row in await results(sim, job) if row["title"] == "Three"]
+    assert (take["planned"], take["result"]) == (1, "recorded")
+    calls = sim.webapi_calls()[before:]
+    assert calls[:8] == [  # run 4's requests
+        "GET /me/player/devices",
+        "GET /me/player",
+        "PUT /me/player/pause",
+        "PUT /me/player/seek",
+        "PUT /me/player/shuffle",
+        "PUT /me/player/repeat",
+        "PUT /me/player/play",
+        "GET /me/player",  # at the track's start: still the album
+    ]
+    # Then the 60 s check. MPRIS naming the item's track settles the first; MPRIS late, it's
+    # read again 2 s later (and D10's fallback reads it at "Four"'s start).
+    assert player_reads(calls[7:]) == (2 if mpris_lag_s == 0 else 4)
+
+
+async def test_autoplay_is_still_stopped_after_a_stale_start(sim: Sim) -> None:
+    """The state lags the play, then catches up; when the playlist ends, autoplay's radio is
+    stopped at its first track, as before."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)  # an earlier item's album
+    playlist = await followed_playlist(sim, ["One", "Two"])
+    sim.world.player.state_lag_s = LAG_S
+    sim.autoplay()
+    job = await sim.job(playlist.playlist.id)
+    report, _ = await run(sim, job)
+    [error] = errors(sim, "context_changed")
+    assert error["facts"]["context_uri"] not in (album.album.uri, playlist.playlist.uri)
+    assert report.outcome == "partial" and report.error_code == "context_changed"
+    assert sim.recorded_titles(playlist) == {"One", "Two"}
+    last = (await results(sim, job))[-1]
+    assert (last["result"], last["reason"]) == ("skipped", "incomplete")  # the radio's track
+    assert sim.world.player.status == "Paused"
+
+
+async def test_a_state_that_never_catches_up_is_taken_as_true(sim: Sim) -> None:
+    """No track list to vouch for the context (a whole item): after the first read and
+    RECHECK_TRIES more, 2 s apart, the other context is taken as true and the item stopped."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)
+    playlist = await followed_playlist(sim, ["One", "Two"])
+    sim.world.player.state_lag_s = FOREVER_S
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    [error] = errors(sim, "context_changed")
+    assert error["facts"]["context_uri"] == album.album.uri
+    assert report.outcome == "partial"
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) == 1 + RECHECK_TRIES
+    waited = seconds_between(report.timings.first_track_at, report.timings.finishing_at)
+    assert RECHECK_TRIES * RECHECK_S <= waited < RECHECK_TRIES * RECHECK_S + 2
+    [take] = await results(sim, job)
+    assert (take["title"], take["result"], take["reason"]) == ("One", "skipped", "incomplete")
+
+
+async def test_a_state_that_never_catches_up_is_let_go_while_mpris_names_the_track(
+    sim: Sim,
+) -> None:
+    """MPRIS's id is one of the item's tracks, so the context hasn't moved on, however long
+    GET /me/player keeps reporting the album: no re-reads, and the track is recorded."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)
+    playlist = await owned_playlist(sim, ["One", "Two", "Three"])
+    sim.prerecord(playlist, [0, 2])
+    sim.world.player.state_lag_s = FOREVER_S
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert errors(sim, "context_changed") == []
+    assert "Two" in sim.recorded_titles(playlist)
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) == 2  # the start, 60 s
+
+
+async def test_liked_songs_alias_isnt_learned_from_the_context_before_the_play(sim: Sim) -> None:
+    """Spotify's own playlists share Liked Songs' alias prefix. The one playing before the play,
+    still reported just after it, mustn't be learned as the alias: the real alias would then
+    look like another context."""
+    catalog = sim.world.catalog
+    catalog.liked.extend(catalog.entry(f"Liked {n}", artist="Fan") for n in range(1, 4))
+    top = catalog.add_playlist(
+        "Your Top Songs", tracks=3, access="spotify", playlist_id="37i9dQZF1FTopSongs00001"
+    )
+    sim.leave_player_on(top, 1, 0)
+    await sim.track("liked")
+    await sim.refresh()
+    sim.world.player.state_lag_s = LAG_S
+    job = await sim.job("liked")
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert report.counts.recorded == 3
+    assert errors(sim, "context_changed") == []
+
+
+def take_over_into(sim: Sim, title: str, seconds: float) -> list[datetime]:
+    """The phone takes playback over `seconds` into `title`. The list gets the time it did."""
+    taken: list[datetime] = []
+
+    def take_over() -> None:
+        taken.append(sim.clock.now())
+        sim.world.player.take_over("Pixel 9")
+
+    def on_player(event: Any) -> None:
+        meta = event.metadata
+        if event.kind == "track" and meta is not None and meta.title == title:
+            sim.world.player.listeners.remove(on_player)  # once
+            sim.at(seconds, take_over)
+
+    sim.world.player.listeners.append(on_player)
+    return taken
+
+
+async def test_the_device_active_before_the_play_isnt_a_takeover(sim: Sim) -> None:
+    """The phone was the active device (paused) before the play. Just after it, GET /me/player
+    still reports the phone: not a takeover. A real one later is acted on at once."""
+    album, job = await album_job(sim, [])
+    sim.world.player.play_elsewhere("Pixel 9")
+    sim.world.player.stop_elsewhere()  # paused there: D6 lets the item start
+    sim.world.player.state_lag_s = LAG_S
+    take_over_into(sim, "Distant Peak", 10)
+    report, _ = await run(sim, job)
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    assert sim.recorded_titles(album) == {"Passage"}
+    assert report.takeover is not None
+    [discarded] = [row for row in await results(sim, job) if row["title"] == "Distant Peak"]
+    assert report.takeover.discarded_take_id == discarded["take_id"]
+    assert sim.mpris_calls() == []  # the player is left alone
+
+
+async def test_a_takeover_hidden_by_the_lag_is_acted_on_at_the_next_read(sim: Sim) -> None:
+    """The phone takes over 2.5 s into the first track, while GET /me/player still reports the
+    album before the play: the pause's check reads again. The next read shows the phone, which
+    wasn't active before the play, so it can't be the old state: acted on then, RECHECK_S after
+    the pause, and not taken for autoplay."""
+    album, job = await album_job(sim, [])
+    other = sim.album("Before", 2)
+    sim.leave_player_on(other, 0, 0)
+    sim.world.player.state_lag_s = LAG_S
+    taken = take_over_into(sim, "Passage", 2.5)
+    report, _ = await run(sim, job)
+    assert errors(sim, "context_changed") == []
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    waited = seconds_between(taken[0], report.timings.finishing_at)
+    assert RECHECK_S <= waited < 2 * RECHECK_S
+    assert sim.recorded_titles(album) == set()
+
+
+@pytest.mark.parametrize("kind", ["album", "whole"])
+async def test_a_takeover_at_the_first_tracks_start_isnt_taken_for_its_end(
+    sim: Sim, kind: str
+) -> None:
+    """Nothing was active before the play (204). The phone takes over 1.2 s into the first
+    track: our player pauses where Spotify's end of the context would. The pause's read shows
+    the phone, which can't be the state from before the play: acted on at once."""
+    if kind == "album":
+        _, job = await album_job(sim, [])
+        first = "Passage"
+    else:
+        playlist = await followed_playlist(sim, ["One", "Two", "Three"])
+        job = await sim.job(playlist.playlist.id)
+        first = "One"
+    assert sim.world.player.player_state() is None
+    sim.world.player.state_lag_s = 1.0  # stale at the track's start, caught up at the pause
+    taken = take_over_into(sim, first, 1.2)
+    report, _ = await run(sim, job)
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    assert seconds_between(taken[0], report.timings.finishing_at) < RECHECK_S  # at once
+
+
+@pytest.mark.parametrize("mpris_lag_s", [0.0, 2.0], ids=["mpris_on_time", "mpris_late"])
+async def test_a_takeover_by_the_device_before_the_play_at_the_first_tracks_start(
+    sim: Sim, mpris_lag_s: float
+) -> None:
+    """The phone was active (paused) before the play, and takes over 1.2 s into the first
+    track. Its read can be the old state, so it's read again; meanwhile the pause, though right
+    at the first track's start, isn't taken for the context's end, nor when MPRIS's metadata
+    comes after it. After the last re-read the takeover is taken as true."""
+    album, job = await album_job(sim, [])
+    sim.world.player.play_elsewhere("Pixel 9")
+    sim.world.player.stop_elsewhere()
+    sim.world.player.state_lag_s = 1.0
+    sim.world.mpris.metadata_lag_s = mpris_lag_s
+    taken = take_over_into(sim, "Passage", 1.2)
+    report, _ = await run(sim, job)
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    # The re-reads began at the first read, stale: at the track's start, which with MPRIS late
+    # is handled once its metadata comes.
+    waited = seconds_between(taken[0], report.timings.finishing_at)
+    assert RECHECK_S < waited < RECHECK_TRIES * RECHECK_S + mpris_lag_s + 1
+    assert sim.recorded_titles(album) == set()
+
+
+async def test_the_contexts_end_during_the_re_reads_is_judged_after_them(sim: Sim) -> None:
+    """A whole playlist of one 3 s track, with GET /me/player 4 s behind the play: the context
+    ends (its first track loaded, paused at 0) while the read at the track's start is being
+    read again. Once a read catches up, the pause is judged: the end of the context, so the
+    pass is whole, not a stall left to the idle exit."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)
+    catalog = sim.world.catalog
+    short = sim.playlist(
+        "Theirs", [catalog.entry("Short", artist="Band", duration_ms=3_000)], access="followed"
+    )
+    await sim.refresh()
+    await sim.add_playlist(short)
+    await sim.refresh()
+    sim.world.player.state_lag_s = LAG_S
+    job = await sim.job(short.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert report.clean_full_pass
+    assert errors(sim) == []
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) >= 3  # start, pause, re-read
+    assert sim.recorded_titles(short) == {"Short"}
+
+
+async def test_autoplay_is_stopped_at_once_before_a_read_caught_up(sim: Sim) -> None:
+    """Nothing was active before the play (204), and no read has shown the item's context yet
+    when autoplay's radio starts. The radio's context isn't the one from before the play, so it
+    can't be the old state: stopped at its first track, as before."""
+    catalog = sim.world.catalog
+    playlist = sim.playlist(
+        "Theirs", [catalog.entry("One", artist="Band", duration_ms=30_000)], access="followed"
+    )
+    await sim.refresh()
+    await sim.add_playlist(playlist)
+    await sim.refresh()
+    assert sim.world.player.player_state() is None
+    sim.world.player.state_lag_s = 1.3
+    sim.autoplay()
+    radio_at: list[datetime] = []
+
+    def on_player(event: Any) -> None:
+        meta = event.metadata
+        if event.kind == "track" and meta is not None and meta.title != "One" and not radio_at:
+            radio_at.append(sim.clock.now())
+
+    sim.world.player.listeners.append(on_player)
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "partial" and report.error_code == "context_changed"
+    assert seconds_between(radio_at[0], report.timings.finishing_at) < RECHECK_S  # at once
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) == 2  # One's, the radio's
+    one, radio = await results(sim, job)
+    assert (one["title"], one["result"]) == ("One", "recorded")
+    assert (radio["planned"], radio["result"], radio["reason"]) == (0, "skipped", "incomplete")
+
+
+async def test_liked_songs_catches_up_when_it_was_playing_before_the_play(sim: Sim) -> None:
+    """The phone was on Liked Songs (paused) before the play: its alias is the context from
+    before it, and the phone the device. A read naming the take playing now, not the track
+    loaded before the play, isn't the old state: the alias is learned from it and the state has
+    caught up, so the phone taking over later is acted on at once."""
+    catalog = sim.world.catalog
+    catalog.liked.extend(
+        catalog.entry(f"Liked {n}", artist="Fan", duration_ms=90_000) for n in range(1, 5)
+    )
+    await sim.track("liked")
+    await sim.refresh()
+    sim.world.player.play_elsewhere("Pixel 9")  # Liked Songs, at its first track
+    sim.world.player.stop_elsewhere()
+    taken = take_over_into(sim, "Liked 3", 30)
+    job = await sim.job("liked")
+    report, _ = await run(sim, job)
+    assert errors(sim, "context_changed") == []
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    assert seconds_between(taken[0], report.timings.finishing_at) < RECHECK_S  # at once
 
 
 # --- D6, the pre-flight and the start ------------------------------------------------------------
