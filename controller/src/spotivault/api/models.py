@@ -1054,6 +1054,54 @@ class WebApiUsage(BaseModel):
     """
 
 
+class LogLine(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(max_length=200)]
+    """
+    Unique, and the line's place in the order. Pass it as `before` for the lines before it. Opaque.
+    """
+    at: AwareDatetime
+    """
+    When it was written, UTC with milliseconds.
+    """
+    source: Literal["controller", "spytify", "client", "system"]
+    """
+    Where a line comes from: the controller; Spytify (one log per item); the Spotify client; the system (the s6 services dbus, pulseaudio, vnc, wm and xserver, and the start-up checks).
+    """
+    service: str
+    """
+    The log it's from: `controller`, `spotify` (the client), `dbus`, `pulseaudio`, `vnc`, `wm`, `xserver` or `init`; for Spytify, the item's log name, `<run>-<item>`, with `-2` for a second attempt.
+    """
+    level: Literal["debug", "info", "warning", "error"]
+    """
+    The line's level, as its writer gave it: Python's levels for the controller (CRITICAL is `error`), Spytify's own, and for the client and the system the markers their programs print (`E:` and `W:` from PulseAudio, `(EE)` and `(WW)` from X, Chromium's `:ERROR:`, a leading `Error:` or `Warning:`). A line with no marker is `info`. A traceback's lines take the level of the line they belong to.
+    """
+    message: Annotated[str, Field(max_length=4000)]
+    """
+    The line without its time and level (and, for the controller, without the logger's name), masked. Cut at 4000 characters.
+    """
+    run_id: Annotated[int | None, Field(ge=1)]
+    """
+    Spytify's lines, the run the item's log belongs to. Null for the other sources.
+    """
+
+
+class LogPage(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    lines: list[LogLine]
+    """
+    Oldest first.
+    """
+    next_before: str | None
+    """
+    Pass it as `before` for the page before this one. Null when nothing older matches.
+    """
+
+
 class AcknowledgeTosRequest(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1211,6 +1259,23 @@ class GetRunItemTracksResponse(BaseModel):
         extra="forbid",
     )
     tracks: list[TrackResult]
+
+
+class ListLogsParametersQuery(BaseModel):
+    source: Annotated[
+        list[Literal["controller", "spytify", "client", "system"]] | None, Field(max_length=4)
+    ] = None
+    level: Annotated[
+        list[Literal["debug", "info", "warning", "error"]] | None, Field(max_length=4)
+    ] = None
+    run: Annotated[int | None, Field(ge=1)] = None
+    q: Annotated[str | None, Field(max_length=200, min_length=1)] = None
+    before: Annotated[str | None, Field(max_length=200)] = None
+    limit: Annotated[int, Field(ge=1, le=500)] = 200
+
+
+class DownloadLogsParametersQuery(BaseModel):
+    days: Annotated[int, Field(ge=1, le=14)] = 7
 
 
 class GetWebApiUsageParametersQuery(BaseModel):

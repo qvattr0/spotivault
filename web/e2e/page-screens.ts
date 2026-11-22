@@ -2,7 +2,7 @@
 // screenshots.spec.ts opens each one on the mock, runs its `prepare`, and saves it as
 // e2e/screenshots/<node>.png, to set beside web/design-reference/<node>.png.
 //
-// Not here: the frames of things M1 leaves out (custom covers, Schedule, History's Tracks and Logs).
+// Not here: the frames of things M1 leaves out (custom covers, Schedule, History's Tracks).
 // The order is screens.md's.
 
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
@@ -212,6 +212,17 @@ export const PAGE_SCREENS: PageScreen[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: /Chill Mix/ }).first().click();
       await expect(page.getByRole('table', { name: 'Tracks of Chill Mix' })).toBeVisible();
+    },
+  },
+  {
+    // Drawn following a run's lines, all sources, Run: All, scrolled up a little ("Jump to latest").
+    node: 'xRi3r', title: 'History · Logs', scenario: 'running', path: '/history/logs',
+    prepare: async (page) => {
+      const log = page.getByRole('log', { name: 'Log lines' });
+      await expect(log.locator('[data-source="spytify"]').first()).toBeVisible({ timeout: 15_000 });
+      await log.hover();
+      await page.mouse.wheel(0, -120);
+      await expect(page.getByRole('button', { name: /Jump to latest/ })).toBeVisible();
     },
   },
 

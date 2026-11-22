@@ -13,6 +13,12 @@
   padding: 0;
 }
 
+/* The panel's height, so a list inside can take the rest and scroll by itself (History › Logs).
+   On a short window the page still scrolls, once that list is at its smallest. */
+.fill {
+  height: 100%;
+}
+
 .title {
   font: var(--type-page-title);
 }

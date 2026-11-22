@@ -56,7 +56,7 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 
 - **`app` (uid 1000):** every service drops to it with `s6-setuidgid`, loggers included. `HOME` is `/config/home`. The image's `ubuntu` user is removed.
 - **Root:** only s6's own supervision tree, which `/init` starts (`s6-svscan`, `s6-supervise`, the s6-rc fd holder), and the `init-spotivault` oneshot.
-- **Logs:** each service has an `s6-log` that writes to docker's stdout, prefixed with the service name, and to `/config/logs/<service>/current` with timestamps. It keeps 10 files of 1 MB.
+- **Logs:** each service has an `s6-log` that writes to docker's stdout, prefixed with the service name, and to `/config/logs/<service>/current` with timestamps. It keeps 10 files of 1 MB. See [Logs](#logs).
 - **Shutdown:** the client ignores SIGTERM, SIGINT and SIGHUP. Its service quits it over MPRIS (`org.mpris.MediaPlayer2.Quit`) and kills it after 15 s. A clean quit also writes the client's `prefs` file. s6 gives the services 50 s to stop, inside the compose file's `stop_grace_period: 60s`.
 - **Restarting the client** (wizard step 3's Reset login screen, the Player's Restart client): s6's control pipes belong to root, so the controller, as `app`, can't use `s6-svc`. It does what the service does on a stop: MPRIS Quit, then a kill after 15 s if the client is still there. s6 then starts the client again, in a few seconds.
 - **Login detection:** the controller reads the client's main window title with `xwininfo -root -tree` (x11-utils). The logged-out client's window is `"Spotify": ("spotify" "Spotify")`, 1280 × 800.
@@ -73,10 +73,28 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 | `DEVICE_NAME` | 1 to 64 bytes, with no `/` and no control characters, because it becomes the client's hostname. |
 
 It also:
-- gives `/config` to `app`, and creates `home`, `logs`, `spotify` and `spytify` in it;
+- gives `/config` to `app`, and creates `home`, `logs`, `logs/init`, `spotify` and `spytify` in it;
+- writes its own messages to `/config/logs/init/current` too, in s6-log's format, kept to its last 1000 lines;
 - keeps `/config/machine-id` for the life of `/config` (`/etc/machine-id` links to it);
 - clears the client's Chromium `Singleton*` locks;
 - gives `/music` to `app` only when it's an empty folder owned by root, which is what Docker creates for a new bind mount. Otherwise it leaves the folder's permissions alone and warns if `app` can't write there.
+
+### Logs
+
+Everything History › Logs shows, and the zip holds, is in `/config/logs` ([web-ui.md § Logs tab](web-ui.md#logs-tab)). The controller reads it in [logview/](../controller/src/spotivault/logview/).
+
+| Log | Where | A line |
+|---|---|---|
+| Each s6 service: `controller`, `spotify` (the client), `dbus`, `pulseaudio`, `vnc`, `wm`, `xserver` | `<service>/current`, and `@<tai64n>.s` once rotated | `2026-11-15 00:05:02.310000000  <text>`: s6-log's `T`, in UTC, since s6-log runs without `TZ`. The controller's text is `LEVEL logger: message`. |
+| The start-up checks | `init/current` | The same format, written by `init-spotivault`. It runs as root, but writes there (and the machine ID) as `app`, which owns `/config`: an `app` process could have swapped the file for a link to one of root's. |
+| Spytify, one per item | `spytify/<run>-<item>.log`, `-2` for a second attempt | `2026-11-15T01:05:02.310000000+01:00 info  capture: …`, in the container's `TZ`. |
+| Spytify's raw events | `spytify/<run>-<item>.events.jsonl` | Read by the controller at the item's end. Never shown, and not in the zip. |
+
+- **Reading:** off the event loop. A page merges every file newest first, opening a file only when the merge reaches it; it reads at most 8 MB. A line's `id` is its time, service and place, and is the paging cursor.
+- **Live:** only while a Logs tab follows (`logs.follow` on `WS /api/events`). The controller then looks for new lines every 0.5 s, follows rotation by inode (every file rotated between two looks included), and sends each follower the lines its filter matches, 200 at most per batch ([events.md § Logs](../contracts/events.md#logs)). The matching runs off the event loop. Lines left out, and lines skipped because a log grew by more than 4 MB at once, are counted in `dropped`, so the tab offers to read them. A look that fails is logged and tried again; it never stops the controller.
+- **Masking:** every line goes through the controller's redaction (`logs.redact`) on the way out, on the page, live and in the zip. The client's and Spytify's output was never masked when written.
+- **Retention:** 14 days or 50 MB for all of `/config/logs`, whichever comes first. At start-up and every hour, the controller deletes rotated and Spytify files last written over 14 days ago, then, while the files it may delete pass 50 MB together, the oldest: Spytify's events files first, then the logs. Never deleted, and not counted in the 50 MB: s6-log's `current` files, the files of a run still going, and the rotated s6-log files written since that run started. Counting them would only take everything else: one long item's events file can pass 50 MB. The 14 days and the zip's 7 are real time, since they're compared with the files' last-write times. s6-log rotates by size only, so its own limit stays: 10 files of 1 MB per service.
+- **Fake mode** has no s6-log, so the controller writes `logs/controller/current` itself, in the same format, with the fake world's time ([logs.py](../controller/src/spotivault/logs.py)). Its times never go back: a restart starts the world's clock again from real time, behind what a faster world wrote, so a line gets no earlier time than the last one in the file. The fake recorder writes Spytify's item logs.
 
 ### The Spotify client
 

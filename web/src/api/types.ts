@@ -68,6 +68,12 @@ export type RunCreated = Schemas['RunCreated'];
 export type TrackResult = Schemas['TrackResult'];
 export type LastRun = Schemas['LastRun'];
 
+// History › Logs
+export type LogLine = Schemas['LogLine'];
+export type LogPage = Schemas['LogPage'];
+export type LogSource = LogLine['source'];
+export type LogLevel = LogLine['level'];
+
 // Schedule
 export type Schedule = Schemas['Schedule'];
 export type ScheduleNext = Schemas['ScheduleNext'];

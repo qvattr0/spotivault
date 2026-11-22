@@ -11,6 +11,7 @@ import type {
   HistoryRow,
   ItemState,
   LibraryItem,
+  LogLine,
   QueueItem,
   RunState,
   RunSummary,
@@ -159,6 +160,19 @@ export interface ErrorEvent {
   facts: Record<string, unknown> | null;
 }
 
+/**
+ * New log lines for the Logs tab's live tail (events.md § Logs). Only to a connection that sent
+ * `logs.follow`; at most twice a second, 200 lines at most. Volatile: `seq` is null.
+ */
+export interface LogLinesEvent {
+  /** Oldest first. The same line can also come from GET /api/logs: drop it by `id`. */
+  lines: LogLine[];
+  /** Matching lines left out of this batch (the cap, or a slow socket). */
+  dropped: number;
+  /** The `follow_id` of the `logs.follow` this batch answers. */
+  follow_id: number | string | null;
+}
+
 export type ClientInstallEvent = ClientInstall & {
   /** The new log line, or null. */
   log_line: string | null;
@@ -191,14 +205,19 @@ export interface EventMap {
   'client.install': ClientInstallEvent;
   'client.status': ClientStatus;
   connection: Connection;
+  // History › Logs (only after logs.follow)
+  'log.lines': LogLinesEvent;
 }
+
+/** The events with `seq: null`: not counted, never held back. */
+export type VolatileEventType = 'level' | 'log.lines';
 
 export type EventType = keyof EventMap;
 
 /** One WebSocket message: `{seq, type, at, data}`. */
 export interface Envelope<K extends EventType = EventType> {
-  /** Counts up by 1 per event, per controller process. Null only for `level`. */
-  seq: K extends 'level' ? null : number;
+  /** Counts up by 1 per event, per controller process. Null only for `level` and `log.lines`. */
+  seq: K extends VolatileEventType ? null : number;
   type: K;
   /** RFC 3339, UTC, with milliseconds. */
   at: string;
@@ -228,7 +247,13 @@ export const EVENT_TYPES: readonly EventType[] = [
   'client.install',
   'client.status',
   'connection',
+  'log.lines',
 ];
+
+/** True for the volatile types (`seq: null`). */
+export function isVolatile(type: EventType): type is VolatileEventType {
+  return type === 'level' || type === 'log.lines';
+}
 
 /** True for a message whose type this UI knows. Unknown types are ignored (events.md). */
 export function isKnownEvent(message: { type?: unknown }): message is LiveEvent {

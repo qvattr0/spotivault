@@ -18,6 +18,9 @@
   --badge-untracked-fill: #00000066; /* Card badge, not tracked */
   --liked-gradient: linear-gradient(135deg, #450af5, #8e8ee5); /* Liked Songs' tile, with a white heart */
 
+  /* History · Logs (xRi3r) */
+  --log-client: #c39bff; /* the Client badge's purple; 7.4:1 on bg-elevated */
+
   /* Shadows */
   --shadow-play: 0 8px 16px #0000007a; /* Button/Play */
   --shadow-toast: 0 8px 24px #00000080;

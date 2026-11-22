@@ -51,6 +51,8 @@ export interface EventSocket {
   reconnect(): void;
   /** The connection works (hello arrived): the next reconnect waits BACKOFF_FIRST_MS again. */
   healthy(): void;
+  /** Sends a text frame on the open connection. False when there's none (it isn't queued). */
+  send(text: string): boolean;
 }
 
 export const BACKOFF_FIRST_MS = 1_000;
@@ -209,6 +211,15 @@ export function createEventSocket(options: EventSocketOptions): EventSocket {
     reconnect,
     healthy() {
       backoff = BACKOFF_FIRST_MS;
+    },
+    send(text) {
+      if (!socket) return false;
+      try {
+        socket.send(text);
+        return true;
+      } catch {
+        return false;
+      }
     },
   };
 }
