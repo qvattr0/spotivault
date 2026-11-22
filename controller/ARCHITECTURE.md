@@ -16,6 +16,8 @@ Everything runs from `controller/`. uv is at `~/.local/bin/uv`; the venv is `con
 | Format | `uv run ruff format` |
 | Dev server, fake mode | `uv run python -m spotivault --fake --port 8181`, then `curl http://127.0.0.1:8181/api/health` |
 | Dev server, walking the wizard | `SPOTIVAULT_FAKE_SCENARIO=wizard uv run python -m spotivault --fake --port 8181` |
+| Dev server with the web UI | Start the dev server above, then `cd web && SPOTIVAULT_BACKEND=http://localhost:8181 npm run dev`: the UI at http://localhost:5173, against this controller. The dev proxy sends the controller's Host, and rewrites Origin to the controller's only for the dev page's own requests, so the request guard lets the UI through and still refuses other sites ([web/README.md](../web/README.md)). |
+| The UI against fake mode, end to end | `cd web && npm run e2e:controller`: builds the UI, starts this controller on a free port, and runs [web/e2e-controller/](../web/e2e-controller/). |
 | Regenerate the API models | `uv run python scripts/gen_models.py` (`--check` only compares) |
 
 - **Fake mode** simulates the Spotify client, its player, the recorder, the Web API, the volumes and the screen. It keeps its data in `controller/.dev/` (git-ignored). It's what the UI is developed against (S7, S8).
@@ -90,19 +92,21 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | | `add_listener(fn)` | `fn(keys)` is awaited after a PUT saves those keys (S5: `auto_track_owned`). |
 | `services.storage` | `await check()` → `Storage` | The pre-run check (S6): refuse unless `.ok`; `storage.storage_problem(storage)` gives the message. |
 | `services.setup` | `await is_complete()` | S6: refuse a run with `setup_incomplete`. |
-| | `await mark_done("webapi" \| "albums")`, `await mark_failed("webapi", message)` | S5: step 5 once the token works and our device is listed; step 8 after `POST /api/albums`. |
+| | `await mark_done("webapi" \| "albums")`, `await mark_failed("webapi", message)` | S5: step 5 once the token works and our device is listed; step 8 after `POST /api/albums`. The setup router: step 8 on `POST /api/setup/albums/later` ("I'll choose in Albums"). |
 | | `await refresh()` | After a fact behind a step changes. `complete()` finishes the wizard (`POST /api/setup/complete`). |
-| | `await restart()` | "Run setup again". It refuses while `runs` has a row with `kind = 'run'` and `state <> 'ended'`, so S6 must keep that row current. |
+| | `await restart()` | "Run setup again": steps 2 to 9 back to `todo` (the answer), then the live checks at once, so steps 2, 3, 4 and 6 turn done again in their own `setup.state`. It refuses while `runs` has a row with `kind = 'run'` and `state <> 'ended'`, so S6 must keep that row current. |
 | `services.client` | `await status()`, `await refresh()` | The client's `ClientStatus`, as last polled or read now. |
 | | `await checklist()`, `await drifted_rows()` | The pre-run check (S6): refuse while `drifted_rows()` isn't empty. |
 | | `await set_run_active(active)` | S6, when a run starts and when it ends, failures included. It drives `restartable` and the 409s of install and restart. |
 | | `add_listener(fn)` | `fn()` is awaited after the status or the checklist changes. |
 | `container` | `await spytifyd_version(config.spytifyd_path)` | S6's `Recorder.version()`. |
-| `logs` | `redact(text, secrets=())` | Any text that might hold a token (S5's Web API errors). Every log line already goes through it. |
+| `logs` | `redact(text, secrets=())` | Any text that might hold a token (S5's Web API errors). Every log line already goes through it, and so does every line History › Logs shows or zips (`logview.lines.mask`). |
+| `services.logs` | `await page(sources=, levels=, run=, q=, before=, limit=)` → `LogPage`, `await download(days)` → (zip, name) and `stream(zip)`, `await follow(sub, message)`, `unfollow(sub)`, `await prune_once()` | History › Logs: its router (`api/routers/logs.py`), WS /api/events' `logs.follow` and `logs.unfollow` (`web/events_ws.py`). Hooks: `logs.tail` and `logs.retention` (background). |
 | `web.sockets` | `origin_allowed(origin, host, allowed_hosts)` | Any new WebSocket (`websocket_origin_allowed(websocket)` passes the config's names). The Host is already checked by `web.guard` for every request. |
 | `services.ports.webapi` | `devices()`, `player_state()`, `play(...)`, `pause(...)`, `seek(...)`, `set_shuffle(...)`, `set_repeat(...)`, each with `scope=ApiScope("run", run_id)` | S6's playback calls. They go on the playback lane, ahead of waiting catalog calls, and count against the run. Errors: `ports.WebApiError` and its subclasses; NotConnected and ConnectionExpired are raised before anything is sent; RateLimited is raised at once while a long hold lasts. |
 | `services.catalog` | `await refresh(trigger="run", run_id=...)` → `RefreshResult` | S6, at each run's start (awaited; it waits for a refresh already going). The only refresh that reads linked playlists' `snapshot_id` (D13), before any track list. `RefreshResult.snapshots_unread`: the followed and linked playlists, tracked or not, whose `snapshot_id` it didn't read (an untracked linked one never is); S6 plays those whole, whatever `d13_up_to_date()` says (design.md § Run flow step 1). |
 | | `request_refresh("page_open" \| "setup" \| "item_added")` → bool | Sync, never raises. `page_open` is throttled to once every 15 min. A queued refresh is dropped if a run is going when its turn comes (read from the `runs` table). |
+| | `await request_manual()` → `LibraryRefresh` | The Library's Refresh button (`POST /api/library/refresh`): trigger `manual`, unthrottled, coalesced with a refresh already running or queued. Raises ApiError 409 `run_active`, `not_connected` or `connection_expired`. |
 | | `await last_refresh_at()` | When the last refresh finished. |
 | `services.connection` | `await connection()`, `await held_reason()` | S6: the pre-run check, held scheduled runs (`not_connected`, `connection_expired`; `expiring` holds nothing), `GET /api/schedule/next`. |
 | `services.matching` | `await index()`, `invalidate()` | S6: planning reads the index; call `invalidate()` after each item, when new files are written. |
@@ -133,8 +137,9 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 - `windows.py`: `DAYS`, `Hours`, `WeeklyWindow`, `Window`, `weekly_windows`, `window_instances`, `load_hours`.
 - `catalog/covers.py`: `CoverUpdate`, `cover_url`.
 - `connection.py`: `our_device`, `ConnectionService.connection`, `held_reason`.
-- `catalog/refresh.py`: `RefreshTrigger`, `RefreshResult`, `refresh`, `request_refresh`, `last_refresh_at`.
+- `catalog/refresh.py`: `RefreshTrigger` (`manual` added for the Refresh button), `RefreshResult` (`items_added` and `suggestions_added` added), `refresh`, `request_refresh`, `request_manual`, `last_refresh_at`.
 - `store/migrations/002_s5_catalog.sql`: `followed_playlists`, `api_warnings`, `items.full_path`. A schema change is a new migration.
+- `store/migrations/004_manual_refresh.sql`: `catalog_refreshes.trigger` allows `manual`. SQLite can't change a CHECK in place, so it rebuilds the table, setting `followed_playlists`' rows aside while it does.
 - `api/models.py` and `contracts/`: regenerated from the contract; never hand-edited.
 
 ## Module map
@@ -149,7 +154,7 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | `services.py` | `Services`, `build_services`, the lifecycle, the hello placeholders (`status` has none: the run engine registers it). | foundation, S6 |
 | `events.py` | The event bus: envelope, seq, hello, bounded queues, `level` throttling. | foundation |
 | `errors.py` | `ApiError`, the error envelope and every exception handler. | foundation |
-| `store/` | SQLite: one worker thread, an async API, migrations. `001_initial.sql` is `contracts/schema.sql`; `002_s5_catalog.sql` is S5's; `003_s6_runs.sql` is S6's. | foundation, S5, S6 |
+| `store/` | SQLite: one worker thread, an async API, migrations. `001_initial.sql` is `contracts/schema.sql`; `002_s5_catalog.sql` is S5's; `003_s6_runs.sql` is S6's; `004_manual_refresh.sql` is the Library's Refresh button's. | foundation, S5, S6, S8 |
 | `loopwatch.py` | The event-loop lag watchdog (over 250 ms: a warning). | foundation |
 | `api/models.py` | Pydantic models generated from `openapi.yaml`. Never edited by hand. | foundation |
 | `api/deps.py`, `api/params.py` | `ServicesDep`, and the shared path and query parameters. | foundation |
@@ -161,13 +166,14 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
 | `client/` | Install, status, login, checklist, `LocalClientControl`, `JeepneyMpris`. | client |
 | `web/` | `WS /api/events`, the `WS /vnc` bridge, the SPA, and `guard.py`: the Host check on every request and the Origin check on changes (403 `forbidden`). | web |
 | `desktop.py` | `LocalDesktop`: X, PulseAudio and VNC for health and `/vnc`. | web |
-| `logs.py` | Logging setup. | web |
+| `logs.py` | Logging setup. In fake mode it also writes `logs/controller/current` as s6-log would (`S6StyleFile`), on the world's clock (`use_clock`). | web, logs |
+| `logview/` | History › Logs: `lines.py` (each format, levels, the line's key and `id`, masking), `files.py` (the files and their time bounds), `reader.py` (`GET /api/logs`: a merged page, filtered, from a cursor), `tail.py` (the live tail, rotation by inode), `archive.py` (the zip), `retention.py` (14 days or 50 MB), `service.py` (`LogsService`). | logs |
 | `fake/` | The fake world (`world.py`): catalog, player, MPRIS, client, recorder, Web API, image CDN, volumes, and a desktop with a VNC screen. Scenarios `fresh`, `demo` and `wizard`. `seed.py` ties it to the controller's stored token. `demo.py`: the demo scenario completes the wizard at its first start (fresh `.dev`), so Run now works. `recorder.py` is the fake recorder, on Spytify 2.0.2's exact protocol (`recorder/protocol.py`). | fake, S5, S6 |
 | `webapi/` | The real Web API port (`client.py`), its token (`tokens.py`), scheduler and usage log (`scheduler.py`, `usage.py`), the allowed endpoints (`endpoints.py`), the stored connection (`auth_store.py`), PKCE (`pkce.py`) and response parsing (`parse.py`). | S5 |
 | `catalog/` | The catalog refresh (`refresh.py`), the Library (`library.py`, `links.py`), Albums (`albums.py`), covers (`covers.py`), the shared track-list writer (`tracks.py`). | S5 |
 | `connection.py`, `matching.py`, `windows.py`, `backlog.py`, `imagecdn.py` | The Web API connection; Spytify's track key and index; schedule windows; the backlog estimate (its pure part runs on a thread, from S6); the real image CDN port. | S5, S6 |
 | `recorder/` | The real recorder port: `protocol.py` (Spytify 2.0.2's protocol, typed), `process.py` (`SpytifyRecorder`, `SpytifySession`), `rpc.py`, `events_file.py`. | S6 |
-| `engine/` | The run engine: `states.py` and `types.py` (shared); `item.py`, `item_takes.py` (track results, files, the relayed `track.*`), `item_outcome.py` (the outcome rules), `planning.py`, `steering.py` (one item); `run.py`, `queue.py`, `precheck.py`, `recovery.py` (runs, `services.runs`). | S6 |
+| `engine/` | The run engine: `states.py` and `types.py` (shared); `item.py`, `item_takes.py` (track results, files, the relayed `track.*`), `item_outcome.py` (the outcome rules), `planning.py`, `steering.py` (one item); `run.py`, `queue.py`, `precheck.py`, `recovery.py` (runs, `services.runs`); `time_left.py` (the run's own time left, `RunSummary.time_left`). | S6, S8 |
 | `schedule.py`, `history.py`, `files.py`, `metrics.py` | The scheduler engine (`services.schedule`); History (`services.history`); the `.m3u` and stale files (`services.files`); run metrics (`services.metrics`). | S6 |
 
 ## What's left to build
@@ -179,10 +185,9 @@ What S6 calls, and what the S5 modules call each other through. Each module's do
   - **Cover files** next to the `.m3u` are deferred (Q14 and Q15).
   - **Contract gaps** (not changed; the contract is the user's to decide): events.md lists `error` codes for only some pre-run failures; `HistoryRow.reason` and the `runs.reason` comment in schema.sql don't list `webapi`, `not_connected` or `setup_incomplete`; openapi.yaml's listRuns has no 422.
   - **A missing binary** has no exit code, so it reads as `killed` and fails the item, not the run. A "can't be run" cause in `recorder/protocol.py` would fix it.
-  - **Spytify's own logs** in `/config/logs/spytify/` have no retention rule (web-ui.md Q23).
   - **Tests:** `test_schedule.py` uses stand-ins (`FakeRuns`, `FakeHistory`) for the run engine and History. Using the real ones is open. `test_ws_server.py::test_shutdown_closes_with_1012` failed once under load in one full run (not an S6 file) and passed in the others.
 - **Open for the user** (left as built; each is in the spec, see `docs/`):
-  - **S6's decisions** (web-ui.md Open questions 17 to 23): the container's stop during a run (Failed or Stopped), items that never started (Stopped or a new badge), a track listed twice, a whole item's time limit, an hour turned on mid-window, episodes the plan jumps over, and Spytify's logs.
+  - **S6's decisions** (web-ui.md Open questions 17 to 22): the container's stop during a run (Failed or Stopped), items that never started (Stopped or a new badge), a track listed twice, a whole item's time limit, an hour turned on mid-window, and episodes the plan jumps over. Q23, Spytify's logs, is resolved: they follow the Logs tab's retention (§ History › Logs below).
   - **Client restart as the fallback** (design.md § Run flow step 6): the spec says it, and nothing does it on a timeout yet.
   - **"Recorded" in the backlog** is a track whose key is in Spytify's index. design.md § Backlog estimate says History's per-track records, keyed by track ID. See the settled answers below.
   - **The finish date** can go past the 21-day window horizon on a slow schedule. The contract allows `finish_at` null only for Manual only, or when nothing is left.
@@ -210,6 +215,7 @@ The answers the built code takes. Each one is also in the spec where it matters 
 - **Liked Songs** is made once step 5 stores the account (an AuthStore listener in refresh.py), so step 7's `PATCH /api/library/liked` works before the first refresh ends. It starts tracked only while `auto_track_owned` is on, like your own playlists.
 - **Library:** "Created by you" includes Liked Songs. Turning `auto_track_owned` off before setup is complete also untracks Liked Songs and the playlists it had tracked on its own (refresh.py's docstring). A link to one of your own playlists that the listing hasn't seen yet previews as kind `linked` with total null, since PlaylistPreview has no `owned`; adding it stores it as owned.
 - **Events:** `library.item` and `album.item` are throttled to one per item per second at all times, not only during a run. The album publish's docstring says "during a run"; the code doesn't check for one.
+- **The Refresh button** (`POST /api/library/refresh`, S8): a `manual` refresh, unthrottled. A press while a refresh runs joins it, whatever its trigger, so a refresh that read the listing just before you changed something in Spotify ends without that change; press again once it ends. Refused with 409 `run_active` during a run, since a refresh never runs then and the run refreshes at its start; and with `not_connected` or `connection_expired` by the same rule that skips a refresh, so a connection past its expiry date still refreshes. Every refresh now sends `catalog.refresh` (`started`, then `ended` with the outcome and its counts), the run's own included; one asked for that doesn't run sends `ended` `skipped`, so the button never waits forever. A `failed` or `skipped` `ended` says why in `reason`, an ErrorCode (`connection_expired` when Spotify answered `invalid_grant` mid-refresh), so the UI can say to reconnect rather than to try again later.
 - **Albums:** an album's status puts `unavailable` before `recorded`. The Partial filter also takes unavailable albums that have recorded tracks.
 - **Fake mode:** `GET /api/webapi/usage` is always empty there, because the fake Web API writes no usage rows.
 
@@ -234,7 +240,7 @@ The answers the built code takes. Each one is also in the spec where it matters 
 - `await store.transaction(fn)` runs `fn(conn)` on the database thread inside `BEGIN IMMEDIATE … COMMIT`, rolled back if it raises. Keep `fn` short and plain.
 - A schema change is a new migration, `store/migrations/002_<what>.sql`. Never edit `001_initial.sql`: a test keeps it identical to `contracts/schema.sql`.
 
-**Events:** publish only after the change is committed: `services.bus.publish("client.status", model)`. The type must be one of `events.EVENT_TYPES`. The hello's five keys (`setup`, `status`, `connection`, `client`, `backlog`) each have an owning module that replaces its placeholder with `add_snapshot`; `status` is the last one, until S6.
+**Events:** publish only after the change is committed: `services.bus.publish("client.status", model)`. The type must be one of `events.EVENT_TYPES`. `level` and `log.lines` are the volatile ones (`seq` null), with their own paths: `bus.publish_level`, and `Subscription.push_logs` to one following connection (the logs module). The hello's five keys (`setup`, `status`, `connection`, `client`, `backlog`) each have an owning module that replaces its placeholder with `add_snapshot`; `status` is the last one, until S6.
 
 **The Web API:**
 - Only the endpoints in `webapi/endpoints.py`, the ones design.md § Web API usage lists. A new one is a spec change first, then a row there. Never Spotify's internal endpoints.
@@ -325,6 +331,7 @@ engine/states.py holds them as tables, with `check_item_transition` and `check_r
 | `error` relayed from Spytify, and the controller's item-level ones: `recorder_exit`, `recorder_timeout`, `steering_guard`, `loop_guard`, `context_changed`, `webapi`, `storage` (preflight) | engine-item |
 | `run.finished` for missed, skipped and held rows | schedule |
 | `library.item`, `album.item` (`services.library.publish`, `services.albums.publish`), `backlog` (`services.backlog.update()` after each item) | engine-run |
+| `catalog.refresh` (each catalog refresh's start and end, the run's own included) | catalog (`catalog/refresh.py`) |
 
 ### The database: who writes what
 
@@ -364,14 +371,14 @@ The `sim` fixture is a controller after the wizard (client installed, running an
 | `await sim.run_item(job, host=, control=, within=)` | Runs `ItemEngine` on the clock; `RecordingHost` records phases and counts. |
 | `await sim.advance_until(cond, within=)`, `sim.clock` | Moving time. |
 | `sim.events_of(*types)`, `sim.mpris_calls()`, `sim.webapi_calls()`, `sim.recorder_sessions()` | What happened. |
-| `sim.world` | The FakeWorld: `player`, `recorder` (knobs: `album_end_race`, `ignore_sigterm`, `lose_final_notifications`, `start_failure`, `hang_methods`, `encode_s`, …), `mpris.metadata_lag_s`, `webapi.failures`, `client`, `storage`. |
+| `sim.world` | The FakeWorld: `player`, `recorder` (knobs: `album_end_race`, `ignore_sigterm`, `lose_final_notifications`, `start_failure`, `hang_methods`, `encode_s`, …), `player.state_lag_s` (GET /me/player lags a play), `mpris.metadata_lag_s`, `webapi.failures`, `client`, `storage`. |
 
-The world encodes FINDINGS: a paused track past 300 ms counts as already playing; at the end of an album track 1 loads paused; the phantom `track.started` + `track.skipped` for it at the idle exit; the idle exit 20 s after the pause and the exit 8 s later; SIGTERM, a second SIGTERM, SIGKILL; stalls (`player.pause_by_itself`, `resume_by_itself`); takeovers; autoplay's radio context; MPRIS metadata arriving late.
+The world encodes FINDINGS: a paused track past 300 ms counts as already playing; at the end of an album track 1 loads paused; the phantom `track.started` + `track.skipped` for it at the idle exit; the idle exit 20 s after the pause and the exit 8 s later; SIGTERM, a second SIGTERM, SIGKILL; stalls (`player.pause_by_itself`, `resume_by_itself`); takeovers; autoplay's radio context; MPRIS metadata arriving late; GET /me/player lagging a play.
 
 ### Settled and cautious answers (S6 foundation)
 
 Each is the cautious reading where the specs are silent, and each is reported to the user.
-- **SIGTERM mid-run:** Stop now; the current item ends `interrupted` (shutdown), and the run ends `failed` with reason `container_restarted`, the same as crash recovery.
+- **SIGTERM mid-run:** Stop now; the current item ends `interrupted` (shutdown), and the run ends `failed` with reason `container_restarted`, the same as crash recovery. The take it cuts is skipped `discarded`, as Stop now's is (below).
 - **A takeover counts as an interruption:** the second one in a run ends the item `partial` (design.md counts takeovers and stalls alike). After the first, Resume restarts the item at once with attempt 2.
 - **Items left waiting when a run ends** become `stopped`; at a window's end an `interrupted` one is `carried_over`, since it was cut off too. History lists items that never ran after the ones that did.
 - **A window with nothing tracked** starts no run and writes no row (History's skipped rows mean "the previous run was paused").
@@ -402,13 +409,15 @@ Where the specs are silent, the cautious reading was taken. Each is reported to 
 - **The client leaving the session bus** mid-item is a stall: `interrupted`, re-queued once.
 - **Errors:** a Web API error fails only the item, unless the connection is gone or expired (then the run). A failed jump sends a non-fatal `webapi` error, pauses, and the item ends `partial`. `classify_exit`'s fail-run verdict gives RunFailure `storage` for `output_dir`, else `recorder`. Spytify's failed `core.info` checks are only logged.
 - **Counting:** phantom and repeat takes keep their `track_results` rows and events, with no `track_id` or `position` (so the Library's and Albums' "last result" of a track stays the counted take's), and aren't counted. An unplanned entry the plan jumps over (an episode, say) that Spytify started is counted under `skipped_other` (Spytify's `incomplete`).
+- **A take Stop now or SIGTERM cuts** is skipped `discarded`, counted under `skipped_other`, not failed (the user's decision after a real run: the Failed counter is for real failures, and the next run records the track anyway). Only a stop sent as `{now: true}` cuts a take: while finishing, Stop now goes out as `{now: false}`, so a take lost after it still fails as it would with no stop. A stall's, a takeover's or a capture problem's cut take still fails `interrupted`, and the first cut decides (`_cut_as`). Spytify's partial take still fails `discarded`, with a file. Older runs stored their Stop now take as failed `discarded` with no file: History words those "discarded by Stop now" (`history.py` `_issues`, `web/src/lib/run-words.ts`), and their counters stay as they were. Left as they were: recovery, and the repair after the 40 s SIGTERM bound, fail a take still recording `interrupted`, since the controller never saw why it ended.
 - **Rows:** `last_backup_at` is set only for `done`, `up_to_date` and `partial`. `cleanup_stale(folders=[])` (`.spytify/` only) runs before every recorder start, and a stop is looked at again after it. It, `fix_modes` and `write_m3u` log their failures and never fail the item. `write_m3u` runs for up-to-date items too, so a reordered playlist's `.m3u` stays current.
 - **D10's checks:** GET /me/player at track starts is spaced at least 5 s apart (a whole item's duplicate replay would otherwise send 2 a second). The 60 s check and the check on a pause are unchanged.
+- **GET /me/player lags a play** (a real run read the previous item's album 1.3 s after the play): until it has shown our device on the item's context, a takeover by the device the pre-flight's read reported, or that read's context, isn't acted on at once. Any other device or context is new, and acted on at once. For the old state, MPRIS vouches for the context when the take playing is one of the item's tracks by id (at a track's start and the 60 s check, never at a pause); otherwise it's read again 2 s later, 3 times at most, then taken as true. A pause during the re-reads is judged (the context's end or a stall) only after them: a takeover in the first 1.5 s of the first track looks like the end. A state that never catches up stops the item after 6 s, unless MPRIS vouches. Liked Songs' alias isn't learned from the context that was playing before the play until a read can't be stale (Spotify's own playlists share its prefix): the last re-read, or one naming the take playing now that isn't the track loaded before the play.
 - **Late inputs:** a phantom take is told by Spytify's previous `session.state` (stream order). The context's end is a pause within 1.5 s of the start of the context's first track, by MPRIS's metadata (the item's first playable entry; a whole item's first track heard), checked again when MPRIS's metadata comes late; any other pause is a stall. A first entry that isn't a playable track (an episode) makes the end look like a stall: the item is retried, nothing is lost. GET /me/player's track id is used only when it names an entry with the same title.
 - **Stops:** Stop now while finishing is sent as `session.stop {now: false}`: the last take waits for the idle exit, and Spytify's stop now would reject it. When `session.stop` doesn't get through (no answer, an error, or a dropped socket while spytifyd runs), signals stand in; for a stop after the take, the first SIGTERM's wait is at least the take's end + 30 s.
 - **The play's 404:** the device list is read. Our device gone fails the run (`device_missing`); otherwise the first play's item is `unavailable` in this run only (no `items.unavailable_at`: the catalog refresh decides), and a jump's tracks stay missing.
 - **A planned duplicate** (Spytify skips a planned take as `duplicate` while playing): steering jumps on to the next planned track, or pauses.
-- **D13's clean pass** also needs the context heard to its end (`Steering.wrapped`: the end-of-context pause at the first track heard, or that track's phantom at the idle exit), and no counted take skipped `seeked`, `low_quality`, `silent` or `incomplete`. `too_short` and `ad` don't spoil it.
+- **D13's clean pass** also needs the context heard to its end (`Steering.wrapped`: the end-of-context pause at the first track heard, or that track's phantom at the idle exit), and no counted take skipped `seeked`, `low_quality`, `silent`, `incomplete` or `discarded` (a take a Stop now cut). `too_short` and `ad` don't spoil it.
 - **The loop guard** pauses on the second repeat in a row whose first-heard number is the previous repeat's + 1 (bug 1's replay); one repeat alone stays (a track listed twice). A guard never sets `wrapped`. **Open** (web-ui.md Q19): a run of two or more tracks listed again in the same order still trips it: that pass ends `partial`, never clean.
 - **A whole item's time limit:** `session.stop {now: false}`, so the take playing finishes (design.md), then SIGTERM if spytifyd still runs 30 s after that take's end (web-ui.md Q20).
 
@@ -426,6 +435,7 @@ Where the specs are silent, the cautious reading was taken. Each is reported to 
 - **`start_scheduled`** raises RuntimeError if a run is already going.
 - **"Expect" on queue rows:** albums "n tracks"; playlists with a track list "n new" (planned once known, else missing at queue time); followed, linked and whole items "checking".
 - **Run order** changed mid-run applies from the next item: waiting items are re-ordered, keeping a paused run's item first, forced items next and re-queued items last.
+- **The run's own time left** (`RunSummary.time_left`, engine/time_left.py; asked for after S8's hands-on test, in place of the backlog's): the item engine's `ItemLive.left` for the current item once planned, and each waiting item's missing tracks as stored (`time_left.item_estimates`, planning.py's rules in two queries, its walk over the lists on a worker thread), read when it joins the queue and after each item. The keys this run recorded never count again: the current item's `ItemLeft.done_keys` (recorded takes, and planned ones playing or waiting for their result), and `_Run.recorded_keys` (each item's, folded in as it ends, before the lists are read again). The item engine calls `ItemHost.item_take_started` as a planned take starts, so a whole item's take counts from its start. Cautious choices: 35 s per waiting item with a track to record (the backlog's); each Spytify key counted once across the run; a whole item is of unknown length, even with a last full pass; capped at the window's end until a stop is asked for, with no unknown items past it; a run.state goes out only when it moved 5 s or more from the count-down (`TIME_LEFT_SLACK_S`), batched with the counters while an item runs, else at once; paused, it's what the run records once resumed, standing still, and worked out again when the queue changes.
 - **Events:** `error` is sent for the pre-run failures events.md lists (`storage`, `webapi`, `client_restarted`); the others (`setup_incomplete`, `setting_drifted`, `client_logged_out`, `connection_expired`, `not_connected`, `device_missing`, `recorder`) are told by `run.finished`'s `reason`.
 
 **The scheduler** (`schedule.py`):
@@ -443,3 +453,27 @@ Where the specs are silent, the cautious reading was taken. Each is reported to 
 - **getLastRun's message:** failed takes first, else the item's reason, else a fixed phrase per state.
 - **`.m3u`:** paths relative to the `.m3u` (design.md § Run flow step 7). A file the controller didn't write (no item's `m3u_path`) is never replaced or removed: the playlist takes " (<id6>)", then " (<id>)", else gets no `.m3u`. A recorded track that became unplayable stays listed. A whole item's: the last clean pass's order, then what later run items heard.
 - **Run metrics:** a value that can't be read is NULL (a missing cache folder is 0 bytes). The first sample of a run has no CPU figure.
+
+## History › Logs
+
+The Logs tab moved into M1 (2026-11-22). The specs: web-ui.md § Logs tab (with its "As built" table) and § History endpoints, design.md § Logs, openapi.yaml `listLogs` and `downloadLogs`, events.md § Logs. The code is `logview/`, `api/routers/logs.py`, the follow messages in `web/events_ws.py`, and `Subscription.push_logs` in `events.py`.
+
+**How it works:**
+- **Reading:** a page puts every wanted file on a heap by its last line's time, opens a file only when the merge reaches it, and keeps its lines that pass the filter. At most 8 MB is read per page (`READ_BUDGET`); a page that stops early returns a cursor just above the next file's last line, and a page always moves the cursor back. Everything runs in `asyncio.to_thread`.
+- **Keys:** a line's key is `(at_ns, service, dup)`; `dup` counts earlier lines in the same file at the same nanosecond. Its `id`, `<at_ns>-<dup>-<service>`, is also the `before` cursor.
+- **The tail** runs only while a connection follows (`bus.log_followers()`); the task waits on an event otherwise. It polls every 0.5 s of real time (`tail_interval_s`; it's the browser's pace, not the world's), reads what each file gained (whole lines only, rotation followed by inode, every file rotated between two polls read in order, a folder kept while its `current` is briefly missing), and pushes each follower its matching lines. The matching and the LogLines are made in a thread (`service.make_batches`), and only for the newest 200 a follower gets. Lines it skipped (a file that grew by more than `MAX_READ` in one poll) are counted in `dropped`. A poll that fails is logged and the tail starts again after 5 s; it never ends the task. A new follower gets the last 10 s at once, from a ring of recent lines.
+- **Batches** are per connection: an unsent one is merged with the next under the 200-line cap, with the rest counted in `dropped`; one for an older `follow_id` is replaced. They don't count in the 256-event queue.
+- **Retention** (`retention.prune`) runs at start-up and every hour on the services' clock. It never deletes s6-log's `current`, a file whose name it doesn't know, the files of a run that isn't `ended` in `runs` (or started after it read them), or the rotated s6-log files written since the oldest such run started; and it leaves them out of the 50 MB, which counts only what it may delete. Its 14 days and the zip's `days` are real time (`LogsService.wall_ns`), since they're compared with mtimes; fake mode's world clock can run ahead.
+- **Lines** whose date can't be one (`0000-00-00T…`) are text carrying on the line before, never an error. A file's time bounds read past a line longer than 8 KB (up to 1 MB, then safe bounds). Masking (`logs._PATTERNS`) catches a bare token after `_` or a percent-escape too.
+- **Fake mode's** `logs/controller/current` (`logs.S6StyleFile`) never stamps a line earlier than the last one in the file, so a restart's slower clock doesn't hide lines.
+
+**Cautious answers** (each is in web-ui.md § Logs tab, "As built"):
+- **Debug lines** are hidden unless `level` asks for `debug`; the UI never does. Live, they're sent only to such a filter.
+- **Levels** for the client and the system come only from clear markers; anything else is `info`. A traceback's lines take their line's level.
+- **The controller's lines** drop the logger's name (the zip keeps it).
+- **A run's filter** is its time ± 5 s for the controller, the client and the system, and its items' Spytify logs. Live, a follower of a run still going gets its end set once `services.runs.active()` isn't that run.
+- **The search** matches the masked text, so it can't find a secret.
+- **The zip** is masked line by line (the client's and Spytify's output never was), holds whole files written in the last `days` days, and is built one at a time into a spooled temporary file, then streamed.
+- **Retention** applies 14 days or 50 MB to all of `/config/logs`, and over 50 MB deletes Spytify's events files first; it runs hourly, not daily. s6-log keeps its own 10 × 1 MB per service, since it rotates by size only.
+- **s6-log's times are UTC**: svc-log runs s6-log without `TZ` (no with-contenv). Spytify's carry the container's offset and are made UTC.
+- **The start-up checks** (`init-spotivault`) now write `logs/init/current`, so System includes them; s6-overlay's own messages still go only to docker's output.

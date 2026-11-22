@@ -23,7 +23,8 @@ prototype/FINDINGS.md and docs/upstream/spytify-bugs.md):
   takeovers (`take_over_at`: a phone takes playback), autoplay moving the context
   (`autoplay()`), silent or stalled capture (`capture_at`), MPRIS metadata arriving late
   (`world.mpris.metadata_lag_s`), skip-forward's Next racing the exit (bug 1), relinked ids in
-  GET /me/player (Playlist 7 in the fixtures library), Web API failures (`world.webapi.failures`).
+  GET /me/player (Playlist 7 in the fixtures library), GET /me/player still reporting the state
+  from before a play (`world.player.state_lag_s`), Web API failures (`world.webapi.failures`).
 
 Everything runs on the FakeClock: `advance_until` jumps from one timer to the next, so an item
 of several minutes takes milliseconds. Owner: the S6 foundation (frozen while the builders work).
@@ -77,6 +78,7 @@ class RecordingHost:
 
     phases: list[tuple[ItemState, PlayMode | None, int | None]] = field(default_factory=list)
     counts: list[TrackCounts] = field(default_factory=list)
+    takes_started: int = 0  # item_take_started calls: planned takes that started
 
     async def item_phase(
         self,
@@ -90,6 +92,9 @@ class RecordingHost:
 
     async def item_counts(self, job: ItemJob, counts: TrackCounts) -> None:
         self.counts.append(counts)
+
+    async def item_take_started(self, job: ItemJob) -> None:
+        self.takes_started += 1
 
     def phase_names(self) -> list[ItemState]:
         return [phase for phase, _, _ in self.phases]

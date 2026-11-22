@@ -260,7 +260,9 @@ def test_a_cursor_that_doesnt_decode_is_refused(cursor: str) -> None:
             None,
             "1 track failed: low volume, interrupted",
         ),
-        ("done", 1, ["discarded"], None, "1 track failed: discarded by Stop now"),
+        # A failed `discarded` with a file is a partial take; with none, an older run's Stop now.
+        ("done", 1, ["discarded"], None, "1 track failed: partial take"),
+        ("stopped", 1, ["discarded_by_stop"], None, "1 track failed: discarded by Stop now"),
         ("partial", 3, [], None, "3 tracks failed"),
         ("partial", 0, [], "Playback paused for 20 s twice", "Playback paused for 20 s twice"),
         ("failed", 0, [], "Recorder exited with code 2", "Recorder exited with code 2"),
@@ -706,6 +708,60 @@ async def test_last_run_and_its_three_issues(running_app: FastAPI, services: Ser
         "Playback paused for 20 s twice",
     ]
     assert last.issues[0].name == "Chill Mix"
+
+
+async def test_a_failed_discarded_issue_tells_an_older_stop_now_from_a_partial_take(
+    running_app: FastAPI, services: Services
+) -> None:
+    """Before a take Stop now cut counted as skipped, it was stored failed `discarded` with no
+    file. A partial take is failed `discarded` too, but it has a file."""
+
+    def fn(conn: sqlite3.Connection) -> None:
+        seed_item(conn, PLAYLIST_Y, name="Stopped Mix")
+        seed_item(conn, PLAYLIST_V, name="Kept Mix")
+        last = seed_run(
+            conn,
+            trigger="run_now",
+            outcome="stopped",
+            started_at=at(5, 1),
+            ended_at=at(5, 2),
+            counters=(0, 0, 0, 2, 0),
+        )
+        stopped = seed_run_item(
+            conn, last, PLAYLIST_Y, queue_pos=1, ran_order=1, state="stopped", failed=1
+        )
+        seed_take(
+            conn,
+            stopped,
+            "take-a",
+            artist="A",
+            title="a",
+            started=at(5, 1),
+            result="failed",
+            reason="discarded",
+        )
+        kept = seed_run_item(
+            conn, last, PLAYLIST_V, queue_pos=2, ran_order=2, state="partial", failed=1
+        )
+        file_id = seed_file(conn, last, "Kept/b (partial).m4a", 500)
+        seed_take(
+            conn,
+            kept,
+            "take-b",
+            artist="B",
+            title="b",
+            started=at(5, 1),
+            result="failed",
+            reason="discarded",
+            file_id=file_id,
+        )
+
+    await seed(services, fn)
+    last = await services.history.last_run()
+    assert [(issue.name, issue.message) for issue in last.issues] == [
+        ("Stopped Mix", "1 track failed: discarded by Stop now"),
+        ("Kept Mix", "1 track failed: partial take"),
+    ]
 
 
 # --- The HistoryRow shape

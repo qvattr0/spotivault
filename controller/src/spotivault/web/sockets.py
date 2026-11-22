@@ -11,9 +11,11 @@ The S2 stub made the same check on /vnc. Allowed (`origin_allowed`):
 - **A name in SPOTIVAULT_ALLOWED_HOSTS:** the user says it's the controller's, behind a reverse
   proxy for example, which may rewrite the Host.
 - **Both on loopback:** the Origin and the Host are both `localhost`, `127.0.0.1` or `[::1]`, on any
-  ports. That's the UI's Vite dev server (S7) proxying to a controller on the same machine: its
-  proxy rewrites the Host (`changeOrigin`) but not the Origin. Another site's page can't have a
-  loopback Origin, so only programs on the same computer get this.
+  ports. Only programs on the same computer get this, because another site's page can't have a
+  loopback Origin. The UI's Vite dev server (S7) proxying to a controller on the same machine
+  used to rely on it. Its proxy now also rewrites the Origin to the controller's own, but only
+  for requests from its own dev page (web/vite.config.ts); any other page's Origin passes
+  through unchanged and is checked here as usual.
 
 Everything else is refused before the handshake (HTTP 403), `Origin: null` included (a sandboxed
 frame or a local file). The same rule guards the REST requests that change something, and the Host

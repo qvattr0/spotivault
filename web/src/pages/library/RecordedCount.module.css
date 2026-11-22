@@ -1,0 +1,12 @@
+/* The count with its info mark (a followed playlist's total). Focusable, so the tooltip is reachable. */
+.counted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--r-sm);
+}
+
+.counted:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}

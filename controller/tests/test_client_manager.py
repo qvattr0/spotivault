@@ -154,6 +154,11 @@ async def test_listeners_hear_status_changes(
     services.client.add_listener(broken)
     services.client.add_listener(listener)
     async with started(services, fake_clock):
+        # The first checklist reading since start-up notifies too, and the setup module takes one
+        # in the background after the status change. It's taken here first, so only the status
+        # change is heard, however soon the setup module's reading comes.
+        await services.client.checklist()
+        heard.clear()
         client.version, client.running, client.signals = "1", True, LOGGED_IN
         await fake_clock.advance(STATUS_POLL_S)
     assert heard == [True]

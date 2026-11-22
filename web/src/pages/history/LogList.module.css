@@ -1,0 +1,203 @@
+/* History · Logs' lines (xRi3r): a black box, radius 12, the lines 12/400 mono, 20 tall. Each row:
+   the time (muted), a source badge (bg-elevated, its source's colour), the message in its level's
+   colour; an error row has the danger tint behind it. "Jump to latest" is a blue pill centred
+   near the foot of the box. The lines' sizes are measured from the drawing. "Load older lines"
+   (not drawn) sits at the top of the box, outside the scroller, in room left above the first line.
+   Under 560 px a row puts its time and badge on one line and the message under them. */
+
+.panel {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 280px;
+  border-radius: var(--r-lg);
+  background: var(--bg-app);
+  overflow: hidden;
+  container: log-panel / inline-size;
+}
+
+.scroller {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px 56px;
+  overflow-y: auto;
+  /* The list keeps its place itself (LogList.tsx), so the browser's own anchoring stays off. */
+  overflow-anchor: none;
+  font: 12px/20px var(--font-mono);
+}
+
+/* Room above the first line for "Load older lines". */
+.roomAbove {
+  padding-top: 52px;
+}
+
+.scroller:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 64px 92px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  margin: 0 -12px;
+  padding: 2px 12px;
+  border-radius: var(--r-sm);
+  color: var(--text-sub);
+}
+
+.time {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badge {
+  overflow: hidden;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.controller {
+  color: var(--info);
+}
+
+.spytify {
+  color: var(--accent);
+}
+
+.client {
+  color: var(--log-client);
+}
+
+.system {
+  color: var(--text-sub);
+}
+
+.message {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.debug .message {
+  color: var(--text-muted);
+}
+
+.warning .message {
+  color: var(--warn);
+}
+
+.error {
+  background: var(--danger-tint);
+}
+
+.error .message {
+  color: var(--danger);
+}
+
+.day {
+  margin: 12px 0 4px;
+  color: var(--text-muted);
+  font: var(--type-caption);
+}
+
+.day:first-child {
+  margin-top: 0;
+}
+
+/* Shown at the top of the lines, with none, or with the keyboard's focus; else out of sight. */
+.older {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 1;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--bg-app);
+  color: var(--text-sub);
+  font: var(--type-caption);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.panel[data-at-top='true'] .older,
+.panel[data-empty] .older,
+.older:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.older:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.older:hover:not([aria-disabled='true']) {
+  color: var(--text);
+}
+
+.older[aria-disabled='true'] {
+  cursor: progress;
+}
+
+.empty {
+  padding: 24px 0;
+  color: var(--text-sub);
+  font: var(--type-body);
+  text-align: center;
+}
+
+.jump {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  background: var(--info);
+  color: var(--on-accent);
+  font: var(--type-button);
+  box-shadow: var(--shadow-toast);
+  transform: translateX(-50%);
+}
+
+.jump:hover {
+  transform: translateX(-50%) scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jump:hover {
+    transform: translateX(-50%);
+  }
+}
+
+@container log-panel (max-width: 560px) {
+  .scroller {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .row {
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0 8px;
+    margin: 0 -6px;
+    padding: 2px 6px;
+  }
+
+  .badge {
+    justify-self: start;
+  }
+
+  .message {
+    grid-column: 1 / -1;
+  }
+}

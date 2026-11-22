@@ -56,7 +56,7 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 
 - **`app` (uid 1000):** every service drops to it with `s6-setuidgid`, loggers included. `HOME` is `/config/home`. The image's `ubuntu` user is removed.
 - **Root:** only s6's own supervision tree, which `/init` starts (`s6-svscan`, `s6-supervise`, the s6-rc fd holder), and the `init-spotivault` oneshot.
-- **Logs:** each service has an `s6-log` that writes to docker's stdout, prefixed with the service name, and to `/config/logs/<service>/current` with timestamps. It keeps 10 files of 1 MB.
+- **Logs:** each service has an `s6-log` that writes to docker's stdout, prefixed with the service name, and to `/config/logs/<service>/current` with timestamps. It keeps 10 files of 1 MB. See [Logs](#logs).
 - **Shutdown:** the client ignores SIGTERM, SIGINT and SIGHUP. Its service quits it over MPRIS (`org.mpris.MediaPlayer2.Quit`) and kills it after 15 s. A clean quit also writes the client's `prefs` file. s6 gives the services 50 s to stop, inside the compose file's `stop_grace_period: 60s`.
 - **Restarting the client** (wizard step 3's Reset login screen, the Player's Restart client): s6's control pipes belong to root, so the controller, as `app`, can't use `s6-svc`. It does what the service does on a stop: MPRIS Quit, then a kill after 15 s if the client is still there. s6 then starts the client again, in a few seconds.
 - **Login detection:** the controller reads the client's main window title with `xwininfo -root -tree` (x11-utils). The logged-out client's window is `"Spotify": ("spotify" "Spotify")`, 1280 × 800.
@@ -73,10 +73,28 @@ One image, built from the [Dockerfile](../Dockerfile) on `ubuntu:24.04`. s6-over
 | `DEVICE_NAME` | 1 to 64 bytes, with no `/` and no control characters, because it becomes the client's hostname. |
 
 It also:
-- gives `/config` to `app`, and creates `home`, `logs`, `spotify` and `spytify` in it;
+- gives `/config` to `app`, and creates `home`, `logs`, `logs/init`, `spotify` and `spytify` in it;
+- writes its own messages to `/config/logs/init/current` too, in s6-log's format, kept to its last 1000 lines;
 - keeps `/config/machine-id` for the life of `/config` (`/etc/machine-id` links to it);
 - clears the client's Chromium `Singleton*` locks;
 - gives `/music` to `app` only when it's an empty folder owned by root, which is what Docker creates for a new bind mount. Otherwise it leaves the folder's permissions alone and warns if `app` can't write there.
+
+### Logs
+
+Everything History › Logs shows, and the zip holds, is in `/config/logs` ([web-ui.md § Logs tab](web-ui.md#logs-tab)). The controller reads it in [logview/](../controller/src/spotivault/logview/).
+
+| Log | Where | A line |
+|---|---|---|
+| Each s6 service: `controller`, `spotify` (the client), `dbus`, `pulseaudio`, `vnc`, `wm`, `xserver` | `<service>/current`, and `@<tai64n>.s` once rotated | `2026-11-15 00:05:02.310000000  <text>`: s6-log's `T`, in UTC, since s6-log runs without `TZ`. The controller's text is `LEVEL logger: message`. |
+| The start-up checks | `init/current` | The same format, written by `init-spotivault`. It runs as root, but writes there (and the machine ID) as `app`, which owns `/config`: an `app` process could have swapped the file for a link to one of root's. |
+| Spytify, one per item | `spytify/<run>-<item>.log`, `-2` for a second attempt | `2026-11-15T01:05:02.310000000+01:00 info  capture: …`, in the container's `TZ`. |
+| Spytify's raw events | `spytify/<run>-<item>.events.jsonl` | Read by the controller at the item's end. Never shown, and not in the zip. |
+
+- **Reading:** off the event loop. A page merges every file newest first, opening a file only when the merge reaches it; it reads at most 8 MB. A line's `id` is its time, service and place, and is the paging cursor.
+- **Live:** only while a Logs tab follows (`logs.follow` on `WS /api/events`). The controller then looks for new lines every 0.5 s, follows rotation by inode (every file rotated between two looks included), and sends each follower the lines its filter matches, 200 at most per batch ([events.md § Logs](../contracts/events.md#logs)). The matching runs off the event loop. Lines left out, and lines skipped because a log grew by more than 4 MB at once, are counted in `dropped`, so the tab offers to read them. A look that fails is logged and tried again; it never stops the controller.
+- **Masking:** every line goes through the controller's redaction (`logs.redact`) on the way out, on the page, live and in the zip. The client's and Spytify's output was never masked when written.
+- **Retention:** 14 days or 50 MB for all of `/config/logs`, whichever comes first. At start-up and every hour, the controller deletes rotated and Spytify files last written over 14 days ago, then, while the files it may delete pass 50 MB together, the oldest: Spytify's events files first, then the logs. Never deleted, and not counted in the 50 MB: s6-log's `current` files, the files of a run still going, and the rotated s6-log files written since that run started. Counting them would only take everything else: one long item's events file can pass 50 MB. The 14 days and the zip's 7 are real time, since they're compared with the files' last-write times. s6-log rotates by size only, so its own limit stays: 10 files of 1 MB per service.
+- **Fake mode** has no s6-log, so the controller writes `logs/controller/current` itself, in the same format, with the fake world's time ([logs.py](../controller/src/spotivault/logs.py)). Its times never go back: a restart starts the world's clock again from real time, behind what a faster world wrote, so a line gets no earlier time than the last one in the file. The fake recorder writes Spytify's item logs.
 
 ### The Spotify client
 
@@ -95,7 +113,7 @@ It prints one JSON object per line (`{"stage":"download","percent":42,…}`), wh
 
 ### What's in the image
 
-The image is 336 MB uncompressed (111 MB compressed). The controller is 62 MB of it: 39 MB of Python and 23 MB of venv. Without one, the S2 image was 274 MB. The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
+The image is 337 MB uncompressed (112 MB compressed). The controller is 62 MB of it: 39 MB of Python and 23 MB of venv. Without one, the S2 image was 274 MB. The feasibility prototype was 1.43 GB (520 MB compressed; Docker Desktop shows 1.95 GB, the two added together).
 
 | Part | How it's kept small |
 |---|---|
@@ -112,6 +130,7 @@ The image is 336 MB uncompressed (111 MB compressed). The controller is 62 MB of
 | Controller runtime | Ubuntu's `python3` (3.12): 24 MB installed, plus 12 MB of byte-compiled standard library. `python3-minimal` would be smaller, but it lacks `asyncio` and `sqlite3`. `x11-utils` adds `xwininfo`, for the client's window title (0.8 MB). |
 | Controller venv | Built in a builder stage with uv, from `controller/uv.lock`, at `/opt/spotivault/venv` (23 MB, 8 MB of it bytecode). It's byte-compiled there, because the `app` user can't write to it. No pip, uv or caches ship. pydantic and pydantic-core are 9.6 MB of it. |
 | noVNC | Only its `core` and `vendor` folders (0.8 MB), pinned by sha256, in the controller's web root. No websockify: the controller bridges `WS /vnc`. |
+| Web UI | `npm ci` and `vite build` in a `webui` stage on a pinned Node 22.18 image. Only `web/dist` ships: `index.html` and its hashed assets (0.9 MB), beside noVNC's core in the web root. `node_modules`, the design drawings and test output stay out of the build context ([.dockerignore](../.dockerignore)). |
 
 The excludes are in [spotivault-excludes](../image/rootfs/etc/dpkg/dpkg.cfg.d/spotivault-excludes).
 
@@ -205,7 +224,7 @@ Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implicatio
    - **Missing tracks only:** fetch the track list with `market=from_token`. Leave out entries with `is_playable: false`, local files, episodes and empty entries. Look each one up in Spytify's duplicate index (`/music/.spytify/recorded.jsonl`) by Spytify's own key: the first artist and the title, trimmed and lowercased the Go way. An entry counts only while its file exists. **Nothing missing:** the item is Up to date, and no recorder starts.
    - **Whole:** the item is Up to date without playing if its `snapshot_id` is the one from its last clean full pass **and** every track seen in that pass is still in the index. A deleted file forces a full pass. A clean full pass is one that ended normally and was heard to its end (Spotify went back to the playlist's first track), with no failed track, no track skipped for a reason a later pass could fix (seeked, low quality, silent, incomplete), and no interruption. A pass the loop guard paused is never clean.
      - **A fresh `snapshot_id`:** the run's own catalog refresh reads linked playlists' `snapshot_id` first, before any track list. If the refresh couldn't read an item's `snapshot_id` (the listing failed, Spotify stopped answering, or it's a linked playlist that isn't tracked: Back up now runs those too), the stored one may be stale, so the item plays whole.
-2. **Prepare the player:** pause, seek to 0, and turn shuffle and repeat off. Spytify won't record a track the player is paused on more than 300 ms in, and it misses a restart within 2 s of that point, so seeking to 0 first matters ([Spytify bugs](upstream/spytify-bugs.md) #2).
+2. **Prepare the player:** pause, seek to 0, and turn shuffle and repeat off. The pause is sent only when the `GET /me/player` of the device check shows something playing: with nothing playing, Spotify answers it 403 "Restriction violated". Spytify won't record a track the player is paused on more than 300 ms in, and it misses a restart within 2 s of that point, so seeking to 0 first matters ([Spytify bugs](upstream/spytify-bugs.md) #2).
 3. **Start the recorder:** `spytifyd --once --serve --idle-exit 20s` for this item, with every recorder setting passed as `--set` (see [Container](#container)). `recorder.skip_duplicates_forward` is **off** for missing-tracks-only items and **on** for whole items. With it on, Spytify presses Next on the paused track 1 at the end of an album ([Spytify bugs](upstream/spytify-bugs.md) #1), and the whole playlist can play again, every track a duplicate. So whole items get a loop guard: two tracks in a row that come round again in the order they were first heard pause the player. One repeat alone doesn't: a playlist can list a track twice, and Spytify skips it and moves on. Then `player.control full_volume`.
 4. **Play:** `PUT /me/player/play` with the container's `device_id`, the item's `context_uri` and an `offset`.
    - **The offset is by URI**, at the first missing track. `offset.position` counts only playable entries, so after an unplayable entry it lands on a later track.
@@ -220,6 +239,7 @@ Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implicatio
    - **Pause the player** in case it started again, and recompute what's missing from the index. **Count distinct tracks, not events:** a phantom `track.started` + `track.skipped` for the paused track 1 is normal at the idle exit.
    - **A pause of more than 20 s in the middle of an item** ends it early. This happens when another device takes over or the network stalls. The controller re-queues the item once, and the tracks already recorded are skipped. A second interruption in the same run ends the item as Partial.
    - **The context moves on** (autoplay): the controller stops the session at once and ends the item.
+   - **`GET /me/player` lags a play:** for a moment after the play, it can still report the context and device from before it. A real run read the album of two runs before, 1.3 s after the play answered. So until it has shown the container's device on the item's context once, a takeover by the device that was active before the play, or the context that was playing then, isn't acted on at once. Any other device or context can't be the old state, so it's acted on at once: autoplay's radio is still stopped at its first track. For the old state, if MPRIS names one of the item's tracks at a track's start or the 60 s check, the context hasn't moved on. Otherwise the controller reads it again 2 s later, 3 times at most, then acts on what it still reports. MPRIS never vouches at a pause: a takeover pauses our player, and the old state could hide it. For the same reason, a pause during the re-reads isn't taken for the end of the context until they're over. When Liked Songs was playing before the play, its alias is learned from a read naming the track playing now.
    - **Timeouts** (as built; the numbers are the defaults in `engine/types.py`, `Timeouts`):
      - **Recorder socket:** it must answer within 15 s, or the start fails with the recorder's exit code (see [Exit codes](#exit-codes)).
      - **Playback never starts:** after 30 s with no `track.started`, the controller plays the item again. After 90 s, it sends SIGTERM and the item fails (`recorder_timeout`).
@@ -227,7 +247,7 @@ Tested in the prototype; the evidence is in `prototype/FINDINGS.md` ("Implicatio
      - **Whole item:** its time limit is 1.25 × its planned length + 10 min. The planned length is its last full pass, else its track count × 5 min, else 6 h. At the limit, the controller stops the recorder after this track (`session.stop {now: false}`): the take playing is finished, and the item ends Partial. If the recorder still runs 30 s after that take's end, SIGTERM.
      - **Pause nobody here caused:** the item ends Interrupted when the recorder's idle exit ends the session. A recorder still running 60 s after the pause gets SIGTERM.
      - **Stopping the recorder:** SIGTERM (it finishes the current take), then after 45 s SIGTERM again (it stops at once), then after 15 s SIGKILL. When SIGTERM stands in for a stop after this track (the socket didn't answer, or spytifyd dropped it), the first wait lasts at least until the take's end plus 30 s.
-     - **Web API checks:** `GET /me/player` every 60 s during an item, at each track start (at least 5 s apart) and on each pause.
+     - **Web API checks:** `GET /me/player` every 60 s during an item, at each track start (at least 5 s apart) and on each pause. Before it has caught up with the play, a mismatch that could be the state from before the play is read again every 2 s, 3 times at most, so a real takeover or context change waits 6 s at most.
      - **Client restart as the fallback** (the spec above): not built. A timeout fails the item, and only the pre-run check restarts a client that isn't running. Open for the user: see [controller/ARCHITECTURE.md](../controller/ARCHITECTURE.md#whats-left-to-build).
 7. **Files:** write a `.m3u` for the playlist, in the Web API's track order, with paths relative to the `.m3u`. A recorded track that has since become unplayable stays listed while its file is there. For a whole item, use the order the tracks were recorded in: the last clean full pass's, then the tracks recorded since. A file with the playlist's name that the controller didn't write is never replaced: the playlist gets the name with " (<first 6 characters of its id>)". Save its cover next to it (see [Playlist covers](#playlist-covers)). After each item, its recorded files get the mode `UMASK` gives them, since Spytify leaves tagged files at 0600 ([Spytify bugs](upstream/spytify-bugs.md) #7).
 
@@ -332,7 +352,7 @@ Spotify narrowed the Web API for Development Mode apps in February 2026: new app
 
 Recording happens in real time, so a backup takes about as long as the music still to record. The Dashboard's Full backup card, wizard step 9 and the Schedule preview all show this estimate, from one calculation (`GET /api/backlog`).
 
-- **Catalog:** every tracked item's track list with `duration_ms`, kept in SQLite and refreshed as described in [Web API usage](#web-api-usage). It's refreshed at the start of each run, and when the Dashboard or Schedule page opens, at most once every 15 minutes.
+- **Catalog:** every tracked item's track list with `duration_ms`, kept in SQLite and refreshed as described in [Web API usage](#web-api-usage). It's refreshed at the start of each run, and when the Dashboard or Schedule page opens, at most once every 15 minutes. The Library's Refresh button refreshes it at once, whenever no run is going ([web-ui.md § Library › Header](web-ui.md#header)).
 - **What's recorded:** History's per-track records, keyed by Spotify track ID.
 - **Time left:**
   - the sum of `duration_ms` over tracks not recorded yet, counting each track ID once however many items it's in;
@@ -341,6 +361,7 @@ Recording happens in real time, so a backup takes about as long as the music sti
 - **Finish date:** the controller walks the schedule's active hours forward from now until the time left is used up. With Manual only, there's no date.
 - **Unknown items:** followed and linked playlists have no track list, so their length is unknown. They're left out of the figure and counted separately, unless they're Up to date by their `snapshot_id` (see [Run flow](#run-flow-per-playlist-or-album) step 1). A followed playlist's track count is known from `/me/playlists`, so the UI can show it, but not its duration.
 - **Accuracy:** duplicates are skipped in seconds, so they barely count. The same song can have a different track ID on a single and on its album; it's counted twice but recorded once, so the estimate leans slightly high.
+- **Not the run header:** while a run goes, the Dashboard's run header shows that run's own time left, not this estimate. It's worked out the same way over the run's queue only, from the stored durations: see [web-ui.md § Run header](web-ui.md#running-queue-first).
 
 ## Playlist covers
 

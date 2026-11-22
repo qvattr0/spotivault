@@ -1,0 +1,70 @@
+/* A check's result (Mj5zE, j8m6AR): radius 8, padding 15 16, gap 14, a 20 px icon, the title
+   14/700 over a 13 text-sub line. Green is
+   accent-tint, red danger-tint; pending (ours, not drawn) is bg-elevated with a turning spinner. */
+
+.result {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 15px var(--s-4);
+  border-radius: var(--r-md);
+}
+
+.ok {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.fail {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
+.pending {
+  background: var(--bg-elevated);
+  color: var(--text-sub);
+}
+
+.pending .icon {
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pending .icon {
+    animation: none;
+  }
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 700;
+}
+
+.text {
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
+.action {
+  margin-top: var(--s-2);
+}

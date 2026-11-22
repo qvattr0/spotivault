@@ -18,8 +18,10 @@ and probe.py `cmd_record` (`steer`, `loaded_positions`, `handle`, the poll loop,
 2. `preflight`: our Connect device must be listed (else failed, RunFailure device_missing);
    another device playing → `device_busy` (D6: never take playback; the run engine pauses the
    run); /music must pass the storage check (else failed, RunFailure storage).
-3. `preparing`: pause our device, seek to 0, shuffle off, repeat off (Spytify bug 2: no track may
-   be "already playing" past 300 ms). "Player command failed" answers (403, 404) are harmless.
+3. `preparing`: pause our device if preflight's GET /me/player said something plays (with nothing
+   playing, Spotify answers a pause 403 "Restriction violated"), then seek to 0, shuffle off,
+   repeat off (Spytify bug 2: no track may be "already playing" past 300 ms). "Player command
+   failed" answers (403, 404) are harmless.
 4. `starting`: stale WAVs in `.spytify/` cleaned up (bug 4; the whole music folder after a
    recorder was killed, for bug 5's .part files), then spytifyd started with
    `settings.recorder_settings(mode)` (skip-forward off for missing_only, on for whole). A start
@@ -52,10 +54,11 @@ deadlines in `_deadlines` (monotonic seconds on services.clock); the loop wakes 
 | item_max | the play | 1.25 × planned length + 10 min: session.stop after the take, partial |
 | item_max_stop | item_max | the take's end + 30 s, and still running: SIGTERM |
 | webapi_check | the play, then every 60 s | GET /me/player: takeover or context moved on (D10) |
-
-D10's other checks: GET /me/player at a track's start (at most every 5 s) and on a pause.
+| player_recheck | a mismatch before the state caught up | GET /me/player again (2 s, 3 times) |
 | stall_exit | an unexplained pause | the recorder should have exited by now: SIGTERM |
 | finishing | playback over | idle exit + 40 s and still running: SIGTERM |
+
+D10's other checks: GET /me/player at a track's start (at most every 5 s) and on a pause.
 
 `terminate()` itself escalates: SIGTERM → 45 s → SIGTERM → 15 s → SIGKILL. When signals stand in
 for `session.stop {now: false}` (no answer, or the socket is gone), the first wait is at least
@@ -67,12 +70,35 @@ within 1.5 s of the start of the context's first track (it loads track 1 and pau
 item's first playable entry (missing_only) or the first track heard (whole), by MPRIS's metadata,
 read again when it arrives late. That's finishing, and a whole item's pass was heard to its end.
 Any other pause is a stall: outcome interrupted if the recorder's idle exit ends the session while
-still paused.
+still paused. While GET /me/player is read again (below), a pause is judged only after the reads.
+
+**GET /me/player lags a play.** For a moment after our play, Spotify can still report the player
+as it was before: the context played last (a real run read the album of two runs before, 1.3 s
+after the play answered), or the device that was active then. So until a read has shown our
+device on the item's context (`_caught_up`), a takeover by the device the pre-flight's read
+reported, or that read's context, isn't acted on at once. Any other device or context can't be
+the old state, so it's acted on at once, as before. For the old state:
+- **MPRIS vouches** at a track's start and at the 60 s check: when the take playing is one of the
+  item's tracks by MPRIS's id (D10), the context hasn't moved on. Never at a pause: a takeover
+  pauses our player, and the old state could hide it.
+- **Otherwise it's read again** (`player_recheck`): 2 s later, 3 times at most. A read that
+  agrees ends it, and a new device or context is acted on at once. One that still reports the
+  old state after the last is taken as true (the state had 6 s to catch up) and acted on, but a
+  context change MPRIS vouches against is let go.
+- **A pause during the re-reads** isn't taken for the end of the context until they're over
+  (`_judge_pause`): a takeover in the first 1.5 s of the first track looks just like it.
+- **Liked Songs' own alias,** when it was the context before the play, is learned from a read
+  naming the take playing now, which isn't the track loaded before the play: that read is new.
+- **The take** stays as steering marked it while the check waits.
+Once the state has caught up, a mismatch is acted on at once, as before. So real autoplay is
+still stopped at the radio's first track, its context being new; only the context that was
+playing before the play waits for the re-reads, 6 s at most.
 
 **Stops:** after this track is `session.stop {now: false}`. Stop now is `{now: true}` (the take is
-discarded), except while finishing: playback is over, and the take waiting for the idle exit
-(often the last track, played in full) would be rejected by a stop now, so it's `{now: false}`
-too and the recorder saves it at the idle exit (20–27 s after the pause, inside the 40 s bound).
+discarded: skipped, not failed), except while finishing: playback is over, and the take waiting
+for the idle exit (often the last track, played in full) would be rejected by a stop now, so it's
+`{now: false}` too and the recorder saves it at the idle exit (20–27 s after the pause, inside the
+40 s bound). That stop cuts nothing, so a take lost after it still fails as with no stop.
 
 **Late inputs:** Web API calls and database writes take time, so an input can be handled after
 the player moved on. Whether a take really played is read from Spytify's own `session.state`
@@ -83,13 +109,17 @@ once its title agrees, else by its title.
 
 **D13's clean full pass** (design.md step 1): a whole item without item access that ended
 `done`, whose context was heard to its end (Steering.wrapped), with no failed take and no take
-skipped for a reason a later pass could fix (seeked, low quality, silent, incomplete). Skips by
-Spytify's policy (too short, ad) don't spoil it; they aren't in observed_tracks either.
+skipped for a reason a later pass could fix (seeked, low quality, silent, incomplete, or
+discarded by a stop). Skips by Spytify's policy (too short, ad) don't spoil it; they aren't in
+observed_tracks either.
 
 Cautious choices (open points, reported): a whole item's time limit uses a stand-in length
 (planning.py); a context change ends a whole item partial and never counts as a clean full pass;
 the client leaving the bus mid-item is an interruption like a stall; a pause at the start of a
-first entry that isn't a playable track (an episode) is taken for a stall.
+first entry that isn't a playable track (an episode) is taken for a stall; a GET /me/player that
+never catches up with the play is taken as true after the re-reads, unless MPRIS vouches; a
+takeover or context change can be the old state when its device or context is the pre-flight's,
+whatever the read's other fields say (only Liked Songs' alias is learned from a read's track).
 """
 
 import asyncio
@@ -112,10 +142,12 @@ from spotivault.engine.types import (
     ItemControl,
     ItemHost,
     ItemJob,
+    ItemLeft,
     ItemLive,
     ItemOutcome,
     ItemReport,
     ItemTimings,
+    MissingTrack,
     RunFailure,
     SessionState,
     StopRequest,
@@ -159,13 +191,16 @@ END_POSITION_MS = 1500  # paused this close to a track's start: Spotify's end of
 TRACK_CHECK_MIN_S = 5.0  # D10's GET /me/player at a track's start, at most this often: a whole
 # item's duplicates go by every half second, and 30 requests in 30 s is a burst (webapi/usage.py)
 AFTER_EXIT_CHECK_S = 2.0  # bug 1's Next can land just after the exit (probe.py waits 2 s too)
+RECHECK_S = 2.0  # GET /me/player disagreed before it caught up with the play: read it again …
+RECHECK_TRIES = 3  # … this many times at most, so a real change waits 6 s (module docstring)
 CONTROL_POLL_S = 1.0  # after a stop, how often to look for an upgrade to "now"
 STOP_RPC_TIMEOUT_S = 10.0  # session.stop's answer
 QUICK_FIRST_GRACE_S = 10.0  # Stop now when session.stop fails: SIGTERM → this → SIGTERM
 QUICK_SECOND_GRACE_S = 5.0  # → this → SIGKILL (the shutdown must end within 40 s)
 TAKE_END_MARGIN_S = 30.0  # a stop after the take: its end + this, then signals (or the next)
 # Skips a later pass could fix: a whole pass that has one isn't a clean full pass (D13).
-_UNCLEAN_SKIPS = frozenset({"seeked", "low_quality", "silent", "incomplete"})
+# `discarded` is a take a Stop now cut, the user's or a shutdown's.
+_UNCLEAN_SKIPS = frozenset({"seeked", "low_quality", "silent", "incomplete", "discarded"})
 _TAKE_EVENTS = frozenset({sp.TRACK_STARTED, sp.TRACK_FINISHED, sp.TRACK_SKIPPED})
 
 type _Check = Literal["ok", "takeover", "context_changed"]
@@ -201,6 +236,7 @@ class ItemEngine:
         clock = services.clock
         self._scope = ApiScope("run", job.run_id)
         self._device_id = job.device_id
+        self._something_plays = True  # preflight's GET /me/player; until read, the cautious answer
         # Phases and timings.
         self._phase: ItemState = "planning"
         self._reported: set[ItemState] = set()
@@ -237,6 +273,10 @@ class ItemEngine:
         self._finishing = False
         self._paused_since: float | None = None  # an unexplained pause began (monotonic)
         self._checked_at = -TRACK_CHECK_MIN_S  # the last GET /me/player (monotonic)
+        self._before: PlayerState | None = None  # GET /me/player before the play (pre-flight)
+        self._caught_up = False  # GET /me/player has shown our device on the item's context
+        self._rechecks_left = 0  # player_recheck's reads left
+        self._pause_unjudged = False  # a pause waits for the re-reads before it's judged
         # What happened: the outcome is decided from these (item_outcome.py).
         self._facts = AttemptFacts()
         self._cut_reason: CutReason | None = "interrupted"  # how a planned take cut short fails
@@ -255,15 +295,50 @@ class ItemEngine:
             await self._kill_leftover_recorder()
 
     def live(self) -> ItemLive:
-        """The current phase, the session state, the take recording now and the live track
-        table. Cheap and synchronous: GET /api/status calls it."""
+        """The current phase, the session state, the take recording now, the live track table,
+        and what's left to play. Cheap and synchronous: GET /api/status calls it."""
         takes = self._takes
         return ItemLive(
             phase=self._phase,
             session_state=self._session_state,
             now_playing=takes.now_playing if takes is not None else None,
             tracks=takes.rows() if takes is not None else (),
+            left=self._left(),
         )
+
+    def _left(self) -> ItemLeft | None:
+        """What's left of this item to play, for the run's time left (engine/time_left.py):
+        the rest of the planned take recording now, and the planned tracks that haven't
+        started. None until it's planned. A take steering is about to jump over isn't counted;
+        once playback is over, or after Stop now, nothing is left; after Stop after this track,
+        only the take. Always with the keys it has recorded so far (`done_keys`), so a waiting
+        item that lists them doesn't count them again."""
+        plan = self._plan
+        if plan is None:
+            return None
+        takes = self._takes
+        done = takes.done_keys() if takes is not None else frozenset[str]()
+        nothing = ItemLeft(take_ms=0, take_key=None, tracks=(), done_keys=done)
+        if plan.unavailable or plan.up_to_date_by is not None or self._finishing:
+            return nothing
+        stop = self.control.stop
+        if stop is not None and stop.mode == "now":
+            return nothing
+        take = takes.open_take() if takes is not None else None
+        take_ms, take_key = 0, None
+        if take is not None and take.planned:
+            take_ms, take_key = round(self._take_left_s(take) * 1000), take.key
+        if stop is not None:
+            return ItemLeft(take_ms=take_ms, take_key=take_key, tracks=(), done_keys=done)
+        if plan.mode == "whole":
+            return ItemLeft(take_ms=take_ms, take_key=take_key, tracks=None, done_keys=done)
+        started = self._steering.started if self._steering is not None else set()
+        tracks = tuple(
+            MissingTrack(key=track.key, duration_ms=track.duration_ms)
+            for track in plan.missing
+            if track.position not in started
+        )
+        return ItemLeft(take_ms=take_ms, take_key=take_key, tracks=tracks, done_keys=done)
 
     @property
     def recorder_pid(self) -> int | None:
@@ -343,6 +418,9 @@ class ItemEngine:
             state = await webapi.player_state(scope=self._scope)
         except WebApiError as exc:
             return await self._webapi_failed_early(exc, "checking the devices")
+        self._before = state
+        self._context.before_play = state.context_uri if state is not None else None
+        self._something_plays = state is not None and state.is_playing  # None: 204, none active
         if (
             state is not None
             and state.is_playing
@@ -365,10 +443,15 @@ class ItemEngine:
         return None
 
     async def _prepare(self) -> ItemReport | None:
-        """Pause, seek to 0, shuffle and repeat off, on our device (design.md step 2)."""
+        """Pause, seek to 0, shuffle and repeat off, on our device (design.md step 2). The pause
+        only when preflight saw something playing: with nothing playing (204, or is_playing
+        false), Spotify answers it 403 "Restriction violated", and five 4xx answers in a row
+        raise the usage log's warning. Another device playing ended the item at preflight (D6)."""
         webapi = self.services.ports.webapi
         device, scope = self._device_id, self._scope
-        failure = await self._player_step("pause", webapi.pause(device_id=device, scope=scope))
+        failure: ItemReport | None = None
+        if self._something_plays:
+            failure = await self._player_step("pause", webapi.pause(device_id=device, scope=scope))
         if failure is None:
             failure = await self._player_step(
                 "seek to 0", webapi.seek(0, device_id=device, scope=scope)
@@ -745,10 +828,12 @@ class ItemEngine:
         if playing and decision.action in ("stay", "jump") and not self._finishing:
             if state is None and self._may_check_now():
                 state = await self._player_state()
-            check = self._check_player(state)
+            check = self._confirmed_check(state, mpris_id=mpris_id)
             if check == "context_changed":
                 take.planned = False
         await takes.start(take)
+        if take.planned and not take.phantom:
+            await self.host.item_take_started(self.job)  # the run's time left counts it now
         if check != "ok":
             await self._act_on_check(check, state)
 
@@ -860,28 +945,30 @@ class ItemEngine:
             return
         if change.playback_status == "Playing":
             self._paused_since = None
+            self._pause_unjudged = False
             self._deadlines.pop("stall_exit", None)
             if self._finishing:
                 await self._pause_player()  # nothing plays once the item is over (bug 1)
         elif change.playback_status == "Paused":
             if self._played and not self._finishing and self._paused_since is None:
                 await self._on_unexpected_pause()
-        if (
-            change.metadata is not None
-            and self._paused_since is not None
-            and not self._finishing
-            and await self._ended_at_context_start(change.metadata)
-        ):
+        if change.metadata is not None and self._paused_since is not None and not self._finishing:
             # MPRIS's metadata can come after the pause (it lags): the track Spotify loaded at
-            # the end of the context is only known now.
-            await self._context_ended()
+            # the end of the context is only known now. While GET /me/player is read again, the
+            # pause may still be a takeover: it's judged once the re-reads are over.
+            if "player_recheck" in self._deadlines:
+                self._pause_unjudged = True
+            elif await self._ended_at_context_start(change.metadata):
+                await self._context_ended()
 
     async def _on_unexpected_pause(self) -> None:
         """A pause nobody here asked for: a takeover, the end of the context, or a stall.
 
         Spotify ends a context by loading its first track and pausing at 0 (FINDINGS § End-of-
         item handling); a stall or a takeover pauses where the track was. What's loaded is read
-        now, and holds while the player stays paused, however late this runs."""
+        now, and holds while the player stays paused, however late this runs. While GET
+        /me/player is read again (`player_recheck`), it may still hide a takeover, so the end of
+        the context waits for the re-reads (`_judge_pause`); a stall's deadline is armed now."""
         mpris = self.services.ports.mpris
         try:
             status = await mpris.playback_status()
@@ -892,17 +979,38 @@ class ItemEngine:
             return  # playing again already: the change saying so comes next
         self._paused_since = self.services.clock.monotonic()
         state = await self._player_state()  # D10: checked on pause
-        check = self._check_player(state)
+        check = self._confirmed_check(state, mpris_id=None)  # MPRIS can't rule out a takeover
         if check != "ok":
             await self._act_on_check(check, state)
             return
-        if await self._ended_at_context_start(meta):
+        if "player_recheck" in self._deadlines:
+            self._pause_unjudged = True
+        elif await self._ended_at_context_start(meta):
             await self._context_ended()
             return
         timeouts = self.job.timeouts
         self._deadlines["stall_exit"] = (
             self._paused_since + timeouts.stall_s + timeouts.finishing_extra_s
         )
+
+    async def _judge_pause(self) -> None:
+        """A pause left unjudged while GET /me/player was read again, once the re-reads are over
+        and found no takeover to act on: the end of the context, else the stall it was taken
+        for. What's loaded holds while the player stays paused."""
+        if (
+            not self._pause_unjudged
+            or "player_recheck" in self._deadlines
+            or self._paused_since is None
+            or self._finishing
+        ):
+            return
+        self._pause_unjudged = False
+        try:
+            meta = await self.services.ports.mpris.metadata()
+        except MprisUnavailable:
+            return
+        if await self._ended_at_context_start(meta):
+            await self._context_ended()
 
     async def _ended_at_context_start(self, meta: TrackMetadata | None) -> bool:
         """Spotify's end of the context: paused within 1.5 s of the start of the context's first
@@ -931,16 +1039,157 @@ class ItemEngine:
         steering.context_ended()
         await self._begin_finishing(pause=False)
 
-    def _check_player(self, state: PlayerState | None) -> _Check:
-        """GET /me/player: another device active (a takeover), or another context (autoplay)."""
+    def _check_player(self, state: PlayerState | None, *, settled: bool) -> _Check:
+        """GET /me/player: another device active (a takeover), or another context (autoplay).
+        `settled`: the read can't be the state from before the play any more (ContextCheck)."""
         if state is None:
             return "ok"
         device = state.device
         if device is not None and device.id != self._device_id and device.is_active:
             return "takeover"
-        if not self._context.matches(state.context_uri):
+        if not self._context.matches(state.context_uri, settled=settled):
             return "context_changed"
         return "ok"
+
+    def _confirmed_check(self, state: PlayerState | None, *, mpris_id: str | None) -> _Check:
+        """`_check_player`, but a mismatch read before the state caught up with the play, that
+        can be the state from before the play, is "ok" for now (module docstring, "GET
+        /me/player lags a play"): MPRIS vouches for the context when `mpris_id` (the take
+        playing) is one of the item's tracks, else `player_recheck` reads it again."""
+        check = self._check_player(state, settled=self._caught_up)
+        if check == "ok":
+            self._note_caught_up(state)
+            return "ok"
+        if self._caught_up:
+            return check
+        assert state is not None
+        if not self._may_be_before_play(state, check):
+            return check  # another device or context than before the play: it's new
+        if self._learns_alias(state, check, mpris_id):
+            return "ok"
+        if check == "context_changed" and self._is_item_track(mpris_id):
+            log.info(
+                "item %s: GET /me/player still reports %s, but MPRIS shows the item's track: "
+                "the state is behind",
+                self.job.item_id,
+                state.context_uri,
+            )
+            return "ok"
+        if "player_recheck" not in self._deadlines:
+            log.info(
+                "item %s: GET /me/player reports %s just after the play: reading it again",
+                self.job.item_id,
+                _what_it_reports(state, check),
+            )
+            self._rechecks_left = RECHECK_TRIES
+            self._deadlines["player_recheck"] = self.services.clock.monotonic() + RECHECK_S
+        return "ok"
+
+    async def _recheck_player(self) -> None:
+        """`player_recheck`: GET /me/player again. Caught up: done. Another device or context
+        than before the play: acted on at once. Still what it reported before the play: again
+        2 s later, and after the last read it's acted on, unless MPRIS vouches for the context.
+        A read that fails or reports nothing concludes nothing."""
+        self._rechecks_left -= 1
+        last = self._rechecks_left <= 0
+        state = await self._player_state()
+        check = self._check_player(state, settled=last)
+        if check == "ok":
+            if self._note_caught_up(state) or last:
+                return
+        else:
+            assert state is not None
+            if not self._may_be_before_play(state, check):
+                await self._act_on_check(check, state)
+                return
+            mpris_id = self._playing_mpris_id()
+            if self._learns_alias(state, check, mpris_id):
+                return
+            if last:
+                await self._after_the_last_read(state, check, mpris_id)
+                return
+        self._deadlines["player_recheck"] = self.services.clock.monotonic() + RECHECK_S
+
+    async def _after_the_last_read(
+        self, state: PlayerState, check: _Check, mpris_id: str | None
+    ) -> None:
+        """The last re-read still reports what it did before the play: taken as true (the
+        state had 6 s to catch up), unless MPRIS vouches for the context."""
+        if check == "context_changed" and self._is_item_track(mpris_id):
+            log.warning(
+                "item %s: GET /me/player still reports %s, but MPRIS shows the item's track: "
+                "going on",
+                self.job.item_id,
+                state.context_uri,
+            )
+            return
+        log.warning(
+            "item %s: GET /me/player still reports %s after %d reads: it's taken as true",
+            self.job.item_id,
+            _what_it_reports(state, check),
+            RECHECK_TRIES + 1,
+        )
+        await self._act_on_check(check, state)
+
+    def _may_be_before_play(self, state: PlayerState, check: _Check) -> bool:
+        """Whether this mismatch can be the state from before the play, still reported: the
+        other device is the one the pre-flight read reported, or the other context is. Field by
+        field, so a read with only its other fields new is still taken as possibly old. Any
+        other device or context is new: the state has moved on since the play."""
+        if check == "takeover":
+            before = self._before.device if self._before is not None else None
+            return before is not None and state.device is not None and state.device.id == before.id
+        return state.context_uri == self._context.before_play
+
+    def _learns_alias(self, state: PlayerState, check: _Check, mpris_id: str | None) -> bool:
+        """Liked Songs, with its own alias reported before the play: that context isn't learned
+        as the alias from a read that can be stale (ContextCheck). A read naming the take
+        playing now (`mpris_id`, one of the item's tracks), and not the track loaded before the
+        play, isn't stale: the alias is learned from it, and the state has caught up. A track
+        that was loaded before the play too proves nothing (a re-queued item starts where it
+        stalled)."""
+        before_track = self._before.track_id if self._before is not None else None
+        if (
+            check != "context_changed"
+            or not self._context.liked
+            or mpris_id is None
+            or state.track_id != mpris_id
+            or state.track_id == before_track
+            or not self._is_item_track(mpris_id)
+            or self._check_player(state, settled=True) != "ok"
+        ):
+            return False
+        self._note_caught_up(state)
+        return True
+
+    def _note_caught_up(self, state: PlayerState | None) -> bool:
+        """For a read `_check_player` found ok: whether it shows our device on the item's
+        context. Then GET /me/player has caught up with the play, and from now on a mismatch is
+        acted on at once."""
+        if (
+            state is None
+            or state.context_uri is None
+            or state.device is None
+            or state.device.id != self._device_id
+        ):
+            return False
+        self._caught_up = True
+        self._deadlines.pop("player_recheck", None)
+        return True
+
+    def _is_item_track(self, mpris_id: str | None) -> bool:
+        """MPRIS's id (D10) names one of the item's tracks. By id only: a title can be any
+        context's. A whole item has no track list, so MPRIS never vouches for one."""
+        plan = self._plan
+        if mpris_id is None or plan is None:
+            return False
+        return any(track.track_id == mpris_id for track in plan.tracks)
+
+    def _playing_mpris_id(self) -> str | None:
+        """MPRIS's id of the take recording now, from its start (when the titles agreed)."""
+        takes = self._takes
+        take = takes.open_take() if takes is not None else None
+        return take.mpris_track_id if take is not None else None
 
     async def _act_on_check(self, check: _Check, state: PlayerState | None) -> None:
         if check == "takeover" and state is not None and state.device is not None:
@@ -986,19 +1235,21 @@ class ItemEngine:
         take waiting for the idle exit is kept."""
         previous, self._facts.stop = self._facts.stop, request
         if request.mode == "now":
-            shutdown = request.cause == "shutdown"
-            self._cut_as("interrupted" if shutdown else "discarded")
             if self._finishing:
-                await self._stop_session(now=False)
+                await self._stop_session(now=False)  # cuts nothing: the take waits for the exit
                 return
+            # Only a stop sent as {now: true} cuts the take: the user's or a shutdown's, skipped.
+            self._cut_as("discarded")
             await self._stop_session(now=True, quick=True)
             await self._begin_finishing()
         elif previous is None:
             await self._stop_session(now=False)
 
     def _cut_as(self, reason: CutReason) -> None:
-        """How a planned take cut from now on fails (not once the context moved on)."""
-        if not self._facts.context_moved:
+        """How a planned take cut from now on ends (item_takes.py). The first cut decides: once a
+        `session.stop {now}` went out (a takeover, a capture problem, Stop now), a later stop
+        doesn't change what the take it cut becomes. Nothing does once the context moved on."""
+        if not self._facts.context_moved and self._session_stop != "now":
             self._cut_reason = reason
 
     async def _on_deadlines(self) -> None:
@@ -1035,11 +1286,16 @@ class ItemEngine:
             self._terminate()
         elif name == "webapi_check":
             state = await self._player_state()
-            await self._act_on_check(self._check_player(state), state)
+            check = self._confirmed_check(state, mpris_id=self._playing_mpris_id())
+            await self._act_on_check(check, state)
             if not self._finishing:
                 self._deadlines["webapi_check"] = (
                     self.services.clock.monotonic() + timeouts.webapi_check_s
                 )
+            await self._judge_pause()  # the read may have caught up, ending the re-reads
+        elif name == "player_recheck":
+            await self._recheck_player()
+            await self._judge_pause()
 
     async def _begin_finishing(self, *, pause: bool = True) -> None:
         """Playback is over: the `finishing` phase, its deadline, and the player paused."""
@@ -1053,6 +1309,7 @@ class ItemEngine:
             "item_max",
             "item_max_stop",
             "webapi_check",
+            "player_recheck",
             "stall_exit",
         ):
             self._deadlines.pop(name, None)
@@ -1069,7 +1326,12 @@ class ItemEngine:
         takes = self._takes
         assert takes is not None
         take = takes.open_take()
-        if take is None or take.length_ms <= 0:
+        return self._take_left_s(take) if take is not None else 0.0
+
+    def _take_left_s(self, take: Take) -> float:
+        """How much of a take is left to play, in seconds: its length less the time since it
+        started (0 past its end, or when its length is unknown)."""
+        if take.length_ms <= 0:
             return 0.0
         played_s = (self.services.clock.now() - take.started_at).total_seconds()
         return max(0.0, take.length_ms / 1000 - played_s)
@@ -1566,6 +1828,13 @@ def _run_failure_for(exc: WebApiError) -> RunFailure | None:
     if isinstance(exc, ConnectionExpired):
         return RunFailure("connection_expired", "The Web API connection has expired: reconnect.")
     return None
+
+
+def _what_it_reports(state: PlayerState, check: _Check) -> str:
+    """For the log: the other device, or the other context."""
+    if check == "takeover" and state.device is not None:
+        return f"{state.device.name} active"
+    return f"the context {state.context_uri}"
 
 
 def _new_take_book(

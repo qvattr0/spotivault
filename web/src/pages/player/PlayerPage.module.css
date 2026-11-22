@@ -1,0 +1,145 @@
+/* The Player, measured from ZQChN and jh5YJ: a 56 tall toolbar with a border under it, a 30 tall
+   status strip in 12/500, then the client's screen, fitted with a 40 px margin, on the drawings'
+   near-black (--player-surround in fixed.css). The page has no tint. */
+
+/* The panel's height exactly (it's a size container): the screen fits the window, it doesn't grow
+   the page. */
+.player {
+  display: flex;
+  flex-direction: column;
+  height: 100cqh;
+}
+
+.toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  height: 56px;
+  padding: 0 var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font: var(--type-heading);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.strip {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 20px;
+  min-height: 30px;
+  padding: 4px var(--s-4);
+  color: var(--text-sub);
+  font: var(--type-caption);
+}
+
+.fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.factText {
+  color: var(--text);
+}
+
+.ok svg {
+  color: var(--accent);
+}
+
+.warnFact {
+  color: var(--warn);
+}
+
+.dangerFact svg {
+  color: var(--danger);
+}
+
+.factLink:hover {
+  text-decoration: underline;
+}
+
+.retry {
+  padding: 2px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  color: var(--text);
+  font: var(--type-caption);
+  font-weight: 700;
+}
+
+.retry:hover {
+  border-color: var(--text);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+/* The screen's area: near-black, the screen fitted inside with a margin. Fullscreen: the screen fills it. */
+.screen {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 40px;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  background: var(--player-surround);
+}
+
+.screen:fullscreen {
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Two classes: the view's own background (black) gives way to the surround, so a letterboxed
+   screen sits on the same near-black. */
+.screen .vnc {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0;
+  background: var(--player-surround);
+}
+
+/* View-only (web-ui.md § During a run): the view dims slightly, with a lock in the corner. */
+.locked .vnc {
+  opacity: 0.6;
+}
+
+.lock {
+  position: absolute;
+  top: var(--s-6);
+  right: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  background: var(--bg-press);
+  color: var(--warn);
+}

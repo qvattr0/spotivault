@@ -1,0 +1,32 @@
+/* Measured from L3CNc7: a 1 px $border outline, 8 px corners; title 15/600 $text, text 14/400 $text-sub. */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  width: 100%;
+  padding: var(--s-6) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  text-align: center;
+}
+
+.icon {
+  margin-bottom: var(--s-1);
+  color: var(--text-muted);
+}
+
+.title {
+  color: var(--text);
+  font: var(--type-row-title);
+}
+
+.text {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.action {
+  margin-top: var(--s-3);
+}

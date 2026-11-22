@@ -19,6 +19,9 @@ The rules, first match wins:
 Rule 4's shutdown is interrupted (shutdown). Rule 7: a capture problem, a fatal Spytify error,
 the time limit, failed takes, tracks still missing; for a whole item also the context moving on,
 or a guard pausing before the context went round (it can't be trusted as a whole pass).
+
+A take Stop now or a shutdown cut is skipped `discarded`, not failed (item_takes.py), so it's
+never in `failed_reasons`, and an item stopped with only such a take has no failure.
 """
 
 from collections import Counter

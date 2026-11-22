@@ -62,6 +62,7 @@ class RowSpec:
 
 # In the table's order, grouped as the client's Settings are.
 ROWS: tuple[RowSpec, ...] = (
+    RowSpec("autoplay", "playback", "Off", "confirm", blocker=False),
     RowSpec("crossfade", "playback", "Off", "confirm", blocker=True),
     RowSpec("gapless", "playback", "Off", "confirm", blocker=True),
     RowSpec(
@@ -73,7 +74,6 @@ ROWS: tuple[RowSpec, ...] = (
         pref_key="audio.automix",
         pref_value="false",
     ),
-    RowSpec("autoplay", "playback", "Off", "confirm", blocker=False),
     RowSpec(
         "normalization",
         "playback",
@@ -84,22 +84,22 @@ ROWS: tuple[RowSpec, ...] = (
         pref_value="false",
     ),
     RowSpec(
-        "equalizer",
-        "playback",
-        "Off",
-        "auto",
-        blocker=True,
-        pref_key="audio.equalizer_v2",
-        pref_value="false",
-        missing_ok=True,
-    ),
-    RowSpec(
         "mono",
         "playback",
         "Off",
         "auto",
         blocker=True,
         pref_key="audio.downmixer_v2",
+        pref_value="false",
+        missing_ok=True,
+    ),
+    RowSpec(
+        "equalizer",
+        "playback",
+        "Off",
+        "auto",
+        blocker=True,
+        pref_key="audio.equalizer_v2",
         pref_value="false",
         missing_ok=True,
     ),

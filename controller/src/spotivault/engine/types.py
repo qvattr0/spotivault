@@ -133,7 +133,8 @@ class ItemControl:
       end the item; before the recorder started, end at once. Outcome: stopped (cause user),
       carried_over (window_end).
     - now: the current take is discarded (session.stop {now: true}; its track result is
-      `failed`, reason `discarded`). Outcome: stopped, carried_over, or interrupted (shutdown).
+      `skipped`, reason `discarded`: not a failure). Outcome: stopped, carried_over, or
+      interrupted (shutdown).
     """
 
     def __init__(self) -> None:
@@ -202,6 +203,34 @@ class ItemHost(Protocol):
         alone) and publishes `library.item` / `album.item`."""
         ...
 
+    async def item_take_started(self, job: ItemJob) -> None:
+        """A planned take started (one the item plays on: a whole item's, or a planned track).
+        The run engine works its time left out again, so the take counts from its start; it
+        stores nothing."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class MissingTrack:
+    """A track still to record, for the run's time left (engine/time_left.py)."""
+
+    key: str  # Spytify's track key: a track two items share is recorded once
+    duration_ms: int  # tracks.duration_ms, as stored
+
+
+@dataclass(frozen=True, slots=True)
+class ItemLeft:
+    """What's left of the current item to play, from its plan, for the run's time left
+    (RunSummary.time_left; engine/time_left.py sums it)."""
+
+    take_ms: int  # the rest of the take recording now, if it plays on (a planned one); else 0
+    take_key: str | None  # that take's Spytify key
+    tracks: tuple[MissingTrack, ...] | None  # planned and not started yet; None: it plays whole
+    # The Spytify keys this attempt has recorded so far, counting a planned take that played
+    # and waits for its result (TakeBook.done_keys): a waiting item that lists them won't
+    # record them again.
+    done_keys: frozenset[str] = frozenset()
+
 
 @dataclass(frozen=True, slots=True)
 class ItemLive:
@@ -212,6 +241,7 @@ class ItemLive:
     session_state: SessionState | None  # Spytify's, relayed; None before the recorder started
     now_playing: NowPlaying | None  # the take being recorded
     tracks: tuple[RunTrack, ...]  # the live track table (CurrentRun.current_tracks)
+    left: ItemLeft | None = None  # what's left to play; None until it's planned
 
 
 # --- Item engine → run engine, at the end ------------------------------------------------------

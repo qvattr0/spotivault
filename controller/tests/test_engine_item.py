@@ -7,6 +7,7 @@ decisions. Times are on the fake clock: an album of five 90 s tracks takes milli
 import asyncio
 import stat
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -15,21 +16,25 @@ import pytest
 
 from engine_sim import ELSEWHERE, RecordingHost, Sim
 from spotivault.clock import iso_ms
-from spotivault.engine.item import ItemEngine
+from spotivault.engine.item import RECHECK_S, RECHECK_TRIES, ItemEngine
 from spotivault.engine.item_outcome import AttemptFacts, Ending, decide, partial_reason
+from spotivault.engine.item_takes import CutReason, Take, TakeBook
 from spotivault.engine.planning import ItemPlan, PlannedTrack, plan_item
 from spotivault.engine.states import check_item_transition
 from spotivault.engine.steering import ContextCheck, Steering, same_context
 from spotivault.engine.types import (
     ItemControl,
     ItemJob,
+    ItemLeft,
     ItemReport,
+    MissingTrack,
     StopRequest,
     Takeover,
     Timeouts,
 )
 from spotivault.fake.catalog import CatalogAlbum, CatalogPlaylist
 from spotivault.fake.recorder import SimRecorderSession
+from spotivault.matching import track_key
 from spotivault.ports import (
     Device,
     NotConnected,
@@ -584,6 +589,332 @@ async def test_autoplay_after_the_last_missing_track_just_pauses(sim: Sim) -> No
     assert sim.mpris_calls() == ["Pause"]
 
 
+# --- GET /me/player lagging a play ---------------------------------------------------------------
+#
+# Right after our play, Spotify can still report the player as it was before it (item.py, "GET
+# /me/player lags a play"). `state_lag_s` makes the simulated player do the same.
+
+LAG_S = 4.0  # longer than the first track's check and the first re-read 2 s later
+FOREVER_S = 100_000.0  # a state that never catches up
+
+
+async def owned_playlist(sim: Sim, titles: list[str]) -> CatalogPlaylist:
+    """An owned playlist (missing tracks only), tracked, with its track list stored."""
+    catalog = sim.world.catalog
+    entries = [catalog.entry(title, artist="Band", duration_ms=90_000) for title in titles]
+    playlist = sim.playlist("Mine", entries)
+    await sim.refresh()
+    await sim.track(playlist.playlist.id)
+    await sim.refresh()
+    return playlist
+
+
+def player_reads(calls: list[str]) -> int:
+    return calls.count("GET /me/player")
+
+
+def seconds_between(earlier: datetime | None, later: datetime | None) -> float:
+    assert earlier is not None and later is not None
+    return (later - earlier).total_seconds()
+
+
+@pytest.mark.parametrize("mpris_lag_s", [0.0, 4.0], ids=["mpris_names_it", "mpris_late"])
+async def test_the_context_before_the_play_isnt_taken_for_autoplay(
+    sim: Sim, mpris_lag_s: float
+) -> None:
+    """A real run: run 2 recorded an album; a file of an owned playlist was deleted; run 4's
+    check at the track's start, 1.3 s after the play, still read the album as the context. The
+    item was stopped as autoplay and the track stayed missing. With MPRIS late (no id within
+    3 s), steering goes by the title and GET /me/player is read again instead."""
+    album, album_item = await album_job(sim, [])
+    await run(sim, album_item)  # run 2: the player is left on the album
+    await end_run(sim, album_item.run_id)
+    playlist = await owned_playlist(sim, ["One", "Two", "Three", "Four"])
+    sim.prerecord(playlist, [0, 1, 3])  # "Three"'s file was deleted
+    sim.world.player.state_lag_s = LAG_S
+    sim.world.mpris.metadata_lag_s = mpris_lag_s
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert errors(sim, "context_changed") == []
+    assert sim.recorded_titles(playlist) == {"One", "Two", "Three", "Four"}
+    [take] = [row for row in await results(sim, job) if row["title"] == "Three"]
+    assert (take["planned"], take["result"]) == (1, "recorded")
+    calls = sim.webapi_calls()[before:]
+    assert calls[:7] == [  # run 4's requests, less its pause: nothing played, so none is sent
+        "GET /me/player/devices",
+        "GET /me/player",
+        "PUT /me/player/seek",
+        "PUT /me/player/shuffle",
+        "PUT /me/player/repeat",
+        "PUT /me/player/play",
+        "GET /me/player",  # at the track's start: still the album
+    ]
+    # Then the 60 s check. MPRIS naming the item's track settles the first; MPRIS late, it's
+    # read again 2 s later (and D10's fallback reads it at "Four"'s start).
+    assert player_reads(calls[6:]) == (2 if mpris_lag_s == 0 else 4)
+
+
+async def test_autoplay_is_still_stopped_after_a_stale_start(sim: Sim) -> None:
+    """The state lags the play, then catches up; when the playlist ends, autoplay's radio is
+    stopped at its first track, as before."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)  # an earlier item's album
+    playlist = await followed_playlist(sim, ["One", "Two"])
+    sim.world.player.state_lag_s = LAG_S
+    sim.autoplay()
+    job = await sim.job(playlist.playlist.id)
+    report, _ = await run(sim, job)
+    [error] = errors(sim, "context_changed")
+    assert error["facts"]["context_uri"] not in (album.album.uri, playlist.playlist.uri)
+    assert report.outcome == "partial" and report.error_code == "context_changed"
+    assert sim.recorded_titles(playlist) == {"One", "Two"}
+    last = (await results(sim, job))[-1]
+    assert (last["result"], last["reason"]) == ("skipped", "incomplete")  # the radio's track
+    assert sim.world.player.status == "Paused"
+
+
+async def test_a_state_that_never_catches_up_is_taken_as_true(sim: Sim) -> None:
+    """No track list to vouch for the context (a whole item): after the first read and
+    RECHECK_TRIES more, 2 s apart, the other context is taken as true and the item stopped."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)
+    playlist = await followed_playlist(sim, ["One", "Two"])
+    sim.world.player.state_lag_s = FOREVER_S
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    [error] = errors(sim, "context_changed")
+    assert error["facts"]["context_uri"] == album.album.uri
+    assert report.outcome == "partial"
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) == 1 + RECHECK_TRIES
+    waited = seconds_between(report.timings.first_track_at, report.timings.finishing_at)
+    assert RECHECK_TRIES * RECHECK_S <= waited < RECHECK_TRIES * RECHECK_S + 2
+    [take] = await results(sim, job)
+    assert (take["title"], take["result"], take["reason"]) == ("One", "skipped", "incomplete")
+
+
+async def test_a_state_that_never_catches_up_is_let_go_while_mpris_names_the_track(
+    sim: Sim,
+) -> None:
+    """MPRIS's id is one of the item's tracks, so the context hasn't moved on, however long
+    GET /me/player keeps reporting the album: no re-reads, and the track is recorded."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)
+    playlist = await owned_playlist(sim, ["One", "Two", "Three"])
+    sim.prerecord(playlist, [0, 2])
+    sim.world.player.state_lag_s = FOREVER_S
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert errors(sim, "context_changed") == []
+    assert "Two" in sim.recorded_titles(playlist)
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) == 2  # the start, 60 s
+
+
+async def test_liked_songs_alias_isnt_learned_from_the_context_before_the_play(sim: Sim) -> None:
+    """Spotify's own playlists share Liked Songs' alias prefix. The one playing before the play,
+    still reported just after it, mustn't be learned as the alias: the real alias would then
+    look like another context."""
+    catalog = sim.world.catalog
+    catalog.liked.extend(catalog.entry(f"Liked {n}", artist="Fan") for n in range(1, 4))
+    top = catalog.add_playlist(
+        "Your Top Songs", tracks=3, access="spotify", playlist_id="37i9dQZF1FTopSongs00001"
+    )
+    sim.leave_player_on(top, 1, 0)
+    await sim.track("liked")
+    await sim.refresh()
+    sim.world.player.state_lag_s = LAG_S
+    job = await sim.job("liked")
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert report.counts.recorded == 3
+    assert errors(sim, "context_changed") == []
+
+
+def take_over_into(sim: Sim, title: str, seconds: float) -> list[datetime]:
+    """The phone takes playback over `seconds` into `title`. The list gets the time it did."""
+    taken: list[datetime] = []
+
+    def take_over() -> None:
+        taken.append(sim.clock.now())
+        sim.world.player.take_over("Pixel 9")
+
+    def on_player(event: Any) -> None:
+        meta = event.metadata
+        if event.kind == "track" and meta is not None and meta.title == title:
+            sim.world.player.listeners.remove(on_player)  # once
+            sim.at(seconds, take_over)
+
+    sim.world.player.listeners.append(on_player)
+    return taken
+
+
+async def test_the_device_active_before_the_play_isnt_a_takeover(sim: Sim) -> None:
+    """The phone was the active device (paused) before the play. Just after it, GET /me/player
+    still reports the phone: not a takeover. A real one later is acted on at once."""
+    album, job = await album_job(sim, [])
+    sim.world.player.play_elsewhere("Pixel 9")
+    sim.world.player.stop_elsewhere()  # paused there: D6 lets the item start
+    sim.world.player.state_lag_s = LAG_S
+    take_over_into(sim, "Distant Peak", 10)
+    report, _ = await run(sim, job)
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    assert sim.recorded_titles(album) == {"Passage"}
+    assert report.takeover is not None
+    [discarded] = [row for row in await results(sim, job) if row["title"] == "Distant Peak"]
+    assert report.takeover.discarded_take_id == discarded["take_id"]
+    assert sim.mpris_calls() == []  # the player is left alone
+
+
+async def test_a_takeover_hidden_by_the_lag_is_acted_on_at_the_next_read(sim: Sim) -> None:
+    """The phone takes over 2.5 s into the first track, while GET /me/player still reports the
+    album before the play: the pause's check reads again. The next read shows the phone, which
+    wasn't active before the play, so it can't be the old state: acted on then, RECHECK_S after
+    the pause, and not taken for autoplay."""
+    album, job = await album_job(sim, [])
+    other = sim.album("Before", 2)
+    sim.leave_player_on(other, 0, 0)
+    sim.world.player.state_lag_s = LAG_S
+    taken = take_over_into(sim, "Passage", 2.5)
+    report, _ = await run(sim, job)
+    assert errors(sim, "context_changed") == []
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    waited = seconds_between(taken[0], report.timings.finishing_at)
+    assert RECHECK_S <= waited < 2 * RECHECK_S
+    assert sim.recorded_titles(album) == set()
+
+
+@pytest.mark.parametrize("kind", ["album", "whole"])
+async def test_a_takeover_at_the_first_tracks_start_isnt_taken_for_its_end(
+    sim: Sim, kind: str
+) -> None:
+    """Nothing was active before the play (204). The phone takes over 1.2 s into the first
+    track: our player pauses where Spotify's end of the context would. The pause's read shows
+    the phone, which can't be the state from before the play: acted on at once."""
+    if kind == "album":
+        _, job = await album_job(sim, [])
+        first = "Passage"
+    else:
+        playlist = await followed_playlist(sim, ["One", "Two", "Three"])
+        job = await sim.job(playlist.playlist.id)
+        first = "One"
+    assert sim.world.player.player_state() is None
+    sim.world.player.state_lag_s = 1.0  # stale at the track's start, caught up at the pause
+    taken = take_over_into(sim, first, 1.2)
+    report, _ = await run(sim, job)
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    assert seconds_between(taken[0], report.timings.finishing_at) < RECHECK_S  # at once
+
+
+@pytest.mark.parametrize("mpris_lag_s", [0.0, 2.0], ids=["mpris_on_time", "mpris_late"])
+async def test_a_takeover_by_the_device_before_the_play_at_the_first_tracks_start(
+    sim: Sim, mpris_lag_s: float
+) -> None:
+    """The phone was active (paused) before the play, and takes over 1.2 s into the first
+    track. Its read can be the old state, so it's read again; meanwhile the pause, though right
+    at the first track's start, isn't taken for the context's end, nor when MPRIS's metadata
+    comes after it. After the last re-read the takeover is taken as true."""
+    album, job = await album_job(sim, [])
+    sim.world.player.play_elsewhere("Pixel 9")
+    sim.world.player.stop_elsewhere()
+    sim.world.player.state_lag_s = 1.0
+    sim.world.mpris.metadata_lag_s = mpris_lag_s
+    taken = take_over_into(sim, "Passage", 1.2)
+    report, _ = await run(sim, job)
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    # The re-reads began at the first read, stale: at the track's start, which with MPRIS late
+    # is handled once its metadata comes.
+    waited = seconds_between(taken[0], report.timings.finishing_at)
+    assert RECHECK_S < waited < RECHECK_TRIES * RECHECK_S + mpris_lag_s + 1
+    assert sim.recorded_titles(album) == set()
+
+
+async def test_the_contexts_end_during_the_re_reads_is_judged_after_them(sim: Sim) -> None:
+    """A whole playlist of one 3 s track, with GET /me/player 4 s behind the play: the context
+    ends (its first track loaded, paused at 0) while the read at the track's start is being
+    read again. Once a read catches up, the pause is judged: the end of the context, so the
+    pass is whole, not a stall left to the idle exit."""
+    album = sim.elsewhere()
+    sim.leave_player_on(album, 0, 0)
+    catalog = sim.world.catalog
+    short = sim.playlist(
+        "Theirs", [catalog.entry("Short", artist="Band", duration_ms=3_000)], access="followed"
+    )
+    await sim.refresh()
+    await sim.add_playlist(short)
+    await sim.refresh()
+    sim.world.player.state_lag_s = LAG_S
+    job = await sim.job(short.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done", report.reason
+    assert report.clean_full_pass
+    assert errors(sim) == []
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) >= 3  # start, pause, re-read
+    assert sim.recorded_titles(short) == {"Short"}
+
+
+async def test_autoplay_is_stopped_at_once_before_a_read_caught_up(sim: Sim) -> None:
+    """Nothing was active before the play (204), and no read has shown the item's context yet
+    when autoplay's radio starts. The radio's context isn't the one from before the play, so it
+    can't be the old state: stopped at its first track, as before."""
+    catalog = sim.world.catalog
+    playlist = sim.playlist(
+        "Theirs", [catalog.entry("One", artist="Band", duration_ms=30_000)], access="followed"
+    )
+    await sim.refresh()
+    await sim.add_playlist(playlist)
+    await sim.refresh()
+    assert sim.world.player.player_state() is None
+    sim.world.player.state_lag_s = 1.3
+    sim.autoplay()
+    radio_at: list[datetime] = []
+
+    def on_player(event: Any) -> None:
+        meta = event.metadata
+        if event.kind == "track" and meta is not None and meta.title != "One" and not radio_at:
+            radio_at.append(sim.clock.now())
+
+    sim.world.player.listeners.append(on_player)
+    job = await sim.job(playlist.playlist.id)
+    before = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "partial" and report.error_code == "context_changed"
+    assert seconds_between(radio_at[0], report.timings.finishing_at) < RECHECK_S  # at once
+    calls = sim.webapi_calls()[before:]
+    assert player_reads(calls[calls.index("PUT /me/player/play") :]) == 2  # One's, the radio's
+    one, radio = await results(sim, job)
+    assert (one["title"], one["result"]) == ("One", "recorded")
+    assert (radio["planned"], radio["result"], radio["reason"]) == (0, "skipped", "incomplete")
+
+
+async def test_liked_songs_catches_up_when_it_was_playing_before_the_play(sim: Sim) -> None:
+    """The phone was on Liked Songs (paused) before the play: its alias is the context from
+    before it, and the phone the device. A read naming the take playing now, not the track
+    loaded before the play, isn't the old state: the alias is learned from it and the state has
+    caught up, so the phone taking over later is acted on at once."""
+    catalog = sim.world.catalog
+    catalog.liked.extend(
+        catalog.entry(f"Liked {n}", artist="Fan", duration_ms=90_000) for n in range(1, 5)
+    )
+    await sim.track("liked")
+    await sim.refresh()
+    sim.world.player.play_elsewhere("Pixel 9")  # Liked Songs, at its first track
+    sim.world.player.stop_elsewhere()
+    taken = take_over_into(sim, "Liked 3", 30)
+    job = await sim.job("liked")
+    report, _ = await run(sim, job)
+    assert errors(sim, "context_changed") == []
+    assert report.outcome == "interrupted" and report.interrupted_by == "takeover"
+    assert seconds_between(taken[0], report.timings.finishing_at) < RECHECK_S  # at once
+
+
 # --- D6, the pre-flight and the start ------------------------------------------------------------
 
 
@@ -597,6 +928,47 @@ async def test_d6_another_device_playing_is_device_busy(sim: Sim) -> None:
     assert host.phase_names() == ["planning", "preflight"]
     assert sim.recorder_sessions() == []
     assert [c for c in sim.webapi_calls()[calls:] if c.startswith("PUT")] == []
+
+
+def preparing_calls(sim: Sim, since: int) -> list[str]:
+    """The player commands sent after call `since`, up to the item's first play: preparing's."""
+    calls = sim.webapi_calls()[since:]
+    return [c for c in calls[: calls.index("PUT /me/player/play")] if c.startswith("PUT")]
+
+
+NOT_PAUSED = ["PUT /me/player/seek", "PUT /me/player/shuffle", "PUT /me/player/repeat"]
+
+
+@pytest.mark.parametrize("player", ["nothing_active", "ours_paused", "phone_paused"])
+async def test_nothing_playing_gets_no_pause_while_preparing(sim: Sim, player: str) -> None:
+    """Spotify answers a pause with nothing playing 403 "Restriction violated", and five 4xx in
+    a row raise the usage log's warning. So no pause when GET /me/player is 204 or not playing,
+    on any device. The seek to 0 (bug 2), shuffle and repeat stay."""
+    album, job = await album_job(sim, [0, 1, 2, 3])
+    world = sim.world
+    if player == "ours_paused":
+        sim.leave_player_on(album, 4, 1000)  # bug 2's case: paused 1 s into "Last Hours"
+    elif player == "phone_paused":
+        world.player.play_elsewhere("Pixel 9")
+        world.player.stop_elsewhere()
+    state = world.player.player_state()
+    if player == "nothing_active":
+        assert state is None  # GET /me/player answers 204
+    else:
+        assert state is not None and not state.is_playing
+    calls = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done" and "Last Hours" in sim.recorded_titles(album)
+    assert preparing_calls(sim, calls) == NOT_PAUSED
+
+
+async def test_our_device_playing_is_paused_while_preparing(sim: Sim) -> None:
+    album, job = await album_job(sim, [0, 1, 2, 3])
+    sim.world.player.load(album.album.uri, index=1, position_ms=5000, play=True)
+    calls = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done" and "Last Hours" in sim.recorded_titles(album)
+    assert preparing_calls(sim, calls) == ["PUT /me/player/pause", *NOT_PAUSED]
 
 
 async def test_our_device_missing_fails_the_run(sim: Sim) -> None:
@@ -712,13 +1084,16 @@ async def test_stop_after_this_track(sim: Sim) -> None:
 
 
 async def test_stop_now_discards_the_take(sim: Sim) -> None:
+    """The take Stop now cut isn't a failure: it's skipped `discarded`, counted under
+    skipped_other, and the item is stopped with no failed track."""
     album, job = await album_job(sim, [])
     control = stop_at(sim, 30, StopRequest("now", "user"))
     report, _ = await run(sim, job, control=control)
     assert report.outcome == "stopped"
     assert sim.recorded_titles(album) == set()
     [take] = await results(sim, job)
-    assert (take["result"], take["reason"]) == ("failed", "discarded")
+    assert (take["result"], take["reason"]) == ("skipped", "discarded")
+    assert (report.counts.skipped_other, report.counts.failed) == (1, 0)
     assert sim.world.player.status == "Paused"
 
 
@@ -766,6 +1141,29 @@ async def test_stop_now_while_finishing_keeps_the_last_take(sim: Sim, cause: str
     assert ended < 40  # inside the SIGTERM bound
 
 
+@pytest.mark.parametrize("cause", [None, "user", "shutdown"])
+async def test_a_take_lost_after_a_stop_now_while_finishing_still_fails(
+    sim: Sim, cause: str | None
+) -> None:
+    """While finishing, Stop now goes out as {now: false}: it cuts nothing. So when the last
+    take is lost anyway (the recorder never ends its encode, and is killed at the finishing
+    deadline), it fails `interrupted`, as with no stop at all, not skipped `discarded`."""
+    _, job = await album_job(sim, [0, 1, 2, 3])
+    sim.world.recorder.final_encode_s = 100_000.0  # the last take's encode never ends
+    control = None
+    if cause is not None:
+        request = StopRequest("now", cause)  # type: ignore[arg-type]
+        control = stop_once_the_album_ends(sim, request, after_s=5)
+    report, _ = await run(sim, job, control=control)
+    take = (await results(sim, job))[0]
+    assert (take["title"], take["result"], take["reason"]) == (
+        "Last Hours",
+        "failed",
+        "interrupted",
+    )
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
+
+
 async def test_the_end_of_a_window_is_carried_over(sim: Sim) -> None:
     album, job = await album_job(sim, [])
     control = stop_at(sim, 30, StopRequest("after_track", "window_end"))
@@ -794,8 +1192,10 @@ async def test_shutdown_is_interrupted(sim: Sim) -> None:
     sim.at(30, shutdown)
     report, _ = await run(sim, job, control=control)
     assert report.outcome == "interrupted" and report.interrupted_by == "shutdown"
+    # The take the container's stop cut isn't a failure either: skipped `discarded`.
     [take] = await results(sim, job)
-    assert (take["result"], take["reason"]) == ("failed", "interrupted")
+    assert (take["result"], take["reason"]) == ("skipped", "discarded")
+    assert (report.counts.skipped_other, report.counts.failed) == (1, 0)
     assert sim.clock.monotonic() - asked[0] < 40  # docker's stop grace, with room to spare
 
 
@@ -810,7 +1210,7 @@ async def test_a_stall_is_interrupted(sim: Sim) -> None:
     assert report.reason == "Playback paused for more than 20 s."
     [take] = await results(sim, job)
     assert (take["title"], take["result"], take["reason"]) == ("Passage", "failed", "interrupted")
-    assert report.counts.failed == 1
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
 
 
 async def test_a_short_stall_saves_the_take_with_pause_fade(sim: Sim) -> None:
@@ -834,8 +1234,23 @@ async def test_a_takeover_is_interrupted_with_the_discarded_take(sim: Sim) -> No
     [take] = await results(sim, job)
     assert report.takeover.discarded_take_id == take["take_id"]
     assert (take["result"], take["reason"]) == ("failed", "interrupted")
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
     assert sim.mpris_calls() == []  # the player is left alone: the phone plays on
     assert sim.world.player.remote is not None and sim.world.player.remote.is_playing
+
+
+async def test_a_stop_now_after_a_takeover_leaves_its_take_failed(sim: Sim) -> None:
+    """The first cut decides. The takeover cut the take (its session.stop {now} hangs, so the
+    take ends at the idle exit, 20 s after the pause); a Stop now in between doesn't turn it
+    into a skip: it stays failed `interrupted`."""
+    _, job = await album_job(sim, [])
+    sim.world.recorder.hang_methods = {sp.SESSION_STOP}
+    sim.take_over_at(30)  # the stop's answer never comes: SIGTERM at about 40 s
+    control = stop_at(sim, 45, StopRequest("now", "user"))
+    report, _ = await run(sim, job, control=control)
+    [take] = await results(sim, job)
+    assert (take["result"], take["reason"]) == ("failed", "interrupted")
+    assert (report.counts.failed, report.counts.skipped_other) == (1, 0)
 
 
 async def test_the_client_going_away_is_interrupted(sim: Sim) -> None:
@@ -1061,6 +1476,73 @@ async def test_track_results_and_files_rows(sim: Sim) -> None:
     assert item["last_backup_at"] is not None and item["completed_at"] is not None
 
 
+def planned_take(sim: Sim, take_id: str, title: str) -> Take:
+    """A planned take of one of Elsewhere's tracks, for a TakeBook on its own."""
+    return Take(
+        take_id=take_id,
+        artist="fakename",
+        title=title,
+        album="Elsewhere",
+        length_ms=90_000,
+        cover_url="",
+        key=track_key("fakename", title),
+        started_at=sim.clock.now(),
+        planned=True,
+    )
+
+
+async def take_book(sim: Sim) -> tuple[TakeBook, ItemJob]:
+    _, job = await album_job(sim, [])
+    plan = await plan_item(sim.services, job)
+    return TakeBook(sim.services, job, plan, file_format="aac", bitrate=256), job
+
+
+async def test_a_partial_take_still_fails_discarded(sim: Sim) -> None:
+    """Spytify's partial take (a held take saved with track.keep) is a failed track, `discarded`,
+    unlike a take a stop cut (skipped `discarded`)."""
+    book, job = await take_book(sim)
+    await book.start(planned_take(sim, "t1", "Passage"))
+    path = sim.services.config.music_dir / "fakename" / "Elsewhere" / "01 - Passage (partial).m4a"
+    finished = sp.TrackFinished(
+        id="t1", path=str(path), duration_ms=40_000, bytes=600_000, tagged=True, partial=True
+    )
+    assert await book.finish(finished)
+    [take] = await results(sim, job)
+    assert (take["result"], take["reason"]) == ("failed", "discarded")
+    counts = book.counts()
+    assert (counts.failed, counts.skipped_other, counts.recorded) == (1, 0, 0)
+    assert book.failed_reasons() == Counter({"discarded": 1})
+
+
+@pytest.mark.parametrize(
+    ("cut_reason", "result", "skipped_other", "failed"),
+    [
+        ("discarded", ("skipped", "discarded"), 1, 0),  # Stop now or a shutdown
+        ("interrupted", ("failed", "interrupted"), 0, 1),  # a stall, takeover or capture problem
+    ],
+)
+async def test_a_cut_take_is_skipped_or_failed_by_its_cut(
+    sim: Sim,
+    cut_reason: CutReason,
+    result: tuple[str, str],
+    skipped_other: int,
+    failed: int,
+) -> None:
+    """A planned take cut short, whether Spytify says so (track.skipped incomplete) or nobody
+    does (the recorder was killed): skipped `discarded` when a stop cut it, else failed."""
+    book, job = await take_book(sim)
+    await book.start(planned_take(sim, "t1", "Passage"))
+    await book.start(planned_take(sim, "t2", "Distant Peak"))
+    skipped = sp.TrackSkipped(id="t1", reason="incomplete")
+    assert await book.skip(skipped, cut_reason=cut_reason)
+    assert await book.close_unfinished(cut_reason=cut_reason, file_error=False)
+    rows = await results(sim, job)
+    assert [(row["result"], row["reason"]) for row in rows] == [result, result]
+    counts = book.counts()
+    assert (counts.skipped_other, counts.failed) == (2 * skipped_other, 2 * failed)
+    assert [row.state for row in book.rows() if row.take_id] == [result[0], result[0]]
+
+
 async def test_relayed_events_match_the_contract(sim: Sim) -> None:
     """The fields of contracts/events.md § Spytify, relayed, and § Warnings."""
     _, job = await album_job(sim, [0, 2, 4])
@@ -1174,6 +1656,98 @@ async def test_live_and_the_recorder_pid_while_it_records(sim: Sim) -> None:
     ]
     assert engine.live().tracks[1].size_bytes and engine.recorder_pid is None
     assert engine.live().phase == "finishing"
+
+
+async def test_live_says_whats_left_to_play_for_the_runs_time_left(sim: Sim) -> None:
+    """ItemLive.left: the rest of the take recording now (its length less the time it has
+    recorded) and the planned tracks that haven't started; after Stop after this track, only the
+    take; after Stop now, or once playback is over, nothing."""
+    _, job = await album_job(sim, [0, 2, 4])  # Distant Peak (90 s) and Seaside Stillness (93 s)
+    control = ItemControl()
+    engine = ItemEngine(sim.services, job, host=RecordingHost(), control=control)
+    assert engine.live().left is None  # not planned yet
+    task = asyncio.ensure_future(engine.run())
+    await sim.clock.advance(30)
+    live = engine.live()
+    playing = live.now_playing
+    assert playing is not None and playing.title == "Distant Peak"
+    played_ms = (sim.clock.now() - playing.started_at).total_seconds() * 1000
+    assert 0 < played_ms < playing.length_ms
+    seaside = MissingTrack(key=track_key("fakename", "Seaside Stillness"), duration_ms=93_000)
+    distant = track_key("fakename", "Distant Peak")
+    assert live.left == ItemLeft(
+        take_ms=round(playing.length_ms - played_ms),
+        take_key=distant,
+        tracks=(seaside,),
+        done_keys=frozenset({distant}),  # being recorded
+    )
+    await sim.clock.advance(10)
+    assert engine.live().left.take_ms == round(playing.length_ms - played_ms - 10_000)  # type: ignore[union-attr]
+
+    control.request_stop(StopRequest("after_track", "user"))
+    after = engine.live().left
+    assert after is not None and after.tracks == () and after.take_ms > 0
+    control.request_stop(StopRequest("now", "user"))
+    now = engine.live().left
+    assert now is not None and (now.take_ms, now.take_key, now.tracks) == (0, None, ())
+    await sim.advance_until(task.done, within=600)
+    await task
+    # The take was discarded: nothing was recorded.
+    assert engine.live().left == ItemLeft(take_ms=0, take_key=None, tracks=())
+
+
+async def test_a_whole_item_has_no_planned_length_but_its_take_counts(sim: Sim) -> None:
+    playlist = await followed_playlist(sim, ["One", "Two", "Three"])
+    job = await sim.job(playlist.playlist.id)
+    host = RecordingHost()
+    engine = ItemEngine(sim.services, job, host=host, control=ItemControl())
+    task = asyncio.ensure_future(engine.run())
+    await sim.advance_until(lambda: engine.live().now_playing is not None, within=120)
+    left = engine.live().left
+    assert left is not None and left.tracks is None  # plays whole: its length isn't known
+    assert left.take_key == track_key("Band", "One") and 0 < left.take_ms <= 60_000
+    # The run engine is told as the take starts, so its time left counts it from then.
+    assert host.takes_started == 1
+    await sim.advance_until(task.done, within=600)
+    await task
+    assert host.takes_started == 3
+
+
+async def test_live_says_what_this_attempt_recorded(sim: Sim) -> None:
+    """ItemLeft.done_keys: the keys recorded so far, counting the take playing and one that
+    played and waits for its result (Spytify saves it after the next one started), so a waiting
+    item that lists them doesn't count them again in the run's time left. A discarded take's
+    key goes once its result comes."""
+    album, job = await album_job(sim, [0, 2])  # Distant Peak, Seaside Stillness, Last Hours
+    control = ItemControl()
+    engine = ItemEngine(sim.services, job, host=RecordingHost(), control=control)
+    task = asyncio.ensure_future(engine.run())
+
+    def playing(title: str) -> Callable[[], bool]:
+        def check() -> bool:
+            now = engine.live().now_playing
+            return now is not None and now.title == title
+
+        return check
+
+    distant, seaside = (
+        track_key("fakename", "Distant Peak"),
+        track_key("fakename", "Seaside Stillness"),
+    )
+    await sim.advance_until(playing("Distant Peak"), within=120)
+    left = engine.live().left
+    assert left is not None and left.done_keys == {distant}
+    await sim.advance_until(playing("Seaside Stillness"), within=300)
+    left = engine.live().left
+    assert left is not None and left.done_keys == {distant, seaside}
+    await sim.advance_until(lambda: engine.live().tracks[1].state == "recorded", within=60)
+    await sim.clock.advance(10)
+    control.request_stop(StopRequest("now", "user"))  # Seaside Stillness is discarded
+    await sim.advance_until(task.done, within=900)
+    await task
+    left = engine.live().left
+    assert left is not None and left.done_keys == {distant}
+    assert sim.recorded_titles(album) == {"Passage", "Now And Then", "Distant Peak"}
 
 
 async def test_the_m3u_and_stale_files_are_asked_for(

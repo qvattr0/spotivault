@@ -1,0 +1,7 @@
+/* The Albums page's grid (Albums · Grid, MX2OU). The list view uses ListTable's own styles. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s-4);
+}

@@ -15,6 +15,7 @@ from spotivault.api.routers import (
     health,
     history,
     library,
+    logs,
     runs,
     schedule,
     settings,
@@ -40,6 +41,7 @@ ROUTERS: list[APIRouter] = [
     status.router,
     runs.router,  # before history.router: /api/runs/current before /api/runs/{id}
     history.router,
+    logs.router,
     schedule.router,
     webapi.router,
 ]

@@ -1,0 +1,58 @@
+/* `Banner` (TTTXZ, expired ElXij): full width, padding 10 20, gap 12, centred. */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: 10px 20px;
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+/* The action pill: padding 6 14, label 13/700. The 16 px line makes it 28 tall and the banner 48,
+   as drawn; Figtree's normal line height would round the banner to 47. */
+.action {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  font: var(--type-small);
+  font-weight: 700;
+  line-height: 16px;
+}
+
+/* Warn: $warn, with icon and text in $on-accent; a black pill with a white label. */
+.warn {
+  background: var(--warn);
+  color: var(--on-accent);
+}
+
+.warn .action {
+  background: var(--on-accent);
+  color: var(--text);
+}
+
+/* Expired: $danger-strong, with icon and text in $text; a white pill with a black label. */
+.danger {
+  background: var(--danger-strong);
+  color: var(--text);
+}
+
+.danger .action {
+  background: var(--text);
+  color: var(--on-accent);
+}
+
+/* The white focus ring is faint on yellow: use black there. */
+.warn .action:focus-visible {
+  outline-color: var(--on-accent);
+}

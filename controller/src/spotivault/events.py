@@ -23,6 +23,10 @@ Rules from events.md that this module enforces:
 - **level:** volatile (`seq` null), at most one per 100 ms with merging, latest wins per
   connection, never counted in the 256. Whoever relays Spytify's `level` sends it only while the
   session is `recording` or `stopping`.
+- **log.lines:** volatile too, and only to the connections that follow the logs
+  (`Subscription.log_follow`, set by the logs module, logview/service.py). An unsent batch is
+  merged with the next one, keeping the newest LOG_BATCH_MAX lines and counting the rest in
+  `dropped`. Never counted in the 256.
 """
 
 import asyncio
@@ -59,6 +63,7 @@ EVENT_TYPES = frozenset(
         "error",
         "library.item",
         "album.item",
+        "catalog.refresh",
         "setup.state",
         "client.install",
         "client.status",
@@ -71,6 +76,7 @@ HELLO_KEYS = ("setup", "status", "connection", "client", "backlog")
 
 QUEUE_LIMIT = 256  # unsent events per connection before it's closed with 1013
 LEVEL_INTERVAL_S = 0.1  # at most 10 `level` events a second
+LOG_BATCH_MAX = 200  # lines in one `log.lines` event, at most (events.md § Logs)
 
 type Payload = Any  # a pydantic model, or a dict of JSON-able values (models inside are fine)
 type SnapshotProvider = Callable[[], Awaitable[Payload]]
@@ -105,10 +111,14 @@ class Subscription:
         self.overflowed = False
         self._queue: deque[Event] = deque()
         self._level: Event | None = None
+        self._logs: Event | None = None
         self._wakeup = asyncio.Event()
+        # What this connection follows of the logs (the logs module's object), or None.
+        self.log_follow: Any = None
 
     async def next(self) -> Event:
-        """The next event to send: queued events first, then the latest `level`, if any."""
+        """The next event to send: queued events first, then the latest `level`, then the
+        pending `log.lines`, if any."""
         while True:
             if self.overflowed:
                 raise SubscriptionOverflow
@@ -117,8 +127,28 @@ class Subscription:
             if self._level is not None:
                 level, self._level = self._level, None
                 return level
+            if self._logs is not None:
+                logs, self._logs = self._logs, None
+                return logs
             self._wakeup.clear()
             await self._wakeup.wait()
+
+    def push_logs(
+        self, lines: list[dict[str, Any]], *, at: datetime, follow_id: Any, dropped: int = 0
+    ) -> None:
+        """Sends a `log.lines` batch (events.md § Logs). If the last one hasn't gone out yet and
+        is for the same follow, the two are merged: the newest LOG_BATCH_MAX lines are kept, and
+        the rest counted in `dropped`. One for an older follow is replaced."""
+        pending = self._logs
+        if pending is not None and pending.data["follow_id"] == follow_id:
+            lines = pending.data["lines"] + lines
+            dropped += pending.data["dropped"]
+        if len(lines) > LOG_BATCH_MAX:
+            dropped += len(lines) - LOG_BATCH_MAX
+            lines = lines[-LOG_BATCH_MAX:]
+        data = {"lines": lines, "dropped": dropped, "follow_id": follow_id}
+        self._logs = Event(seq=None, type="log.lines", at=at, data=data)
+        self._wakeup.set()
 
     def _push(self, event: Event) -> bool:
         """Queues an event. False when the queue is full: the subscription is then dead."""
@@ -158,6 +188,10 @@ class EventBus:
     @property
     def subscriber_count(self) -> int:
         return len(self._subscriptions)
+
+    def log_followers(self) -> list[Subscription]:
+        """The connections that follow the logs (events.md § Logs)."""
+        return [sub for sub in self._subscriptions if sub.log_follow is not None]
 
     def publish(self, type: str, data: Payload) -> Event:
         """Sends an event to every connection. `type` must be one of EVENT_TYPES.

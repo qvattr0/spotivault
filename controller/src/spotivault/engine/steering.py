@@ -30,7 +30,10 @@ the calls (it identifies the track first, then asks here what to do). probe.py's
   guard that fired never sets it: a run of repeats can also be a listed-twice run.
 - **The context** (ContextCheck): GET /me/player's `context_uri` must be the item's. Liked Songs
   is reported by a playlist alias (`spotify:playlist:37i9dQZF1F…`, S0 row 17): the first such
-  alias seen after the play is remembered and counts as the item's context from then on.
+  alias seen after the play is remembered and counts as the item's context from then on. Right
+  after the play, GET /me/player can still report the context from before it (item.py, "GET
+  /me/player lags a play"), and Spotify's own playlists share the alias's prefix, so the context
+  that was playing before the play is learned only from a read that can't be stale any more.
 """
 
 from dataclasses import dataclass
@@ -193,13 +196,17 @@ class ContextCheck:
         self.item_uri = item_uri
         self.liked = liked
         self.liked_alias: str | None = None
+        self.before_play: str | None = None  # the context GET /me/player reported before the play
 
-    def matches(self, reported_uri: str | None) -> bool:
+    def matches(self, reported_uri: str | None, *, settled: bool = True) -> bool:
+        """`settled`: the read can't be the state from before the play any more. Until then,
+        the context that was playing before the play isn't learned as Liked Songs' alias."""
         if (
             self.liked
             and self.liked_alias is None
             and reported_uri is not None
             and reported_uri.startswith(LIKED_ALIAS_PREFIX)
+            and (settled or reported_uri != self.before_play)
         ):
             self.liked_alias = reported_uri  # S0 row 17: remember the alias after the first play
         return same_context(reported_uri, self.item_uri, liked_alias=self.liked_alias)
