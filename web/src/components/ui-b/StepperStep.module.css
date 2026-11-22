@@ -1,0 +1,192 @@
+/* `Stepper/Done` (Ksmqr), `/Active` (v0fEXW), `/Todo` (uGokU): 88 wide, vertical, gap 8, centred.
+   It sits above the bars the shell draws between the dots. */
+
+.step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  width: 88px;
+  text-align: center;
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+/* The dot's green centre and its tick share the dot's one grid cell. */
+.dot > *,
+.dot::before {
+  grid-area: 1 / 1;
+}
+
+.label {
+  font: var(--type-caption);
+}
+
+/* Done: a green dot with a black 16 px tick; label 12/700 $text. */
+.done .dot {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Active: a white dot with a 10 px green dot in it; label 12/700 $text. */
+.active .dot {
+  background: var(--text);
+}
+
+.active .dot::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.done .label,
+.active .label {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* To do: a hollow 2 px $border-strong ring; label 12/500 $text-muted. */
+.todo .dot {
+  border: 2px solid var(--border-strong);
+}
+
+.todo .label {
+  color: var(--text-muted);
+}
+
+/* --- Motion (components.md § Stepper, Motion) -------------------------------------------------
+   The stepper sets `data-anim` for a change it animates, `--anim-delay` for when it starts, and
+   the timings (shell/stepper-motion.ts). Each animation starts from the old look and ends on the
+   new state's own look above, so once it's over the step is drawn exactly as the states say. */
+
+/* Reached (To do → Active): the ring turns white and closes in, and the 10 px green centre grows
+   out of the middle. The label turns white when the dot does. */
+.active[data-anim='reached'] .dot {
+  animation: ring-to-white var(--stepper-reach) ease-out var(--anim-delay) backwards;
+}
+
+.active[data-anim='reached'] .dot::before {
+  animation: centre-grow var(--stepper-reach) ease-out var(--anim-delay) backwards;
+}
+
+.active[data-anim='reached'] .label,
+.done[data-anim='done-from-todo'] .label {
+  animation: label-todo 0s var(--anim-delay) backwards;
+}
+
+/* Done (Active or To do → Done): a green circle grows from the centre to fill the whole dot, over
+   the old look; then the tick pops in. The circle is only there while it grows. */
+.done[data-anim='done-from-active'] .dot {
+  --centre-from: 0.357; /* the 10 px centre, of 28 */
+  animation: hold-white var(--stepper-fill) linear var(--anim-delay) backwards;
+}
+
+.done[data-anim='done-from-todo'] .dot {
+  --centre-from: 0;
+  animation: hold-ring var(--stepper-fill) linear var(--anim-delay) backwards;
+}
+
+.done[data-anim] .dot::before {
+  content: '';
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  animation: centre-fill var(--stepper-fill) ease-in-out var(--anim-delay) backwards;
+}
+
+.done[data-anim] .dot svg {
+  animation: tick-pop var(--stepper-check) ease-out calc(var(--anim-delay) + var(--stepper-fill)) backwards;
+}
+
+/* The To do ring while it waits its turn, then at once white. */
+@keyframes ring-to-white {
+  from {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 2px var(--border-strong);
+  }
+  1% {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 2px var(--text);
+  }
+  40%,
+  to {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 14px var(--text);
+  }
+}
+
+@keyframes centre-grow {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes label-todo {
+  from,
+  to {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+}
+
+@keyframes hold-white {
+  from,
+  to {
+    background-color: var(--text);
+  }
+}
+
+@keyframes hold-ring {
+  from,
+  to {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 2px var(--border-strong);
+  }
+}
+
+@keyframes centre-fill {
+  from {
+    opacity: 1;
+    transform: scale(var(--centre-from));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes tick-pop {
+  from {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step[data-anim] .dot,
+  .step[data-anim] .dot::before,
+  .step[data-anim] .dot svg,
+  .step[data-anim] .label {
+    animation: none;
+  }
+}

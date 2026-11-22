@@ -1,0 +1,10 @@
+/* The cards' grid: as many 200 px columns as fit, filling the row (ZGPGu's grid, GH52o). */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s-4);
+}
+
+.cell {
+  min-width: 0;
+}

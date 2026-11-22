@@ -1,6 +1,6 @@
 # spotivault
 
-A single Docker image for a UGREEN NAS that backs up Spotify playlists, Liked Songs and saved albums by recording them with Spytify, with a web UI to control it. So far the repository holds only the design: there's no application code yet.
+A single Docker image for a UGREEN NAS that backs up Spotify playlists, Liked Songs and saved albums by recording them with Spytify, with a web UI to control it. The container ([Dockerfile](Dockerfile), [image/](image/)) and the controller's core ([controller/](controller/), Python) are built. The Web API, the run engine and the web UI aren't yet: features.md says what's built.
 
 ## Start here
 
@@ -10,6 +10,8 @@ The specs it points to:
 - [docs/design.md](docs/design.md): architecture, the container, the run flow, Web API rules and playlist covers.
 - [docs/web-ui.md](docs/web-ui.md): every page and its states, the REST and WebSocket endpoints, user flows and open questions.
 - `docs/ui-design/spotivault.pen`: the screens. It's encrypted, so read it only through the Pencil MCP tools, never with Read or Grep.
+
+Before changing the controller, read [controller/ARCHITECTURE.md](controller/ARCHITECTURE.md): how to run and test it, its modules, and its asyncio rules. The API's shapes are in [contracts/](contracts/).
 
 ## Which source wins
 

@@ -1,0 +1,98 @@
+/* Step 4's rows (wNpTP): the legend (12 text-muted), section labels (11/700 caps, text-muted), and
+   rows 53 tall in bg-elevated, radius 6, padding 0 14, 6 apart: the label 14/600, its reason 12
+   text-sub. A row that needs a change is danger-tint. The required value follows the label in
+   accent, after an arrow. */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  color: var(--text-muted);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.sectionTitle {
+  color: var(--text-muted);
+  font: var(--type-label);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  min-height: 53px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+
+.needsChange {
+  background: var(--danger-tint);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.required {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.reason {
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+.check {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+
+.kind {
+  /* text-sub, not the drawn text-muted: 4.2:1 on bg-elevated is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-caption);
+}

@@ -1,0 +1,89 @@
+/* Checkbox/On and Checkbox/Off (components.md § Checkbox row): a row with gap 12 and padding 6 0;
+   the label 14/500 text. Box: 18 × 18, radius 3. Off: a 2 px text-sub stroke. On: accent with a
+   14 px check in on-accent. Without a label (the Notifications table) it's the box alone.
+   The real checkbox lies invisibly over the box. Hover (the stroke turns white), focus (the ring
+   on the box) and disabled are ours (§ Differences, row 5). */
+
+.row {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.bare {
+  padding: 0;
+}
+
+.input {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.box {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--text-sub);
+  border-radius: 3px;
+  color: var(--on-accent);
+  transition:
+    background-color 100ms ease,
+    border-color 100ms ease;
+}
+
+.on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.row:hover .box:not(.on),
+.input[data-state='hover'] + .box:not(.on) {
+  border-color: var(--text);
+}
+
+.row:hover .on,
+.input[data-state='hover'] + .on {
+  border-color: var(--accent-press);
+  background: var(--accent-press);
+}
+
+.input:focus-visible + .box,
+.input[data-state='focus'] + .box {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.disabled:hover .box:not(.on) {
+  border-color: var(--text-sub);
+}
+
+.disabled:hover .on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box {
+    transition: none;
+  }
+}

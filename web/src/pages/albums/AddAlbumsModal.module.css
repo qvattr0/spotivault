@@ -1,0 +1,25 @@
+/* The + modal's body (Albums · Add albums, L3CNc7): the filter field (44 tall, 8 px corners, a
+   list-filter icon), the 11/700 text-muted heading, and the list, which scrolls: a library can hold
+   many saved albums. */
+
+/* Doubled: it wins over SearchInput's own pill, whatever order the CSS loads in. */
+.filter.filter {
+  border-radius: var(--r-md);
+}
+
+.heading {
+  margin: 0;
+  /* text-sub, not the drawn text-muted: 3.7:1 on the modal surface is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-label);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 420px;
+  overflow-y: auto;
+}

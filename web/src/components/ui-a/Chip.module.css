@@ -1,0 +1,57 @@
+/* Chip and Chip/On (components.md § Filter chip): pill, padding 7 14, 30 tall.
+   Off: bg-highlight, label 13/500 text. On: text (white), label 13/600 on-accent.
+   `sm` is the compact row of History · Logs (xRi3r): 24 tall, padding 4 12.
+   Hover (off chips lighten to bg-press), focus and disabled are ours (§ Differences, row 5). */
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  /* 7 14 in the drawing; the height is set because the 13 px line box is 15.6, not 16. */
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  color: var(--text);
+  font: var(--type-small);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 100ms ease;
+}
+
+.sm {
+  height: 24px;
+  padding: 0 12px;
+}
+
+.on {
+  background: var(--text);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.chip:not(.on, :disabled):hover,
+.chip:not(.on)[data-state='hover'] {
+  background: var(--bg-press);
+}
+
+.chip[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.chip:disabled {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
+}

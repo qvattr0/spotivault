@@ -54,7 +54,7 @@ Drawn as specimens (`uqijT`), not as variables, so there are no type tokens. Lin
 | Caption | 12/500 | `l2fTfn` |
 | Mono | 12/400, `$font-mono` (JetBrains Mono), `$text-sub`. For logs and paths. | `w5Tkp` |
 
-Components also use sizes off this scale: 11/500 (spec labels, timestamps in the now-playing strip), 15/600–700 (primary button label, nav labels, row and card titles), 18/800 (wizard header wordmark), 19/800 (sidebar wordmark), 22/800 (modal title) and 32/800 (page titles).
+Components also use sizes off this scale: 11/500 (spec labels, timestamps in the now-playing strip), 15/600–700 (primary button label, nav labels, row and card titles), 18/800 (wizard header wordmark), 19/800 (sidebar wordmark), 22/800 (modal title) and 32/800 (page titles). The screens add 26/800 (the Dashboard's run counts), 28/800 (wizard step titles), 30/800 (the wizard's first and last steps, the Dashboard's next window, a run's page) and 64/800 (a detail view's name), measured from the screen PNGs.
 
 ### Spacing and radius
 
@@ -131,7 +131,7 @@ All are horizontal, centred, and sized by their content.
 | `Button/Secondary` | `Ueyby` | No fill, 1 px `$border-strong` stroke, pill, padding `9 20`, gap 8 | Label 14/700 `$text` ("Re-check"). Optional leading icon 16 `$text` (`refresh-cw`), hidden by default. | 35 |
 | `Button/Tertiary` | `ev6xK` | No fill or stroke, padding `9 4`, gap 6 | Label 14/700 `$text-sub` ("Change schedule"). Optional trailing icon 16 `chevron-right`, hidden by default. | 35 |
 | `Button/Icon` | `FUIY9` | 36 × 36, pill, no fill | Icon 20 `$text-sub`. Default `ellipsis`; instances use `plus`, `x` and others. | 36 |
-| `Button/Play` | `kYWoD` | 48 × 48 `$accent` circle, shadow `0 8 16 #0000007A` | Icon 22 `arrow-down-to-line` `$on-accent`. This is "Back up now". | 48 |
+| `Button/Play` | `kYWoD` | 48 × 48 `$accent` circle, shadow `0 8 16 #0000007A` | Icon 22 `arrow-down-to-line` `$on-accent`. This is "Back up now". Ours: a 32 × 32 size with a 16 icon over a list row's 44 px cover, which a 48 overhangs. | 48 |
 | `Button/Split` | `RRyRZ` | See below. | "Stop after this track" plus a menu arrow. | 36 |
 | `Button/Danger` | `c77Pg1` | `$danger-strong`, pill, padding `9 20` | Label 14/700 `$text` ("Stop now"). | 35 |
 
@@ -236,9 +236,25 @@ Each step is 88 wide, vertical, gap 8, centred. Steps sit 24 apart.
 | To do | No fill, 2 px `$border-strong` stroke | 500, `$text-muted` |
 
 - **Connectors** (in each screen's `Wizard top`, not in the component): 90 × 3 bars behind the dots, 116 apart. `$accent` before the active step, `$border-strong` after it.
+- **The step on screen** is Active until it's done, then Done, and the bar after it turns `$accent` (not drawn: the drawings show it unfinished). A done step you reopen stays Done. It keeps `aria-current="step"`.
 - **Wizard header:** `Logo/Mark 32`, then "spotivault setup" 18/800, gap 10. The stepper sits 28 below.
 - **Step labels:** Welcome · Spotify client · Log in · Client settings · Web API · Output · Playlists · Albums · Done.
-- [animations.md](../../../docs/ui-design/animations.md) plans to animate the active dot growing into the done state.
+
+**Motion** (the plan in [animations.md](../../../docs/ui-design/animations.md), built; not drawn):
+
+| Change | What plays | Time |
+|---|---|---|
+| Reached (To do → Active) | The ring turns white and closes in; the 10 px `$accent` centre grows from nothing. | 220 ms |
+| Done (Active → Done) | The `$accent` centre grows from 10 px to fill the 28 px dot, over the white. Then the tick pops in: scale 0 → 1.25 → 1. | 220 + 180 ms |
+| Done (To do → Done) | The same, from the empty ring. | 220 + 180 ms |
+| A bar turns `$accent` | It fills from left to right over the `$border-strong` bar. | 400 ms |
+
+- **One flow:** the parts of one change play left to right, one after another: for each step, the bar into it, then its dot. A step done while on screen fills and ticks, then the bar after it fills. When Continue finishes the step itself (Welcome, Playlists, Albums), the step reached grows its centre as that bar arrives. After a live check, Continue plays only the step reached.
+- **A change mid-flow joins it:** the parts already playing keep their `data-anim` and delay, so the CSS doesn't restart them. A new part starts in its turn after the parts before it, or at once if its turn has passed. A move back ends the flow at once.
+- **A label** changes when its dot starts to move.
+- **Nothing plays** on the first render (a page load), on a move back to an earlier step, when a done step is reopened, or with `prefers-reduced-motion: reduce`.
+- **The end is the state:** transforms and inset shadows only, so nothing moves the layout. Once a change has played, each step and bar is drawn exactly as the tables above say. Screen readers get nothing extra.
+- **In code:** the stepper decides what plays and when (`shell/stepper-motion.ts`). It shows a change once it has held for 80 ms, so Continue's two updates (the setup state and the page) play as one. It marks each part with `data-anim` and `--anim-delay`, and the CSS plays it (`StepperStep.module.css`, `WizardStepper.module.css`). A step is the same element whether or not it's a link (an `<a>` with or without `href`), so a step that turns into a link mid-flow isn't drawn afresh.
 
 ### Expiry banner: `Banner` (`TTTXZ`)
 
@@ -424,3 +440,4 @@ The docs win. These are recorded, not settled.
 | 8 | Modal and menu surface | `#282828`, a fixed colour. | No token. `$bg-highlight` (`#2A2A2A`) is the nearest. |
 | 9 | Type | 11, 15, 18, 19, 22 and 32 px are used but aren't on the type scale. Page titles are 32/800, between Title (28) and Display (40). | web-ui.md lists "type" as a token group; the scale has eight styles. |
 | 10 | Component list | `ViewSwitch`, `Banner`, `NowPlaying` and `Button/Tertiary`/`Danger`/`Play` exist but aren't in web-ui.md's component list. | web-ui.md § Design language. |
+| 11 | `Row/Playlist`'s first column, Library · Detail's header | A `Toggle` tracks the item. | The grid card's round check, so it isn't taken for "Back up now" (web-ui.md § List view, § Detail view). Built as `TrackBadge` with `inline`, and `TrackCheck` (with its tooltip). In the header, `text` puts "Tracked" or "Not tracked" inside the same button, so the word toggles too. |

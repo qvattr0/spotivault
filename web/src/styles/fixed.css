@@ -1,0 +1,41 @@
+/* Fixed colours and shadows that the drawings type in directly instead of using a .pen variable.
+   From components.md § Effects and fixed colours, and § Page layout. They aren't tokens, so they
+   can't go in tokens.css (generated); this is the only other file allowed to hold colour values
+   (npm run check:colors enforces that). If one becomes a .pen variable, delete it here. A few are
+   ours, for parts the drawings leave out: each says so. */
+
+:root {
+  /* Surfaces */
+  --surface-modal: #282828; /* modal dialogs and open menus (components.md § Differences, row 8) */
+  --cover-pill-bg: #000000b3; /* the status pill on an album cover (the scrim value, typed in) */
+  --menu-item-hover: #ffffff1a; /* a hovered menu item: white at 10 % over the surface (iMmk3) */
+  --choice-checked-fill: #1ed76015; /* a chosen large choice card: accent at 8 % (ZJSG0, sUXcW) */
+  --player-surround: #0a0a0a; /* the Player's screen area, around the client's screen (ZQChN) */
+  --scrim-expand: #00000080; /* behind the wizard's expanded client screen: half black, lighter than
+                                the scrim, so the page's blur shows (ours, not drawn: web-ui.md § 3) */
+
+  /* Cover art placeholders and glyphs */
+  --cover-glyph: #ffffff99; /* the music glyph on a 44 px row cover */
+  --cover-glyph-large: #ffffff66; /* the music glyph on a 176 px card cover */
+  --ring-track: #ffffff33; /* the recording ring's unfilled track */
+  --badge-untracked-fill: #00000066; /* Card badge, not tracked */
+  --liked-gradient: linear-gradient(135deg, #450af5, #8e8ee5); /* Liked Songs' tile, with a white heart */
+
+  /* History · Logs (xRi3r) */
+  --log-client: #c39bff; /* the Client badge's purple; 7.4:1 on bg-elevated */
+
+  /* Shadows */
+  --shadow-play: 0 8px 16px #0000007a; /* Button/Play */
+  --shadow-toast: 0 8px 24px #00000080;
+  --shadow-modal: 0 16px 48px #000000a0;
+  --shadow-menu: 0 8px 24px #000000a0;
+
+  /* Page tints: each page panel fades from its tint at the top to bg-base over 45 % of its
+     height (components.md § Page layout). Settings and Player have none. */
+  --tint-dashboard: #1f3b2c; /* Dashboard idle, Library list and grid */
+  --tint-dashboard-running: #123a24; /* Dashboard running and paused */
+  --tint-library-detail: #3b1c6e;
+  --tint-albums: #173048;
+  --tint-schedule: #1b2f3f;
+  --tint-history: #2a2a2a;
+}
