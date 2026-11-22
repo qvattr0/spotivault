@@ -411,8 +411,9 @@ Recording happens in real time, so a backup takes about as long as the music sti
   - plus about 35 s for each item with something to record: a few seconds to start, and the 25–30 s Finishing tail;
   - local files (`is_local`), unplayable entries and entries with no `item` are left out, because they can't be played.
 - **Finish date:** the controller walks the schedule's active hours forward from now until the time left is used up. With Manual only, there's no date.
-- **Unknown items:** followed and linked playlists have no track list, so their length is unknown. They're left out of the figure and counted separately, unless they're Up to date by their `snapshot_id` and Spytify's index (plan D13; see [Run flow](#run-flow-per-playlist-or-album) step 1). A followed playlist's track count is known from `/me/playlists`, so the UI can show it, but not its duration.
-- **Code:** [backlog.py](../controller/src/spotivault/backlog.py), checked against `contracts/vectors/backlog.json`. The estimate is worked out again after each catalog refresh, each album added and each run item, and a `backlog` event goes out when a figure changed.
+- **Unknown items** (`unknown_items`): items without item access, such as followed and linked playlists, have no track list, so their length is unknown. They're left out of the figure and counted separately, unless they're Up to date by their `snapshot_id` and Spytify's index (plan D13; see [Run flow](#run-flow-per-playlist-or-album) step 1). A followed playlist's track count is known from `/me/playlists`, so the UI can show it, but not its duration.
+- **Measuring** (`items_measuring`): items with item access whose track list hasn't been fetched yet (`items.catalog_fetched_at` NULL), such as your own playlists on a fresh library, or a playlist just tracked, until a catalog refresh reads it. They're in no other figure, and aren't unknown: their length is known once the list is read. While nothing is measured yet, the Full backup card and step 9 say "Measuring" ([web-ui.md § Idle](web-ui.md#idle)).
+- **Code:** [backlog.py](../controller/src/spotivault/backlog.py), checked against `contracts/vectors/backlog.json`. The estimate is worked out again after each catalog refresh, each album added or removed, each Library change (an item tracked, untracked, added or removed) and each run item, and a `backlog` event goes out when a figure changed.
 - **Accuracy:** duplicates are skipped in seconds, so they barely count. The same song can have a different track ID on a single and on its album; it's counted twice but recorded once, so the estimate leans slightly high.
 - **Not the run header:** while a run goes, the Dashboard's run header shows that run's own time left, not this estimate. It's worked out the same way over the run's queue only, from the stored durations: see [web-ui.md § Run header](web-ui.md#running-queue-first).
 
@@ -420,7 +421,7 @@ Recording happens in real time, so a backup takes about as long as the music sti
 
 Each playlist's cover is saved next to its `.m3u`, with the same base name: `Music/Playlists/<name>.m3u` and `Music/Playlists/<name>.jpg` (or `.png`). When the playlist is renamed, both files are renamed.
 
-**In M1, only the UI's cached covers are built** ([catalog/covers.py](../controller/src/spotivault/catalog/covers.py)), downloaded only from Spotify's image hosts. The cover files below, and custom covers, wait on [web-ui.md Q14 and Q15](web-ui.md#open-questions).
+**In M1, only the UI's cached covers are built** ([catalog/covers.py](../controller/src/spotivault/catalog/covers.py)), downloaded only from Spotify's image hosts. The cover files below, and custom covers, wait on [web-ui.md Q14 and Q15](web-ui.md#open-questions). Until then the UI doesn't promise them: wizard step 6 mentions only the `.m3u`, and Settings › Files hides "Save Spotify's covers".
 
 **Why you can upload your own:** Spotify doesn't keep a sharp copy of a playlist cover. Tested on 2026-11-15 against Spotify's image CDN, trying each size code:
 

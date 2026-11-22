@@ -2,7 +2,10 @@ import { cx } from '@/lib/cx.ts';
 import styles from './Progress.module.css';
 
 export interface ProgressProps {
-  /** From 0 to 1. Null draws an indeterminate bar: Finishing, Measuring (web-ui.md § Dashboard). */
+  /**
+   * From 0 to 1. Null draws an indeterminate bar: Finishing (web-ui.md § Dashboard), or an install
+   * with no progress yet. The Full backup card's Measuring is a skeleton instead (the approved mockup).
+   */
   value: number | null;
   /** What it measures, for screen readers: "Track progress", "Full backup". */
   label: string;

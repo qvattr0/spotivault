@@ -125,7 +125,7 @@ const feedback: GallerySection = {
               <Progress value={1} label="Full" />
             </Stack>
           </Spec>
-          <Spec label="Indeterminate · Finishing, Measuring (not drawn)">
+          <Spec label="Indeterminate · Finishing (not drawn)">
             <div className={styles.w280}>
               <Progress value={null} label="Finishing" />
             </div>

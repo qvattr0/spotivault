@@ -16,6 +16,10 @@ Frozen for other modules and S6: `update()`.
 - seconds: milliseconds summed first, then rounded half up. `seconds_left` adds 35 s for each
   item with at least one unrecorded track (`items_to_record`).
 - `unknown_items`: counted items without item access that aren't Up to date by D13.
+- `items_measuring`: counted items with item access whose track list hasn't been fetched yet
+  (`items.catalog_fetched_at` NULL), such as your own playlists on a fresh library or a playlist
+  just tracked, until a catalog refresh reads it. They're in no other figure, so the UI can tell
+  Measuring from unknown.
 - `finish_at`: walk `window_instances` from now (a window in progress counts from now) until
   `seconds_left` is used up, in the container's TZ (RFC 3339 with its offset). Null with Manual
   only or when nothing is left. A continuous grid: now + seconds_left.
@@ -25,12 +29,14 @@ Frozen for other modules and S6: `update()`.
 `item_tracks` joined to `tracks.duration_ms`, `services.matching.recorded_track_ids()` (the
 tracks whose key is in Spytify's index, so the estimate agrees with what a run would record:
 History's own records are all in that index too), `services.matching.d13_up_to_date()` for items
-without item access, `windows.load_hours()`, `config.zone` and `services.clock.now()`.
+without item access, `windows.load_hours()`, `config.zone` and `services.clock.now()`. A track list
+exists once the item has item access and `catalog_fetched_at` is set (`_has_list`).
 
 **The service:**
 - `update()` computes it now and keeps it as the last estimate; it publishes `backlog` when a
   figure other than `as_of` changed. Called after each catalog refresh (catalog-library), after
-  adding albums (albums-covers) and after each run item (S6).
+  each Library change (an item tracked, untracked, added or removed), after adding or removing
+  albums (albums-covers) and after each run item (S6).
 - `current()` is GET /api/backlog: the last estimate (computing one if there's none yet), and a
   `services.catalog.request_refresh("page_open")`, which the catalog throttles to once every 15
   minutes and refuses during a run. A `backlog` event follows if that refresh changes it.
@@ -79,7 +85,8 @@ class BacklogItem:
     tracked: bool
     item_access: bool
     unavailable: bool
-    tracks: Sequence[BacklogTrack] | None  # None without a track list
+    # None without a track list: no item access, or not fetched yet (then it's measuring).
+    tracks: Sequence[BacklogTrack] | None
     d13_up_to_date: bool  # for items without item access
 
 
@@ -96,14 +103,19 @@ def estimate(
     durations: dict[str, int] = {}
     items_to_record = 0
     unknown = 0
+    measuring = 0
     for item in items:
         if item.kind != "album" and not item.tracked:
             continue
         if item.unavailable:
             continue
-        if not item.item_access or item.tracks is None:
+        if not item.item_access:
             if not item.d13_up_to_date:
                 unknown += 1
+            continue
+        if item.tracks is None:
+            # Item access, but its track list hasn't been fetched yet.
+            measuring += 1
             continue
         has_missing = False
         for track in item.tracks:
@@ -126,6 +138,7 @@ def estimate(
         seconds_left=seconds_left,
         items_to_record=items_to_record,
         unknown_items=unknown,
+        items_measuring=measuring,
         finish_at=_finish_at(hours, tz, now, seconds_left),
         as_of=now,
     )
@@ -220,7 +233,7 @@ class BacklogService:
 
     async def _rows(self) -> tuple[list[sqlite3.Row], list[sqlite3.Row], dict[str, bool]]:
         """Every item that isn't removed, every track list joined to its durations (two
-        queries), and D13 for the items without a track list."""
+        queries), and D13 for the items without item access."""
         store = self.services.store
         rows = await store.fetchall(
             "SELECT id, kind, tracked, item_access, unavailable_at, catalog_fetched_at "
@@ -235,8 +248,9 @@ class BacklogService:
         )
         d13: dict[str, bool] = {}
         for row in rows:
-            # D13 only matters for items without a list: the others are counted by their tracks.
-            if not _has_list(row):
+            # D13 only matters for items without item access: the others are counted by their
+            # tracks, or are still being measured.
+            if not row["item_access"]:
                 d13[row["id"]] = await self.services.matching.d13_up_to_date(row["id"])
         return rows, entries, d13
 
@@ -278,7 +292,7 @@ def _estimate_from_rows(
                 item_access=bool(row["item_access"]),
                 unavailable=row["unavailable_at"] is not None,
                 tracks=lists.get(row["id"], []) if has_list else None,
-                d13_up_to_date=False if has_list else d13[row["id"]],
+                d13_up_to_date=d13.get(row["id"], False),
             )
         )
     return estimate(items, recorded, hours, zone, now)

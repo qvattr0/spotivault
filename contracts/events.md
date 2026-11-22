@@ -105,7 +105,7 @@ The first event on every connection. It holds everything the shell needs to draw
 
 | Type | `data` | When |
 |---|---|---|
-| `backlog` | `Backlog` | The estimate is worked out again after each run item, each catalog refresh and each album added. It's sent when a figure changed; `as_of` alone doesn't count. |
+| `backlog` | `Backlog` | The estimate is worked out again after each run item, each catalog refresh, each album added or removed, and each Library change (an item tracked, untracked, added or removed). It's sent when a figure changed; `as_of` alone doesn't count. |
 
 ### Spytify, relayed
 

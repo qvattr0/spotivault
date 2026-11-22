@@ -89,9 +89,13 @@ export function formatRunLength(seconds: number): string {
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} m`;
 }
 
-/** Hours of music, rounded: "about 27 h" uses formatHours(97_305) → "27 h". Under an hour: "45 min". */
+/**
+ * Hours of music, rounded: "about 27 h" uses formatHours(97_305) → "27 h". Under an hour: "45 min".
+ * The minutes are rounded first, so 59 min 40 s is "1 h", never "60 min".
+ */
 export function formatHours(seconds: number): string {
-  if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))} min`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${Math.max(1, minutes)} min`;
   return `${COUNT.format(Math.round(seconds / 3600))} h`;
 }
 

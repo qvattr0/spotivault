@@ -81,6 +81,7 @@ def test_backlog_vectors(case: dict[str, Any]) -> None:
     assert result.seconds_left == expected["seconds_left"]
     assert result.items_to_record == expected["items_to_record"]
     assert result.unknown_items == expected["unknown_items"]
+    assert result.items_measuring == expected["items_measuring"]
     # Compared as the contract writes them: the offset of the schedule's zone, and UTC for as_of.
     finish = None if result.finish_at is None else result.finish_at.isoformat(timespec="seconds")
     assert finish == expected["finish_at"]
@@ -141,3 +142,39 @@ def test_a_track_recorded_under_another_item_still_counts_once() -> None:
     assert (backlog.tracks_total, backlog.tracks_recorded) == (1, 1)
     assert backlog.seconds_left == 0
     assert backlog.finish_at is None
+
+
+def test_an_item_not_fetched_yet_is_measuring_not_unknown() -> None:
+    # Your own playlist before the first catalog refresh: item access, but no track list yet.
+    # It counts as measuring, in no other figure; a followed playlist stays unknown.
+    not_fetched = {**one_playlist([]), "tracks": None}
+    followed = {
+        **one_playlist([]),
+        "id": "plist00000000000000002",
+        "kind": "followed",
+        "item_access": False,
+        "tracks": None,
+    }
+    backlog = estimate(
+        items_from([not_fetched, followed]),
+        [],
+        {"mon": [1]},
+        ZoneInfo("UTC"),
+        parse("2026-11-15T10:00:00Z"),
+    )
+    assert backlog.items_measuring == 1
+    assert backlog.unknown_items == 1
+    assert (backlog.tracks_total, backlog.seconds_left, backlog.items_to_record) == (0, 0, 0)
+    assert backlog.finish_at is None
+
+
+def test_an_empty_fetched_playlist_is_neither_measuring_nor_unknown() -> None:
+    # A list was fetched and has no entries: measured, with nothing to record.
+    backlog = estimate(
+        items_from([one_playlist([])]),
+        [],
+        {"mon": [1]},
+        ZoneInfo("UTC"),
+        parse("2026-11-15T10:00:00Z"),
+    )
+    assert (backlog.items_measuring, backlog.unknown_items, backlog.tracks_total) == (0, 0, 0)

@@ -60,6 +60,15 @@
   text-align: right;
 }
 
+/* The Backup length row's lines under its value (not drawn): "+ 2 followed playlists (unknown
+   length)", in 13 text-sub. */
+.note {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

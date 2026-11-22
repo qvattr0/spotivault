@@ -118,6 +118,8 @@ test('steps 2 to 9 with the controller, from the install to the Library', async 
   await expect(summary).toContainText(/Folder\s*\/music/);
   await expect(summary).toContainText(/Tracking\s*.*Liked Songs · \d+ albums?/, { timeout: 15_000 });
   await expect(summary).toContainText('ScheduleNone yet');
+  // The backup length, from the controller's estimate: measured by the refreshes since step 5.
+  await expect(summary).toContainText(/Backup length\s*About [\d,]+ (h|min) of music to record/, { timeout: 30_000 });
   await page.getByRole('button', { name: 'Open Library' }).click();
   await expect(page).toHaveURL(endsWith('/library'));
   expect((await getJson<Setup>(request, '/api/setup')).completed).toBe(true);

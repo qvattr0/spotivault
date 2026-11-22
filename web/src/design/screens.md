@@ -12,7 +12,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
     const ids = Get(document, (n, c) => { if (c.depth === 0) { c.skipChildren(); return n.type === "frame" ? n.id : undefined; } return undefined; });
     Export(ids, "png", "\\\\wsl.localhost\\Ubuntu\\home\\qvattro\\Personal Projects\\spotivault\\web\\design-reference")
     ```
-- **Status:** the last column of each table says whether S8 built the frame. 27 of the 33 frames in the tables are built, and each was compared to its drawing (`npm run e2e` shoots them, from `web/e2e/page-screens.ts`). The other 6 aren't in M1: custom covers (3), the Schedule page (2) and History's Tracks tab (1) are left out, with no link to them. History's Logs tab moved into M1. Two undrawn or half-drawn parts wait for your review (plan D8): the Dashboard's Full backup card and step 9's backup-length line.
+- **Status:** the last column of each table says whether S8 built the frame. 27 of the 33 frames in the tables are built, and each was compared to its drawing (`npm run e2e` shoots them, from `web/e2e/page-screens.ts`). The other 6 aren't in M1: custom covers (3), the Schedule page (2) and History's Tracks tab (1) are left out, with no link to them. History's Logs tab moved into M1. Two parts aren't drawn (plan D8): the Dashboard's Full backup card and step 9's backup-length line. Both are built from web-ui.md and the mockup you approved on 2026-11-22.
 - **Components:** see [components.md](components.md).
 
 ## Routes
@@ -43,10 +43,10 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 | Setup 3 · Log in to Spotify | `UzVcR` | `/setup/login` | Waiting for login: noVNC with the QR code on the left, the three steps on the right | A Continue button is drawn, with the hint "Continues by itself once you're logged in". web-ui.md: the step turns green by itself; there's no "I'm logged in" button. The client's screen is drawn 640 × 440; it's 1280 × 800 (design.md § Container), so the view is 16 : 10. Expand isn't drawn (web-ui.md § 3). | Built. The screen is the client's, 16 : 10, with Expand. |
 | Setup 4 · Spotify client settings | `wNpTP` | `/setup/client-settings` | Gapless needs change; two Confirm rows unticked; Volume "Set for you" | 1240 tall. The Unknown pill isn't drawn. Continue is drawn enabled next to "Gapless playback needs to be off". Crossfade and Gapless are drawn as Auto rows with pills, and Equalizer, Mono audio, Streaming quality and Auto adjust quality as Confirm rows; web-ui.md § 4 makes Crossfade and Gapless Confirm and the other four Auto. The reasons are shortened. The client's screen is drawn 520 × 658, taller than wide; it's 1280 × 800, so the view is 16 : 10. web-ui.md § 4 gives it two thirds of the width, and Expand (§ 3), which isn't drawn. | Built. Rows follow web-ui.md, with the "Auto" label kept. The screen takes two thirds of the width. |
 | Setup 5 · Connect the Spotify Web API | `j8m6AR` | `/setup/web-api` | Connected; the device check failing, with Retry | 1260 tall. The Reconnect flow (this step on its own, from Settings or the banner) isn't drawn. | Built, and `/reconnect` (not drawn). |
-| Setup 6 · Output | `Mj5zE` | `/setup/output` | `/music` mounted and writable; AAC 256 picked; More formats collapsed | The folder text says each playlist gets an `.m3u` in `Music/Playlists/`, but not "and its cover". The line "Tracks are AAC with tags and a 640 px cover" is missing. The red "not mounted" alert isn't drawn. | Built. The folder text follows web-ui.md. |
+| Setup 6 · Output | `Mj5zE` | `/setup/output` | `/music` mounted and writable; AAC 256 picked; More formats collapsed | The folder text says each playlist gets an `.m3u` in `Music/Playlists/`, but not "and its cover". The line "Tracks are AAC with tags and a 640 px cover" is missing. The red "not mounted" alert isn't drawn. | Built. The folder text follows web-ui.md, without "and its cover": M1 writes no cover files. |
 | Setup 7 · Playlists | `ZJSG0` | `/setup/playlists` | "Back up all my playlists" picked, Include Liked Songs on | The stepper calls the step "Playlists"; web-ui.md calls it "What to back up". | Built |
 | Setup 8 · Albums | `sUXcW` | `/setup/albums` | "Back up all my saved albums" picked | None found. | Built. The footer has Back and Continue. |
-| Setup 9 · Done | `BAzX6` | `/setup/done` | The summary, Back up now, Open Library | The backup-length line ("About 298 h of music to record", "Measuring…") isn't drawn. Already listed in features.md's Known gaps. | Built, without the backup-length line (plan D8, needs your review). "Schedule: None yet" has no link (no Schedule page in M1). |
+| Setup 9 · Done | `BAzX6` | `/setup/done` | The summary, Back up now, Open Library | The backup-length line ("About 298 h of music to record", "Measuring…") isn't drawn. Already listed in features.md's Known gaps. | Built, with Backup length as the summary's last row (plan D8, from the mockup you approved). "Schedule: None yet" has no link (no Schedule page in M1). |
 
 ## Library
 
@@ -80,7 +80,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 | Frame | ID | Route | State | Differences from web-ui.md | Status |
 |---|---|---|---|---|---|
-| Dashboard · Idle (with expiry banner) | `fzNDm` | `/dashboard` | Idle; yellow expiry banner; Next backup with a small week strip; Last run "Completed with issues" | **The Full backup card isn't drawn.** web-ui.md § Idle has three cards: Next backup, Full backup, Last run. The Next backup variants (No schedule, Held) and "No backups yet" aren't drawn. | Built, with no Full backup card (plan D8) and no "Change schedule" (not in M1). |
+| Dashboard · Idle (with expiry banner) | `fzNDm` | `/dashboard` | Idle; yellow expiry banner; Next backup with a small week strip; Last run "Completed with issues" | **The Full backup card isn't drawn.** web-ui.md § Idle has three cards: Next backup, Full backup, Last run. The Next backup variants (No schedule, Held) and "No backups yet" aren't drawn. | Built, with the Full backup card between the two (plan D8, from the mockup you approved), and no "Change schedule" (not in M1). |
 | Dashboard · Running | `t4YEY` | `/dashboard` | Running: header, counters, Stop split button, docked now-playing strip; queue with Done, Up to date, the current item expanded, Up next and "Interrupted · will retry" | The run header's time left ("about 9 min left in this run") isn't drawn. The Finishing and Carried over rows aren't drawn. | Built. |
 | Dashboard · Paused (playback moved) | `hJlHj` | `/dashboard` | Paused: warn alert "Playback moved to Lorne's iPhone" with Resume and Stop; current track "Discarded · will redo" | None found. The red Spytify-error alert and the "Stop now" confirm aren't drawn. | Built. |
 
@@ -110,7 +110,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 
 | Frame | ID | Route | State | Differences from web-ui.md | Status |
 |---|---|---|---|---|---|
-| Settings | `t6RqK` | `/settings` | The whole page, 2926 tall; browser notifications Unavailable (plain HTTP); no password; the "Unsaved changes" bar showing | Container › Versions shows "Spytify 1.2.0" as sample text; design.md uses Spytify 2.0. The `UI_PASSWORD` read-only state, the Set password dialog and the Enabled and Blocked notification states aren't drawn. | Built, without Notifications and Security (not in M1). |
+| Settings | `t6RqK` | `/settings` | The whole page, 2926 tall; browser notifications Unavailable (plain HTTP); no password; the "Unsaved changes" bar showing | Container › Versions shows "Spytify 1.2.0" as sample text; design.md uses Spytify 2.0. The `UI_PASSWORD` read-only state, the Set password dialog and the Enabled and Blocked notification states aren't drawn. | Built, without Notifications and Security (not in M1), and without Files' "Save Spotify's covers" (M1 writes no cover files). Container shows a warning when `UI_PASSWORD` is set (plan D11), which isn't drawn. |
 | Settings · Edit layout modal | `w1uXEY` | `/settings` | Modal open, default layout, "Valid" | The error state isn't drawn. A design note beside the frame (`LLJpU`) describes it, as web-ui.md does. | Built. |
 
 The note `LLJpU` ("Note · layout validation") is a sticky note on the canvas, not a screen.
@@ -126,7 +126,7 @@ The note `LLJpU` ("Note · layout validation") is a sticky note on the canvas, n
 
 ## Not drawn anywhere
 
-Pages and states that web-ui.md describes and no frame shows. Build them from web-ui.md, styled with the components above. S8 built them all except the Schedule's empty grid, the Sign-in screen and Set password dialog (not in M1) and the Dashboard's Full backup card (plan D8). The choices it made where web-ui.md says no more are in [web-ui.md § What the drawings leave out](../../../docs/web-ui.md#what-the-drawings-leave-out).
+Pages and states that web-ui.md describes and no frame shows. Build them from web-ui.md, styled with the components above. S8 built them all except the Schedule's empty grid, the Sign-in screen and Set password dialog, and the Library's cover file errors (none of them in M1). The Dashboard's Full backup card and step 9's backup length came after S8 (plan D8). The choices it made where web-ui.md says no more are in [web-ui.md § What the drawings leave out](../../../docs/web-ui.md#what-the-drawings-leave-out).
 
 - **Setup:** step 2 Installed; step 6 "not mounted" alert; step 5 as the stand-alone Reconnect flow; step 9's backup length.
 - **Sign-in:** the sign-in screen and the Set password dialog (web-ui.md § Security).

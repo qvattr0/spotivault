@@ -560,7 +560,46 @@ export const backlog: Backlog = {
   seconds_left: 97_305,
   items_to_record: 9,
   unknown_items: 2,
+  items_measuring: 0,
   finish_at: fromNow(3 * DAY),
+  as_of: fromNow(-HOUR),
+};
+
+/**
+ * The same library before its first run (the `new` scenario, wizard step 9): nothing recorded,
+ * Manual only. 40 items to record: 298 h of music, plus 35 s each.
+ */
+export const backlogFresh: Backlog = {
+  ...backlog,
+  tracks_recorded: 0,
+  seconds_recorded: 0,
+  seconds_left: 1_072_800 + 40 * 35,
+  items_to_record: 40,
+  finish_at: null,
+};
+
+/** Everything recorded (the Full backup card's Complete variant). */
+export const backlogComplete: Backlog = {
+  ...backlog,
+  tracks_recorded: backlog.tracks_total,
+  seconds_recorded: backlog.seconds_total,
+  seconds_left: 0,
+  items_to_record: 0,
+  unknown_items: 0,
+  finish_at: null,
+};
+
+/** Before the first track lists have loaded: nothing measured yet (the Measuring variant). */
+export const backlogMeasuring: Backlog = {
+  tracks_total: 0,
+  tracks_recorded: 0,
+  seconds_total: 0,
+  seconds_recorded: 0,
+  seconds_left: 0,
+  items_to_record: 0,
+  unknown_items: 2,
+  items_measuring: 24,
+  finish_at: null,
   as_of: fromNow(-HOUR),
 };
 

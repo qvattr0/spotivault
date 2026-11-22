@@ -3,7 +3,7 @@
 // The demo controller is shared, in file order: each test stops any run it started.
 
 import { expect, test, type Page } from '@playwright/test';
-import type { LastRun, ScheduleNext } from '../../src/api/types.ts';
+import type { Backlog, LastRun, ScheduleNext } from '../../src/api/types.ts';
 import { demoReady, getJson, openPage, stopAnyRun, waitForRunState } from '../helpers.ts';
 
 test.beforeAll(async ({ request }) => {
@@ -16,6 +16,7 @@ test.afterEach(async ({ request }) => {
 
 const nextCard = (page: Page) => page.getByRole('region', { name: 'Next backup' });
 const lastCard = (page: Page) => page.getByRole('region', { name: 'Last run' });
+const backupCard = (page: Page) => page.getByRole('region', { name: 'Full backup' });
 
 test('idle: the next backup as the controller reports it, and the last run', async ({ page, request }) => {
   const next = await getJson<ScheduleNext>(request, '/api/schedule/next');
@@ -27,6 +28,22 @@ test('idle: the next backup as the controller reports it, and the last run', asy
   await expect(nextCard(page).getByRole('button', { name: 'Run now' })).toBeEnabled();
   // Earlier files may have run something: either way the card says so.
   await expect(lastCard(page).getByText(/^No backups yet$| · (Run now|Scheduled|Start-up)$/)).toBeVisible();
+});
+
+test("Full backup: the controller's estimate, in progress with Manual only", async ({ page, request }) => {
+  await openPage(page, '/dashboard');
+  const backup = backupCard(page);
+  // The demo's library is measured once it's ready, and a few tracks at most are recorded.
+  await expect(backup.getByRole('progressbar', { name: 'Full backup' })).toBeVisible({ timeout: 30_000 });
+  const estimate = await getJson<Backlog>(request, '/api/backlog');
+  expect(estimate.seconds_left).toBeGreaterThan(0);
+  expect(estimate.finish_at).toBeNull(); // the demo has no schedule
+  const tracks = new Intl.NumberFormat('en-GB').format(estimate.tracks_total);
+  await expect(backup.getByText(new RegExp(`^[\\d,]+ of ${tracks} tracks · \\d+% of the music$`))).toBeVisible();
+  await expect(backup.getByText(/^About [\d,]+ (h|min) of recording left$/)).toBeVisible();
+  await expect(backup.getByText('Run now to start; recording is real time')).toBeVisible();
+  if (estimate.unknown_items > 0) await expect(backup.getByText(/^\+ \d+ followed playlists? \(unknown length\)$/)).toBeVisible();
+  await expect(backup.getByText(/^Updated (\w{3} \d+ \w{3} )?\d\d:\d\d$/)).toBeVisible();
 });
 
 test('Run now: the running Dashboard follows the run live; Remove from this run; Stop now', async ({ page, request }) => {

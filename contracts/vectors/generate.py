@@ -577,14 +577,18 @@ def backlog_expected(inp):
     durations = {}
     items_to_record = 0
     unknown = 0
+    measuring = 0
     for item in inp["items"]:
         if item["kind"] != "album" and not item["tracked"]:
             continue
         if item.get("unavailable"):
             continue
-        if not item["item_access"] or item["tracks"] is None:
+        if not item["item_access"]:
             if not d13_up_to_date(item):
                 unknown += 1
+            continue
+        if item["tracks"] is None:
+            measuring += 1
             continue
         has_missing = False
         for t in item["tracks"]:
@@ -616,6 +620,7 @@ def backlog_expected(inp):
         "seconds_left": seconds_left,
         "items_to_record": items_to_record,
         "unknown_items": unknown,
+        "items_measuring": measuring,
         "finish_at": fmt_local(finish, tz) if finish else None,
         "as_of": fmt_utc(now),
     }
@@ -691,6 +696,20 @@ BACKLOG_CASES = [
      "3 h doesn't fit in the 29 Mar window (2 real hours): 1 h more the next Sunday."),
     ("continuous-grid", {"items": [ALBUM], "recorded_track_ids": [], "hours": {d: list(range(24)) for d in DAYS}, "tz": "Europe/Berlin", "now": "2026-11-15T10:20:00Z"},
      "Every hour active: the finish is now + seconds_left."),
+    ("owned-not-fetched-yet", {"items": [
+        item(iid("plist", 12), "owned", None),
+        item("liked", "liked", None),
+        item(iid("follow", 6), "followed", None, item_access=False)],
+        "recorded_track_ids": [], "hours": NIGHT_HOURS, "tz": "Europe/Berlin", "now": "2026-11-15T10:00:00Z"},
+     "A fresh library before the first catalog refresh: your own playlist and Liked Songs have item access but no track list yet, so they're measuring, not unknown. The followed playlist is unknown. Nothing is known yet: all zeros, no finish date."),
+    ("measuring-mixed-with-fetched", {"items": [
+        ALBUM,
+        item(iid("plist", 13), "owned", None),
+        item(iid("album", 2), "album", None),
+        item(iid("plist", 14), "owned", None, tracked=False),
+        item(iid("plist", 15), "owned", None, unavailable=True)],
+        "recorded_track_ids": [tid(i) for i in range(1, 7)], "hours": H(), "tz": "UTC", "now": "2026-11-15T10:00:00Z"},
+     "The album's list is fetched and counts as usual; a playlist and an album still being fetched are measuring, in no other figure. An untracked or unavailable item isn't counted at all."),
 ]
 
 
@@ -710,6 +729,7 @@ def backlog_doc():
             "seconds_left = the unrecorded tracks' duration + 35 s for each known item with at least one unrecorded track (items_to_record).",
             "Seconds: milliseconds are summed first, then rounded half up to whole seconds.",
             "unknown_items: counted items without item access, except those Up to date by D13 (snapshot_id equals last_full_pass_snapshot and every observed track is still in Spytify's index). They're left out of every figure.",
+            "items_measuring: counted items with item access whose track list hasn't been fetched yet (tracks null). They're left out of every other figure.",
             "finish_at: walk the schedule's windows forward from now (a window in progress counts from now), using the real length of each window (schedule-windows.json's DST rule), until seconds_left is used up. Null with Manual only, or when seconds_left is 0. Continuous grid: now + seconds_left.",
             "as_of: when the estimate was made (here, now).",
         ],

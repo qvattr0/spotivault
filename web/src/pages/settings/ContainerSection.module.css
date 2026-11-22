@@ -1,0 +1,4 @@
+/* The UI_PASSWORD warning (plan D11) above the section's rows: the rows' own gap below it. */
+.warning {
+  margin-bottom: var(--s-2);
+}

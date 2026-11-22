@@ -60,6 +60,18 @@ describe("S8's formats", () => {
     expect(formatLength(28_080_000)).toBe('7 h 48 min');
   });
 
+  it('says hours of music in whole hours, or minutes under an hour', () => {
+    expect(formatHours(0)).toBe('1 min'); // never "0 min" while something is left
+    expect(formatHours(35)).toBe('1 min'); // an item's overhead alone
+    expect(formatHours(59 * 60)).toBe('59 min');
+    // 59 min 40 s rounds to 60 minutes: that's an hour, not "60 min".
+    expect(formatHours(59 * 60 + 40)).toBe('1 h');
+    expect(formatHours(60 * 60)).toBe('1 h');
+    expect(formatHours(90 * 60)).toBe('2 h'); // half up
+    expect(formatHours(1_074_200)).toBe('298 h');
+    expect(formatHours(4_500_000)).toBe('1,250 h');
+  });
+
   it('says how long ago, or Never', () => {
     const base = now(15, 12);
     expect(formatAgo(null, base)).toBe('Never');

@@ -201,6 +201,7 @@ The answers the built code takes. Each one is also in the spec where it matters 
 
 - **Q9 and Q10 are settled** in openapi.yaml (S0's answers): `LibraryItem.playback_note` is gone (Liked Songs plays as a context; `items.playback_note` stays NULL); `PlaylistPreview.name` and `owner` are always strings, `total` is null for a linked playlist.
 - **The backlog's "recorded"** is the tracks whose key is in Spytify's index. History's files are all in that index, and it's what a run would actually skip, so the estimate matches the runs.
+- **The backlog's `items_measuring`** (D8): a counted item with item access whose track list isn't fetched yet (`catalog_fetched_at` NULL) is measuring, not unknown, and is in no other figure. D13 is read only for items without item access. So on a fresh library the Full backup card and step 9 say "Measuring", not "unknown length", for your own playlists.
 - **A followed playlist you collaborate on** keeps kind `followed` with `item_access` 1 (openapi.yaml `LibraryKind`, and the backlog vectors), where schema.sql's comment says `owned`.
 - **`fields`** goes on `GET /playlists/{id}` and `/items`, where Spotify documents it; design.md's "`images(url)` in /me/playlists' fields" isn't sent, since that endpoint has no `fields`, and its answer carries `images` anyway.
 - **Linked playlists' `snapshot_id`** is read only by a run's own refresh, so a page-open refresh with nothing changed stays within 3 requests.

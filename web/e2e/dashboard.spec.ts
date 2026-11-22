@@ -1,6 +1,6 @@
 // The Dashboard when no run is going (web-ui.md § Idle), against the mock: Next backup and its
-// variants (scheduled, no schedule, Held), Last run and "No backups yet", and Run now.
-// Not yet (plan D8): the Full backup card.
+// variants (scheduled, no schedule, Held), Full backup in each state (in progress with a schedule
+// and with Manual only, Complete, Measuring), Last run and "No backups yet", and Run now.
 
 import { expect, test, type Page } from '@playwright/test';
 import { expectRunState } from './live.ts';
@@ -8,6 +8,7 @@ import { mockControls, openPage, useScenario } from './mock.ts';
 
 const nextCard = (page: Page) => page.getByRole('region', { name: 'Next backup' });
 const lastCard = (page: Page) => page.getByRole('region', { name: 'Last run' });
+const backupCard = (page: Page) => page.getByRole('region', { name: 'Full backup' });
 
 test('idle with a schedule: the next window, what it covers, the week strip and the last run', async ({ page, request }) => {
   await useScenario(request, 'idle');
@@ -41,8 +42,17 @@ test('idle with a schedule: the next window, what it covers, the week strip and 
     'Sunday Vinyl: playlist unavailable, files kept',
   ]);
   await expect(last.getByRole('link', { name: 'View in History' })).toHaveAttribute('href', '/history/runs/41');
-  // Not yet (plan D8).
-  await expect(page.getByText('Full backup')).toHaveCount(0);
+
+  // Full backup, between the two, in progress at the nightly schedule (the contract's example).
+  await expect(page.getByRole('main').getByRole('region')).toHaveText([/^Next backup/, /^Full backup/, /^Last run/]);
+  const backup = backupCard(page);
+  // 90.9 % of the time: the bar says the line's rounded-down 90.
+  await expect(backup.getByRole('progressbar', { name: 'Full backup' })).toHaveAttribute('aria-valuenow', '90');
+  await expect(backup.getByText('4,708 of 5,120 tracks · 90% of the music')).toBeVisible();
+  await expect(backup.getByText('About 27 h of recording left')).toBeVisible();
+  await expect(backup.getByText(/^Done around \w{3} \d+ \w{3} at this schedule$/)).toBeVisible();
+  await expect(backup.getByText('+ 2 followed playlists (unknown length)')).toBeVisible();
+  await expect(backup.getByText(/^Updated (\w{3} \d+ \w{3} )?\d\d:\d\d$/)).toBeVisible();
 });
 
 test('set up a moment ago: no backup scheduled, and no backups yet', async ({ page, request }) => {
@@ -57,6 +67,49 @@ test('set up a moment ago: no backup scheduled, and no backups yet', async ({ pa
   const last = lastCard(page);
   await expect(last.getByText('No backups yet')).toBeVisible();
   await expect(last.getByRole('link', { name: 'View in History' })).toHaveCount(0);
+
+  // Full backup with Manual only: nothing recorded yet, and Run now to start.
+  const backup = backupCard(page);
+  await expect(backup.getByText('0 of 5,120 tracks · 0% of the music')).toBeVisible();
+  await expect(backup.getByText('About 298 h of recording left')).toBeVisible();
+  await expect(backup.getByText('Run now to start; recording is real time')).toBeVisible();
+  await expect(backup.getByText(/at this schedule/)).toHaveCount(0);
+});
+
+test('Full backup follows the estimate live: Measuring, In progress, Complete', async ({ page, request }) => {
+  await useScenario(request, 'idle');
+  const mock = mockControls(request);
+  await openPage(page, '/dashboard');
+  const backup = backupCard(page);
+  await expect(backup.getByText('About 27 h of recording left')).toBeVisible();
+
+  // Before the first track lists have loaded: a busy skeleton, and its words.
+  await mock.backlog('measuring');
+  const measuring = backup.getByText('Measuring your library…');
+  await expect(measuring).toBeVisible();
+  await expect(backup.locator('[aria-busy="true"]')).toHaveCount(1);
+  await expect(backup.getByRole('progressbar')).toHaveCount(0);
+
+  // Some lists measured, one still being measured: the figures so far.
+  await mock.backlog('in_progress', { items_measuring: 1 });
+  await expect(backup.getByText('About 27 h of recording left')).toBeVisible();
+  await expect(backup.getByText('+ 1 playlist or album still being measured')).toBeVisible();
+  await expect(backup.locator('[aria-busy="true"]')).toHaveCount(0);
+
+  // Everything recorded: the check, and no bar.
+  await mock.backlog('complete');
+  await expect(backup.getByText('Everything is backed up · 298 h of music')).toBeVisible();
+  await expect(backup.getByRole('progressbar')).toHaveCount(0);
+  await expect(backup.getByText(/^Updated \d\d:\d\d$/)).toBeVisible();
+
+  // Everything of known length recorded, two followed playlists unknown: not "Everything is backed up".
+  await mock.backlog('complete', { unknown_items: 2 });
+  await expect(backup.getByText('Everything of known length is backed up · 298 h of music')).toBeVisible();
+  await expect(backup.getByText('+ 2 followed playlists (unknown length)')).toBeVisible();
+
+  // Opened again: GET /api/backlog agrees with the last event.
+  await openPage(page, '/dashboard');
+  await expect(backup.getByText('Everything of known length is backed up · 298 h of music')).toBeVisible();
 });
 
 test('held, connection expired or disconnected: the card turns red and offers Reconnect', async ({ page, request }) => {
