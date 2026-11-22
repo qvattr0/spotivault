@@ -1,0 +1,55 @@
+/* The top of an app page, measured from Library · List (ZGPGu) and History · Runs (o5vCh7): the
+   title and summary at the left, the tools at the right, level with the foot of the title block;
+   the chips or tabs 20 below. */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.title {
+  font: var(--type-page-title);
+}
+
+.summary {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.barStart,
+.barEnd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}

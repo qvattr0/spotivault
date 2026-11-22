@@ -36,6 +36,13 @@ async def restart_setup(services: ServicesDep) -> Setup:
     return await services.setup.restart()
 
 
+@router.post("/api/setup/albums/later", operation_id="chooseAlbumsLater", response_model=Setup)
+async def choose_albums_later(services: ServicesDep) -> Setup:
+    """Step 8's "I'll choose in Albums": the step is done, and nothing is queued. The other
+    answer, "Back up all my saved albums", is POST /api/albums, which marks it done too."""
+    return await services.setup.mark_done("albums")
+
+
 @router.post(
     "/api/setup/complete",
     operation_id="completeSetup",

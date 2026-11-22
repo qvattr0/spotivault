@@ -1,0 +1,94 @@
+/* The drop-down menu (components.md § Menu; drawn in place in Library · List, iMmk3):
+   220 wide, the modal surface, radius 6, padding 4, its shadow. Items: radius 4, padding 10 12,
+   gap 12, a 16 px text-sub icon and a 14/500 label. The hovered item is white at 10 % over the
+   surface (fixed.css). */
+
+.wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--surface-modal);
+  box-shadow: var(--shadow-menu);
+}
+
+.alignEnd {
+  right: 0;
+}
+
+.alignStart {
+  left: 0;
+}
+
+/* On top of the page (a portal): MenuList sets top and left from its button. Above modals and
+   toasts, since a menu is opened from whatever is on top. */
+.floating {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+}
+
+/* At the foot of the screen (the global bottom bar), the menu opens above its button. */
+.above {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.item svg {
+  flex: none;
+  color: var(--text-sub);
+}
+
+.label {
+  flex: 1;
+}
+
+.danger,
+.danger svg {
+  color: var(--danger);
+}
+
+.item:not(:disabled):hover,
+.item:focus-visible,
+.item[data-state='hover'] {
+  background: var(--menu-item-hover);
+}
+
+/* The hover fill is too close to the surface to show keyboard focus alone: add the white ring, inside. */
+.item:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+
+.item:disabled {
+  opacity: 0.4;
+}
+
+/* A checkable item ("Automatically track playlists I create") shows a toggle at its end. */
+.itemToggle {
+  pointer-events: none;
+}

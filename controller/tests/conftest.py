@@ -9,6 +9,8 @@
 - For WebSockets, see tests/asgi_ws.py; for checking bodies against openapi.yaml, tests/contract.py.
 - `spotify_mock`: a mock Spotify (tests/spotify_mock.py) on the fake clock. `mock_webapi`: the
   real Web API port on it, in place of the fake one (not connected: `await connect(...)`).
+- `sim`: S6's engine simulator (tests/engine_sim.py) on the running app: set up as after the
+  wizard, with an empty library, scripted on the fake clock.
 
 Every test's event loop runs in asyncio debug mode, and a callback that runs longer than 100 ms
 fails the test (design.md § Stack): something blocked the loop. Mark a test that blocks on
@@ -26,6 +28,7 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
+from engine_sim import Sim
 from spotify_mock import SpotifyMock, use_mock
 from spotivault.app import create_app
 from spotivault.config import Config, load_config
@@ -200,3 +203,10 @@ async def client(running_app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=running_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://spotivault.test") as http:
         yield http
+
+
+@pytest.fixture
+async def sim(running_app: FastAPI, services: Services) -> AsyncIterator[Sim]:
+    """S6's engine simulator on the running app (tests/engine_sim.py)."""
+    async with Sim.started(services) as started:
+        yield started

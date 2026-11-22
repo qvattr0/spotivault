@@ -4,7 +4,10 @@ Each connection gets:
 1. **`hello` first:** the snapshot built from every provider modules registered with
    `services.bus.add_snapshot`. Its `seq` is the last event published before the connection
    subscribed, and every later event follows it in order, with no gaps (events.py).
-2. **Then every event,** one JSON text frame each. What the client sends is read and ignored.
+2. **Then every event,** one JSON text frame each.
+3. **The logs, if it asks:** a `logs.follow` text frame (JSON) starts the live tail for this
+   connection, and `logs.unfollow` stops it (events.md § Logs; services.logs). Anything else the
+   client sends is read and ignored.
 
 How a connection ends:
 - **The client leaves:** the handler notices at once (it always waits for the client's next
@@ -24,6 +27,7 @@ doesn't answer within 20 s is closed with 1011. uvicorn also answers the client'
 
 import asyncio
 import contextlib
+import json
 import logging
 
 from fastapi import APIRouter, WebSocket
@@ -68,18 +72,18 @@ async def events(websocket: WebSocket) -> None:
             await close_quietly(websocket, INTERNAL_ERROR, "no snapshot yet; reconnect")
             return
         log.debug("events: %s connected (%d open)", client, services.bus.subscriber_count)
-        await _stream(websocket, sub)
+        await _stream(websocket, sub, services)
     log.debug("events: %s left (%d open)", client, services.bus.subscriber_count)
 
 
-async def _stream(websocket: WebSocket, sub: Subscription) -> None:
+async def _stream(websocket: WebSocket, sub: Subscription, services: Services) -> None:
     """Sends the hello, then every event, until the client leaves or falls too far behind."""
     assert sub.hello is not None  # subscribe() builds it before handing the subscription over
     try:
         await websocket.send_text(sub.hello.to_json())
         async with asyncio.TaskGroup() as group:
             group.create_task(_send_events(websocket, sub))
-            group.create_task(_wait_for_close(websocket))
+            group.create_task(_read_messages(websocket, sub, services))
     except* (ClientLeft, WebSocketDisconnect, WebSocketDisconnected):
         pass
     except* SubscriptionOverflow:
@@ -93,9 +97,29 @@ async def _send_events(websocket: WebSocket, sub: Subscription) -> None:
         await websocket.send_text(event.to_json())
 
 
-async def _wait_for_close(websocket: WebSocket) -> None:
-    """Reads (and ignores) what the client sends, until it disconnects."""
+MESSAGE_MAX = 4096  # characters: a longer text frame is ignored
+
+
+async def _read_messages(websocket: WebSocket, sub: Subscription, services: Services) -> None:
+    """Reads what the client sends until it disconnects: `logs.follow` and `logs.unfollow` are
+    handled, anything else is ignored."""
     while True:
         message = await websocket.receive()
         if message["type"] == "websocket.disconnect":
             raise ClientLeft
+        text = message.get("text")
+        if not text or len(text) > MESSAGE_MAX:
+            continue
+        try:
+            parsed = json.loads(text)
+        except ValueError:
+            continue  # the UI's quiet-line probe, say
+        if not isinstance(parsed, dict):
+            continue
+        if parsed.get("type") == "logs.follow":
+            try:
+                await services.logs.follow(sub, parsed)
+            except Exception:
+                log.exception("events: following the logs failed; the connection goes on")
+        elif parsed.get("type") == "logs.unfollow":
+            services.logs.unfollow(sub)

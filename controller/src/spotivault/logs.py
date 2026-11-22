@@ -4,7 +4,13 @@ In the container, s6's `controller-log` service reads the controller's stdout. I
 line with `controller:` on docker's output, and writes it with a timestamp to
 /config/logs/controller/current (10 files of 1 MB). So a line here is just
 `LEVEL logger: message`, with no time of its own. Fake mode runs in a terminal, so it adds the time.
-History's Logs tab, `log.line` events and the logs zip are deferred past M1 (plan § Scope).
+History's Logs tab reads those files (spotivault.logview).
+
+**Fake mode's own file:** there's no s6-log in fake mode, so `python -m spotivault --fake` also
+writes <config>/logs/controller/current itself, as s6-log would (`S6StyleFile`: its time format,
+1 MB files, 10 kept), so the Logs tab has the controller's lines there too. Its times come from
+the fake world's clock once `use_clock()` is called, so they match the runs' times when the
+world runs faster.
 
     logs.configure(config)        # once, by `python -m spotivault`, before anything logs
 
@@ -34,6 +40,7 @@ What it takes care of:
 import atexit
 import logging
 import logging.handlers
+import os
 import queue
 import re
 import signal
@@ -41,8 +48,10 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
+from pathlib import Path
 from types import FrameType, TracebackType
-from typing import Any, TextIO
+from typing import IO, Any, TextIO
 
 from spotivault.config import Config
 
@@ -72,18 +81,27 @@ _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # The auth code in a callback address: http://127.0.0.1:8888/callback?code=…&state=…
     (re.compile(r"(?i)([?&]code=)[^&\s\"'#]+"), rf"\g<1>{REDACTED}"),
     # A bare Spotify token or auth code: access tokens start with BQ, codes and refresh tokens AQ.
-    (re.compile(r"\b[AB]Q[A-Za-z0-9_-]{40,}"), REDACTED),
+    # It may follow anything but a letter or digit (`_`, a quote, a space), or a percent-escape
+    # (`%20BQ…`, `%22BQ…` in an encoded address or body).
+    (re.compile(r"(?:(?<=%[0-9A-Fa-f]{2})|(?<![A-Za-z0-9]))[AB]Q[A-Za-z0-9_-]{40,}"), REDACTED),
 ]
 MIN_SECRET_LENGTH = 4  # a shorter UI password isn't masked as a literal: it would mask every word
 
+S6_FILE_BYTES = 1_048_576  # fake mode's controller file: rotated at 1 MB, as svc-log's s1048576
+S6_FILES_KEPT = 10  # and 10 rotated files kept, as its n10
+
 _writer: "LogWriter | None" = None
+_now_ns: Callable[[], int] = time.time_ns  # S6StyleFile's clock; use_clock() changes it
 _lag_throttle: "LagThrottle | None" = None
 _previous_sigterm: Any = None  # the SIGTERM handler configure() replaced; shutdown() restores it
 
 
-def configure(config: Config, *, stream: TextIO | None = None) -> None:
+def configure(
+    config: Config, *, stream: TextIO | None = None, log_file: bool | None = None
+) -> None:
     """Sends every logger's records to stdout (or `stream`) at config.log_level, through the
-    writer thread. Calling it again replaces the previous setup."""
+    writer thread. Calling it again replaces the previous setup. `log_file`: also write
+    <config>/logs/controller/current as s6-log would; by default only in fake mode, on stdout."""
     global _writer, _lag_throttle
     shutdown()
 
@@ -96,8 +114,13 @@ def configure(config: Config, *, stream: TextIO | None = None) -> None:
             secrets=secrets,
         )
     )
+    outputs: list[logging.Handler] = [output]
+    if log_file if log_file is not None else (config.fake and stream is None):
+        file_output = S6StyleFile(config.logs_dir / "controller")
+        file_output.setFormatter(LineFormatter(FORMAT, secrets=secrets))
+        outputs.append(file_output)
     records: queue.Queue[logging.LogRecord | None] = queue.Queue(QUEUE_SIZE)
-    _writer = LogWriter(records, output)
+    _writer = LogWriter(records, *outputs)
     _writer.start()
 
     root = logging.getLogger()
@@ -115,6 +138,13 @@ def configure(config: Config, *, stream: TextIO | None = None) -> None:
     sys.excepthook = _log_uncaught
     threading.excepthook = _log_uncaught_in_thread
     _set_sigterm_handler(_exit_on_sigterm)
+
+
+def use_clock(now_ns: Callable[[], int]) -> None:
+    """Fake mode: the time S6StyleFile stamps lines with, in ns since the epoch (the world's
+    clock, which may run faster than real time)."""
+    global _now_ns
+    _now_ns = now_ns
 
 
 def shutdown() -> None:
@@ -234,13 +264,14 @@ class DroppingQueueHandler(logging.handlers.QueueHandler):
 
 
 class LogWriter:
-    """The thread that writes queued records to the output handler. `None` on the queue stops it."""
+    """The thread that writes queued records to the output handlers. `None` on the queue stops
+    it."""
 
     def __init__(
-        self, records: "queue.Queue[logging.LogRecord | None]", output: logging.Handler
+        self, records: "queue.Queue[logging.LogRecord | None]", *outputs: logging.Handler
     ) -> None:
         self.records = records
-        self.output = output
+        self.outputs = outputs
         self._thread = threading.Thread(target=self._run, name="log-writer", daemon=True)
 
     def start(self) -> None:
@@ -253,13 +284,106 @@ class LogWriter:
         except queue.Full:
             return  # the output is stuck: give up, the thread is a daemon
         self._thread.join(timeout_s)
+        for output in self.outputs:
+            output.close()
 
     def _run(self) -> None:
         while True:
             record = self.records.get()
             if record is None:
                 return
-            self.output.handle(record)
+            for output in self.outputs:
+                output.handle(record)
+
+
+class S6StyleFile(logging.Handler):
+    """Fake mode: writes records to `<folder>/current` as s6-log's `T` does in the container
+    (`2026-11-15 00:05:02.310000000  INFO name: message`, UTC, one stamp per line), rotating it
+    at S6_FILE_BYTES to `@<tai64n>.s` and keeping S6_FILES_KEPT of those. Runs in the writer
+    thread only.
+
+    **Its times never go back:** the fake world's clock starts again from real time at each
+    start, behind the stamps an earlier, faster world left in `current`. A line is stamped no
+    earlier than the last one in the file, so History › Logs reads the file in order."""
+
+    def __init__(self, folder: Path) -> None:
+        super().__init__()
+        self.folder = folder
+        self._handle: IO[bytes] | None = None
+        self._last_ns = 0  # the newest stamp in `current`
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            text = self.format(record)
+            if self._handle is None:
+                self._open()
+            self._last_ns = max(_now_ns(), self._last_ns)
+            stamp = s6_time(self._last_ns)
+            data = "".join(f"{stamp}  {line}\n" for line in text.split("\n"))
+            self._write(data.encode("utf-8"))
+        except Exception:
+            self.handleError(record)
+
+    def _open(self) -> None:
+        self.folder.mkdir(parents=True, exist_ok=True)
+        path = self.folder / "current"
+        self._last_ns = max(self._last_ns, _last_stamp(path))
+        self._handle = path.open("ab")
+
+    def _write(self, data: bytes) -> None:
+        if self._handle is None:
+            self._open()
+        assert self._handle is not None
+        self._handle.write(data)
+        self._handle.flush()
+        if self._handle.tell() >= S6_FILE_BYTES:
+            self._rotate()
+
+    def _rotate(self) -> None:
+        assert self._handle is not None
+        self._handle.close()
+        self._handle = None
+        now = _now_ns()
+        label = f"@{0x4000000000000000 + 10 + now // 1_000_000_000:016x}{now % 1_000_000_000:08x}.s"
+        os.replace(self.folder / "current", self.folder / label)
+        rotated = sorted(name for name in os.listdir(self.folder) if name.endswith(".s"))
+        for name in rotated[:-S6_FILES_KEPT]:
+            (self.folder / name).unlink(missing_ok=True)
+
+    def close(self) -> None:
+        if self._handle is not None:
+            self._handle.close()
+            self._handle = None
+        super().close()
+
+
+def s6_time(at_ns: int) -> str:
+    """s6-log's `T` time, in UTC: "2026-11-15 00:05:02.310000000"."""
+    moment = datetime.fromtimestamp(at_ns // 1_000_000_000, UTC)
+    return f"{moment:%Y-%m-%d %H:%M:%S}.{at_ns % 1_000_000_000:09d}"
+
+
+_S6_STAMP = re.compile(rb"(?m)^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{9})  ")
+
+
+def _last_stamp(path: Path) -> int:
+    """The newest s6-log stamp in the last 64 KB of `path`, in ns; 0 if there's none."""
+    try:
+        with path.open("rb") as handle:
+            size = os.fstat(handle.fileno()).st_size
+            handle.seek(max(0, size - 65_536))
+            tail = handle.read()
+    except OSError:
+        return 0
+    newest = 0
+    for match in _S6_STAMP.finditer(tail):
+        try:
+            year, month, day, hour, minute, second, nanos = (int(part) for part in match.groups())
+            moment = datetime(year, month, day, hour, minute, second, tzinfo=UTC)
+        except ValueError:
+            continue
+        newest = max(newest, int(moment.timestamp()) * 1_000_000_000 + nanos)
+    return newest
 
 
 class LagThrottle(logging.Filter):

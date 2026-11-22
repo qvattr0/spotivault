@@ -228,6 +228,26 @@ async def test_another_device_takes_over_and_a_play_takes_it_back(
     assert state is not None and state.device is not None and state.device.name == "spotivault-test"
 
 
+async def test_get_me_player_can_lag_a_play(
+    world: FakeWorld, album: CatalogAlbum, fake_clock: FakeClock
+) -> None:
+    """`state_lag_s`: for that long after a play, GET /me/player still reports the state from
+    before it, here the phone that was active and its context."""
+    other = world.catalog.add_album("Before", tracks=2)
+    world.player.play_elsewhere("Pixel 9", other.album.uri)
+    world.player.stop_elsewhere()
+    world.player.state_lag_s = 2.0
+    await play(world, album)
+    assert world.player.status == "Playing"
+    state = await world.webapi.player_state()
+    assert state is not None and state.device is not None
+    assert (state.device.name, state.context_uri) == ("Pixel 9", other.album.uri)
+    await fake_clock.advance(2)
+    state = await world.webapi.player_state()
+    assert state is not None and state.device is not None
+    assert (state.device.name, state.context_uri) == ("spotivault-test", album.album.uri)
+
+
 async def test_another_device_already_playing(world: FakeWorld) -> None:
     world.player.play_elsewhere("Living Room")
     state = await world.webapi.player_state()

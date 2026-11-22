@@ -1,0 +1,49 @@
+/* History · Logs (xRi3r): the filter row under the tabs (Source and Level chips with their labels,
+   the boxed run filter, the search filling the rest), the lines' box taking the page's height,
+   and the retention line at the foot. */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) 20px;
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.label {
+  margin-right: 4px;
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
+.search {
+  flex: 1 1 160px;
+  min-width: 160px;
+}
+
+.dropped {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--warn);
+  font: var(--type-small);
+}
+
+.reload {
+  color: var(--text);
+  font: var(--type-small);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.footer {
+  color: var(--text-sub);
+  font: var(--type-small);
+}

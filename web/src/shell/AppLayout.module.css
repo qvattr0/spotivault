@@ -1,0 +1,44 @@
+/* The app screen (components.md § Page layout): on bg-app, a body row with padding 8 and gap 8
+   holds the sidebar and the page panel. The banner sits above it, the now-playing bar below. */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-app);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: var(--s-2);
+  padding: var(--s-2);
+}
+
+/* Holds the panel and the toasts, which are placed against it and mustn't scroll with it. */
+.panelBox {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+/* The page panel. It scrolls, and it's a size container so pages can size their tint by it
+   (Page.module.css). Radius 8 on bg-base; the page draws the rest. */
+.panel {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  container-type: size;
+  border-radius: var(--r-md);
+  background: var(--bg-base);
+}
+
+/* Settings' sticky Unsaved changes bar (about 73 tall) sits over the panel's foot: a control that
+   Tab scrolls into view stops above it, not under it (WCAG 2.4.11). The room is kept on the whole
+   Settings page, not only while the bar shows, so a control is already clear of it when its change
+   brings the bar up (SaveBar also scrolls the focused control clear then). */
+.panel:has([data-settings]) {
+  scroll-padding-bottom: 88px;
+}

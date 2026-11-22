@@ -1,0 +1,107 @@
+/* A run's page (History · Run page, bWcg0): the back link, the title with its outcome, the times,
+   the totals and the items. Type and colours from components.md; the tint is Page's `history`. */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: fit-content;
+  color: var(--text-sub);
+  font: var(--type-small);
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.back:hover {
+  color: var(--text);
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+/* 30/800 (bWcg0), 16 under the back link. */
+.title {
+  margin: 8px 0 0;
+  font: var(--type-page-title);
+  font-size: 30px;
+}
+
+.reason {
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
+.summary {
+  margin: 0;
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  color: var(--text);
+  font: var(--type-body);
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recorded {
+  color: var(--accent);
+}
+
+.failed {
+  color: var(--danger);
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
+/* "Dashboard" in the line under a run still going. */
+.inlineLink {
+  color: var(--text);
+  text-decoration: underline;
+}

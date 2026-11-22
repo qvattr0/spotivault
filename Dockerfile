@@ -14,6 +14,9 @@ ARG GOLANG=golang:1.26.11-trixie
 # uv builds the controller's venv from controller/uv.lock. Keep it at the version that wrote the
 # lock file (a newer lock format fails with --frozen on an older uv).
 ARG UV=ghcr.io/astral-sh/uv:0.11.28@sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa
+# Node builds the web UI (web/) once, in its own stage; only web/dist leaves it. Node 22.18 is the
+# floor web/package.json asks for. Pinned by digest, like uv.
+ARG NODE=node:22.18.0-trixie-slim@sha256:d02467efc049791a7586a20e36d9219d184ab89e45b19c57e88cff322678c233
 
 FROM ${UV} AS uv
 
@@ -80,6 +83,18 @@ RUN curl -fsSL -o /tmp/novnc.tgz "https://registry.npmjs.org/@novnc/novnc/-/novn
     && tar -C /out/novnc --strip-components=1 -xzf /tmp/novnc.tgz --wildcards \
          'package/core' 'package/vendor' 'package/LICENSE.txt' 'package/docs/LICENSE.*' \
     && chmod -R a+rX,go-w /out
+
+# --- The web UI: npm ci and vite build, in a pinned Node -----------------------------------------
+# web/dist is the built React app (S7). The UI imports the logo from docs/brand (the @brand/ alias),
+# so that folder goes in beside web/. node_modules, the design drawings and test output stay out of
+# the context (.dockerignore).
+FROM ${NODE} AS webui
+WORKDIR /src/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+COPY docs/brand/ /src/docs/brand/
+RUN npm run build
 
 # --- The controller: a venv with the locked dependencies, byte-compiled -----------------------
 # Built on the same Ubuntu Python the image runs. The venv's python links to /usr/bin/python3.12,
@@ -215,10 +230,12 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --start-interval=2s -
     CMD curl -fsS -o /dev/null http://127.0.0.1:8080/api/health || exit 1
 ENTRYPOINT ["/init"]
 
-# Last, as they change most: noVNC's core in the web root, and the controller's venv. s6 runs
-# /opt/spotivault/venv/bin/python -m spotivault (image/rootfs/etc/s6-overlay/s6-rc.d/controller).
+# Last, as they change most: noVNC's core in the web root, the controller's venv, and the built UI
+# (index.html and its hashed assets, beside novnc/). s6 runs /opt/spotivault/venv/bin/python -m
+# spotivault (image/rootfs/etc/s6-overlay/s6-rc.d/controller).
 COPY --from=web /out/ /usr/local/share/spotivault/web/
 COPY --from=controller /opt/spotivault/venv/ /opt/spotivault/venv/
+COPY --from=webui /src/web/dist/ /usr/local/share/spotivault/web/
 # The image's version, for Settings › Container (GET /api/container).
 ARG IMAGE_VERSION=dev
 ENV SPOTIVAULT_IMAGE_VERSION=$IMAGE_VERSION

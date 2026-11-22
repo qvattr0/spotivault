@@ -1,56 +1,40 @@
-"""Runs and History endpoints (openapi.yaml tags `runs` and `history`).
+"""The run endpoints that change or show the current run (openapi.yaml tag `runs`).
 
-Owner: S6. Not built yet: every endpoint answers 501. The literal paths (/last, /current) come
-before /api/runs/{id}, so "last" is never read as a run id.
+Owner: engine-run (S6). Each one calls one `services.runs` method (engine/run.py), which raises
+the ApiErrors (409 no_run, run_active, not_paused, item_is_current and the quick checks; 404
+not_found). History's endpoints (listRuns, getLastRun, getRun, getRunItemTracks) are in
+history.py.
+
+**Route order:** app.py includes this router before history.py's, so `/api/runs/current` is
+matched here before history's `/api/runs/{id}` could take it. POST /api/runs is here and GET
+/api/runs in history.py: Starlette matches the method across both.
 """
 
-from typing import Annotated, Literal
+from fastapi import APIRouter, Response
 
-from fastapi import APIRouter, Query, Response
-
+from spotivault.api.deps import ServicesDep
 from spotivault.api.models import (
     CreateRunRequest,
     CurrentRun,
-    GetRunItemTracksResponse,
-    LastRun,
-    ListRunsResponse,
     RunCreated,
-    RunDetail,
     RunSummary,
     StopCurrentRunRequest,
 )
-from spotivault.api.params import ItemId, RunId
-from spotivault.errors import not_built
+from spotivault.api.params import ItemId
 
-router = APIRouter()
-
-
-@router.get("/api/runs", operation_id="listRuns", response_model=ListRunsResponse, tags=["history"])
-async def list_runs(
-    cursor: Annotated[str | None, Query(max_length=200)] = None,
-    filter: Literal["all", "with_issues", "scheduled", "run_now"] = "all",
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-) -> ListRunsResponse:
-    raise not_built("listRuns")
+router = APIRouter(tags=["runs"])
 
 
-@router.post(
-    "/api/runs", operation_id="createRun", response_model=RunCreated, status_code=202, tags=["runs"]
-)
-async def create_run(body: CreateRunRequest | None = None) -> RunCreated:
-    raise not_built("createRun")
+@router.post("/api/runs", operation_id="createRun", response_model=RunCreated, status_code=202)
+async def create_run(services: ServicesDep, body: CreateRunRequest | None = None) -> RunCreated:
+    """Run now without `items`; with them, a run of just those, or they join the current run."""
+    items = body.items if body is not None else None
+    return await services.runs.create_run(items or None)
 
 
-@router.get("/api/runs/last", operation_id="getLastRun", response_model=LastRun, tags=["runs"])
-async def get_last_run() -> LastRun:
-    raise not_built("getLastRun")
-
-
-@router.get(
-    "/api/runs/current", operation_id="getCurrentRun", response_model=CurrentRun, tags=["runs"]
-)
-async def get_current_run() -> CurrentRun:
-    raise not_built("getCurrentRun")
+@router.get("/api/runs/current", operation_id="getCurrentRun", response_model=CurrentRun)
+async def get_current_run(services: ServicesDep) -> CurrentRun:
+    return await services.runs.current()
 
 
 @router.post(
@@ -58,10 +42,9 @@ async def get_current_run() -> CurrentRun:
     operation_id="stopCurrentRun",
     response_model=RunSummary,
     status_code=202,
-    tags=["runs"],
 )
-async def stop_current_run(body: StopCurrentRunRequest) -> RunSummary:
-    raise not_built("stopCurrentRun")
+async def stop_current_run(services: ServicesDep, body: StopCurrentRunRequest) -> RunSummary:
+    return await services.runs.stop(body.mode)
 
 
 @router.post(
@@ -69,10 +52,9 @@ async def stop_current_run(body: StopCurrentRunRequest) -> RunSummary:
     operation_id="resumeCurrentRun",
     response_model=RunSummary,
     status_code=202,
-    tags=["runs"],
 )
-async def resume_current_run() -> RunSummary:
-    raise not_built("resumeCurrentRun")
+async def resume_current_run(services: ServicesDep) -> RunSummary:
+    return await services.runs.resume()
 
 
 @router.delete(
@@ -80,22 +62,7 @@ async def resume_current_run() -> RunSummary:
     operation_id="removeQueuedItem",
     status_code=204,
     response_class=Response,
-    tags=["runs"],
 )
-async def remove_queued_item(id: ItemId) -> Response:
-    raise not_built("removeQueuedItem")
-
-
-@router.get("/api/runs/{id}", operation_id="getRun", response_model=RunDetail, tags=["history"])
-async def get_run(id: RunId) -> RunDetail:
-    raise not_built("getRun")
-
-
-@router.get(
-    "/api/runs/{id}/items/{item}/tracks",
-    operation_id="getRunItemTracks",
-    response_model=GetRunItemTracksResponse,
-    tags=["history"],
-)
-async def get_run_item_tracks(id: RunId, item: ItemId) -> GetRunItemTracksResponse:
-    raise not_built("getRunItemTracks")
+async def remove_queued_item(services: ServicesDep, id: ItemId) -> Response:
+    await services.runs.remove_queued(id)
+    return Response(status_code=204)

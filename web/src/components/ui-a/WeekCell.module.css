@@ -1,0 +1,37 @@
+/* WeekCell/Active, /Inactive and /Hover (components.md § Week-grid cell): 28 × 28, radius 4.
+   Active: accent. Inactive: bg-elevated with a 1 px border stroke (web-ui.md § Schedule modal:
+   "the dark surface colour, with a subtle outline"). Hover: bg-highlight with a 2 px white stroke.
+   Keyboard focus draws the hover stroke too: a ring outside would cover the next cells.
+   The grid can set --week-cell-size (the Schedule screens draw 30). */
+
+.cell {
+  flex: none;
+  width: var(--week-cell-size, 28px);
+  height: var(--week-cell-size, 28px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+}
+
+.active {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+button.cell:hover,
+button.cell:focus-visible,
+.cell[data-state='hover'],
+.cell[data-state='focus'] {
+  border: 2px solid var(--text);
+  outline: none;
+}
+
+button.cell:not(.active):hover,
+.cell:not(.active)[data-state='hover'] {
+  background: var(--bg-highlight);
+}
+
+/* A drag across the cells mustn't select text. */
+button.cell {
+  user-select: none;
+}

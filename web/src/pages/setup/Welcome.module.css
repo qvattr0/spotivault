@@ -1,0 +1,40 @@
+/* The Terms notice (Oleh8): the warn alert's colours, padding 20, a 15/700 title after a 20 px
+   icon, and three 14/400 text-sub points, each starting with "•" and wrapping under it. */
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--warn);
+  border-radius: var(--r-md);
+  background: var(--warn-tint);
+}
+
+.noticeTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font: var(--type-button);
+}
+
+.noticeIcon {
+  flex: none;
+  color: var(--warn);
+}
+
+.noticeList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.noticeList li::before {
+  content: '• ';
+}

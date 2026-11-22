@@ -1,0 +1,6 @@
+/* The Client ID, shown masked (the first and last four characters, from the controller). */
+
+.masked {
+  font: var(--type-mono);
+  color: var(--text-sub);
+}

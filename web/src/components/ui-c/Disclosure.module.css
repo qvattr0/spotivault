@@ -1,0 +1,81 @@
+/* "More formats", measured from Setup 6 (Mj5zE) and Settings (t6RqK). Inline: a 16 px
+   chevron-right, the label 14/600 text, the hint 13 text-muted, gap 8; the chevron turns down
+   when open. Row: the label 14/600 text over a 13 text-sub hint, and a chevron-down at the right
+   that turns up. Hover (the label turns white, the chevron too) and focus are ours. */
+
+.disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text-sub);
+  text-align: left;
+}
+
+.row .trigger {
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--s-4) 0;
+}
+
+.texts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--s-2);
+}
+
+.row .texts {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.label {
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.row .label {
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--text-muted);
+  font: var(--type-small);
+}
+
+.row .hint {
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
+.chevron {
+  flex: none;
+  transition: transform 150ms ease;
+}
+
+.inline.open .chevron {
+  transform: rotate(90deg);
+}
+
+.row.open .chevron {
+  transform: rotate(180deg);
+}
+
+.trigger:hover .chevron {
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

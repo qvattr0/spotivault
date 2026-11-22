@@ -1,0 +1,29 @@
+/* "More formats" is a row of the section like the others: a rule above it (t6RqK). */
+.moreRow {
+  border-top: 1px solid var(--border);
+}
+
+/* The FLAC and WAV choices under "More formats": the chips, then one note per format. */
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 0 0 var(--s-3);
+}
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--type-small);
+  color: var(--text-sub);
+}
+
+.notes strong {
+  color: var(--text);
+  font-weight: 600;
+}

@@ -8,7 +8,7 @@ Usage, from the repository root:
         file and fails on any difference. Needs only Python 3.11+ and the repo.
 
     python3 contracts/vectors/generate.py --write [--recorded FILE] [--runs DIR] [--go DIR]
-        Rewrites the four files.
+        Rewrites the five files.
         --recorded  Spytify's duplicate index from the prototype (gitignored):
                     prototype/data/music/.spytify/recorded.jsonl
         --runs      the prototype's probe run logs, used to find each index line's original
@@ -30,6 +30,9 @@ Where expected values come from:
     schedule-windows.json   windows / next_windows below: web-ui.md § Schedule rules, plus the DST
                             rule stated in the file.
     backlog.json            backlog below: design.md § Backlog estimate with the M1 plan's D13.
+    run-time-left.json      run_time_left below: openapi.yaml RunTimeLeft, a run's own time left
+                            (the run header's), as the controller's engine/time_left.py and the
+                            web mock's mock/time-left.ts work it out.
 """
 
 import argparse
@@ -723,6 +726,141 @@ def check_backlog(doc):
     return errors
 
 
+# ============================================================================== a run's time left
+
+def K(key, ms):
+    """One track still to record: Spytify's key (artist, U+001F, title) and its stored duration."""
+    return {"key": key, "duration_ms": ms}
+
+
+def new_tracks_ms(tracks, seen):
+    """The tracks not seen yet, each key once: their summed duration, and whether there was one."""
+    total = 0
+    any_new = False
+    for t in tracks:
+        if t["key"] in seen:
+            continue
+        seen.add(t["key"])
+        total += t["duration_ms"]
+        any_new = True
+    return total, any_new
+
+
+def run_time_left_expected(inp):
+    stop = inp["stop_mode"]
+    if stop == "now":
+        return {"ms": 0, "seconds": 0, "unknown_items": 0}
+    ms = 0
+    unknown = 0
+    seen = set(inp["recorded"])
+    current = inp["current"]
+    if current is not None:
+        ms += current["take_ms"]
+        if current["take_key"] is not None:
+            seen.add(current["take_key"])
+    if stop is None:
+        if current is not None:
+            if current["tracks"] is None:
+                unknown += 1
+            else:
+                ms += new_tracks_ms(current["tracks"], seen)[0]
+        for tracks in inp["waiting"]:
+            if tracks is None:
+                unknown += 1
+                continue
+            add, any_new = new_tracks_ms(tracks, seen)
+            if any_new:
+                ms += add + ITEM_OVERHEAD_S * 1000
+        window = inp["window_left_ms"]
+        if window is not None and ms >= window:
+            ms, unknown = max(0, window), 0
+    return {"ms": ms, "seconds": half_up_seconds(ms), "unknown_items": unknown}
+
+
+def tl(stop_mode, current, waiting, recorded=(), window_left_ms=None):
+    """One case's input; recorded and window_left_ms are left at none for most cases."""
+    return {"stop_mode": stop_mode, "current": current, "waiting": waiting,
+            "recorded": list(recorded), "window_left_ms": window_left_ms}
+
+
+def cur(take_ms, take_key, tracks):
+    return {"take_ms": take_ms, "take_key": take_key, "tracks": tracks}
+
+
+A, B, C, D, E, F = ("artist\u001fa", "artist\u001fb", "artist\u001fc", "artist\u001fd", "artist\u001fe", "artist\u001ff")
+RUN_TIME_LEFT_CASES = [
+    ("nothing-left", tl(None, None, []),
+     "No current item and nothing waiting: 0."),
+    ("mid-track-and-planned", tl(None, cur(61_200, A, [K(B, 200_000), K(C, 180_000)]), []),
+     "The rest of the take recording now (61.2 s of it left) and the current item's two planned tracks that haven't started. No 35 s for the current item: it has started."),
+    ("waiting-items-add-35-s-each", tl(None, cur(30_000, A, []), [[K(B, 100_000)], [K(C, 50_000), K(D, 70_000)]]),
+     "Each waiting item (Up next, or interrupted and waiting to retry) adds its missing tracks and 35 s, as the backlog estimate counts."),
+    ("current-not-planned-yet", tl(None, cur(0, None, [K(A, 120_000), K(B, 90_000)]), [[K(C, 60_000)]]),
+     "The current item before its plan is known (planning): its missing tracks as stored, with no 35 s."),
+    ("unknown-length", tl(None, cur(45_000, A, None), [None, [K(B, 100_000)], None]),
+     "The current item plays whole: its take counts, its length doesn't (1 unknown). Two waiting playlists play whole too: 3 unknown."),
+    ("shared-track-counted-once", tl(None, cur(60_000, A, [K(B, 100_000)]), [[K(A, 60_000), K(C, 90_000)], [K(B, 100_000)]]),
+     "Track A records now and B is planned: the first waiting item adds only C (and 35 s); the second has nothing new, so no 35 s either."),
+    ("listed-twice-counts-once", tl(None, None, [[K(D, 100_000), K(D, 100_000)]]),
+     "A track listed twice in one item is recorded once."),
+    ("up-to-date-waiting-item", tl(None, None, [[], [K(E, 10_000)]]),
+     "A waiting item with nothing missing (or Up to date by D13) adds nothing, not even 35 s."),
+    ("recorded-in-this-run", tl(None, cur(0, None, []), [[K(A, 100_000), K(B, 100_000), K(C, 60_000)]], recorded=[A, B]),
+     "The current item recorded A and B and is finishing. A waiting item's list, read before, still has them: only C counts, and 35 s."),
+    ("recorded-then-playing", tl(None, cur(30_000, C, [K(D, 50_000)]), [[K(A, 100_000), K(B, 100_000), K(C, 60_000), K(D, 50_000), K(E, 40_000)]], recorded=[A, B]),
+     "The current item recorded A and B, records C now and has D planned: the waiting item adds only E, and 35 s."),
+    ("all-recorded-in-this-run", tl(None, None, [[K(A, 100_000), K(B, 100_000)], [K(C, 60_000)]], recorded=[A, B]),
+     "An item that ended recorded A and B: a waiting item that lists only those has nothing new, so no 35 s."),
+    ("window-caps-the-run", tl(None, cur(60_000, A, [K(B, 200_000)]), [[K(C, 3_000_000)], None], window_left_ms=1_800_000),
+     "A scheduled run stops at its window's end: 30 min are left in it, less than the queue's 55 min, so 30 min. Nothing past the window runs: no unknown items."),
+    ("window-longer-than-the-run", tl(None, cur(60_000, A, [K(B, 200_000)]), [[K(C, 3_000_000)], None], window_left_ms=7_200_000),
+     "The window has 2 h left, more than the queue: the queue's sum, and its playlist of unknown length."),
+    ("window-ended-stop-after-this-track", tl("after_track", cur(42_400, A, [K(B, 200_000)]), [[K(C, 100_000)]], window_left_ms=0),
+     "The window's end asks to stop after this track: the take plays on past it, so its rest counts."),
+    ("stop-after-this-track", tl("after_track", cur(42_400, A, [K(B, 200_000)]), [[K(C, 100_000)], None]),
+     "Stop after this track: just the rest of the take. Nothing after it runs, so no unknown items."),
+    ("stop-after-this-track-no-take", tl("after_track", cur(0, None, [K(B, 200_000)]), [[K(C, 100_000)]]),
+     "Stop after this track with no take recording: nothing is left."),
+    ("stop-now", tl("now", cur(42_400, A, [K(B, 200_000)]), [[K(C, 100_000)], None]),
+     "Stop now: the take is discarded, nothing is left."),
+    ("rounding-half-up", tl(None, cur(1_500, F, []), []),
+     "Milliseconds are summed, then rounded half up: 1,500 ms is 2 s."),
+]
+
+
+def run_time_left_doc():
+    cases = [{"id": cid, "note": note, "input": inp, "expected": run_time_left_expected(inp)} for cid, inp, note in RUN_TIME_LEFT_CASES]
+    return {
+        "about": "A run's own time left (RunSummary.time_left, openapi.yaml RunTimeLeft): the Dashboard's run header, \"about 9 min left in this run\". The sum the controller (engine/time_left.py) and the web mock (mock/time-left.ts) both do.",
+        "generator": {
+            "script": GENERATOR,
+            "how": "expected = run_time_left_expected in generate.py, which encodes openapi.yaml RunTimeLeft.seconds and unknown_items.",
+            "regenerate": "python3 contracts/vectors/generate.py --write",
+        },
+        "rules": [
+            "input.current is the current item: take_ms, the rest of the take recording now (its length less the time it has recorded), 0 when no take plays on; take_key, that take's Spytify key; tracks, its planned tracks that haven't started, or null when it plays whole. Before its plan is known: its missing tracks as stored, take_ms 0. Null with no current item.",
+            "input.waiting is every waiting item in queue order (Up next, and interrupted items that will retry; removed items are left out): its missing tracks as stored (playable, not in Spytify's index), or null when it plays whole (no item access and not Up to date by D13, or no track list the run can trust).",
+            "A track's key counts once in the whole sum, the first time it comes: Spytify records a track once, and skips it as a duplicate after that.",
+            "input.recorded is the keys this run has recorded so far (the current item's takes, and the items that ended): they don't count again, though a waiting item's list, read before, may still have them.",
+            "ms = take_ms + the current item's new tracks + for each waiting item with at least one new track, its new tracks + 35,000 ms (the backlog estimate's 35 s per item).",
+            "unknown_items: the current item if its tracks are null, plus each waiting item whose tracks are null.",
+            "input.window_left_ms is what's left of a scheduled or start-up run's window (null for no window). With no stop asked for, the run stops at the window's end: when ms is that or more, ms is window_left_ms (0 if under 0) and unknown_items 0.",
+            "stop_mode after_track: ms is take_ms alone, unknown_items 0 (the window doesn't cap it: the take plays on). stop_mode now: both 0.",
+            "seconds: ms rounded half up to whole seconds.",
+        ],
+        "cases": cases,
+    }
+
+
+def check_run_time_left(doc):
+    errors = []
+    for c in doc["cases"]:
+        got = run_time_left_expected(c["input"])
+        if got != c["expected"]:
+            errors.append(f"{c['id']}: expected {c['expected']}, recomputed {got}")
+    return errors
+
+
 # ============================================================================== Go (Spytify) answers
 
 def run_go(src, keys_in, settings_in, examples_in):
@@ -758,7 +896,8 @@ def main():
 
     if not a.write:
         errors = (check_track_keys(read("track-keys.json")) + check_layouts(read("layouts.json"))
-                  + check_schedule(read("schedule-windows.json")) + check_backlog(read("backlog.json")))
+                  + check_schedule(read("schedule-windows.json")) + check_backlog(read("backlog.json"))
+                  + check_run_time_left(read("run-time-left.json")))
         for e in errors:
             print("FAIL", e)
         print(f"{len(errors)} problem(s)" if errors else "vectors OK")
@@ -787,7 +926,8 @@ def main():
     write("layouts.json", layout_doc(old("layouts.json"), go_layouts))
     write("schedule-windows.json", schedule_doc())
     write("backlog.json", backlog_doc())
-    print("wrote track-keys.json, layouts.json, schedule-windows.json, backlog.json")
+    write("run-time-left.json", run_time_left_doc())
+    print("wrote track-keys.json, layouts.json, schedule-windows.json, backlog.json, run-time-left.json")
     return 0
 
 

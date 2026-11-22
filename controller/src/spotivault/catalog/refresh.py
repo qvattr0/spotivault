@@ -6,7 +6,7 @@ covers (images come with the listing); web-ui.md § Library; contracts/schema.sq
 `tracks`, `item_tracks`, `catalog_refreshes`; migration 002's `followed_playlists`.
 
 Frozen for other modules and S6: `RefreshTrigger`, `RefreshResult`, `refresh()`,
-`request_refresh()` and `last_refresh_at()`.
+`request_refresh()` and `last_refresh_at()`. The Library's router calls `request_manual()`.
 
 **One refresh**, `refresh(trigger=..., run_id=...)`, one at a time (a lock):
 1. A `catalog_refreshes` row (trigger, run_id, started_at); every request counts against
@@ -55,11 +55,12 @@ Frozen for other modules and S6: `RefreshTrigger`, `RefreshResult`, `refresh()`,
      `partial`, and the rest waits for the next one. Any other error fails that item only.
 6. **D13 bookkeeping:** keep `snapshot_id` current for items without item access (followed and
    linked). Don't touch `last_full_pass_snapshot`, `last_full_pass_at` or `observed_tracks`: S6
-   sets them after a clean full pass. `RefreshResult.snapshots_unread` lists the tracked items
-   without item access whose `snapshot_id` this refresh didn't read (the listing failed, a linked
-   read failed or was never reached, or every linked one outside a run's refresh). Their stored
-   snapshot_id may be stale, so D13 can't call them Up to date: S6 plays them whole (the
-   cautious answer).
+   sets them after a clean full pass. `RefreshResult.snapshots_unread` lists the items without
+   item access whose `snapshot_id` this refresh didn't read (the listing failed, a linked read
+   failed or was never reached, every linked one outside a run's refresh, and untracked linked
+   ones always: only tracked ones are read). Their stored snapshot_id may be stale, so D13 can't
+   call them Up to date: S6 plays them whole (the cautious answer). Untracked ones are listed
+   too, because createRun with `items` runs an item whatever its tracking.
 7. **The end:** `services.webapi_usage.finish_scope(scope)` gives the counts and logs the Web API
    line; log "Catalog: 3 changed" and the covers line ("Covers: 4 saved · 1 at the size
    returned"; `saved` counts both) when there were any; fill the row's outcome (`ok`, `partial`
@@ -68,15 +69,37 @@ Frozen for other modules and S6: `RefreshTrigger`, `RefreshResult`, `refresh()`,
    `await services.backlog.update()`. A cover, the usage summary or the backlog failing is
    logged and never fails the refresh.
 
+**Events:** `catalog.refresh` (events.md). `started` once the row is written; `ended` last, after
+the `library.item` and `backlog` events, with the outcome and three counts: items changed, items
+added (owned playlists made by this refresh) and suggestions added (followed playlists the last
+listing didn't have and the Library doesn't hold). A refresh that was asked for and doesn't run
+(a run was going when its turn came, or the Web API isn't connected) sends only `ended`, with
+`refresh_id` None and outcome `skipped`; a `page_open` the throttle drops sends nothing. A
+`failed` or `skipped` `ended` says why in `reason`, an ErrorCode worded as errors.py words the
+same error for a REST answer (`_reason`), so the UI doesn't tell you to wait when you must
+reconnect.
+
 **When refreshes happen:** S6's run start (`refresh(trigger="run", run_id=...)`, awaited); page
 opens through `request_refresh("page_open")` (the Dashboard via GET /api/backlog), at most once
 every 15 minutes (THROTTLE_S) since the last one of any trigger started; `setup` after connecting
 (step 7 needs the playlist count) and `item_added` after tracking or adding an item, both
-unthrottled. Never during a run, except the run's own refresh: `watch` checks the `runs` table
-just before it starts a queued refresh, and drops it while a run is going. Not connected (no
-Client ID or no token), or Spotify already answered `invalid_grant`: no row is written, the
-result says `skipped`. A connection past its `expires_at` date still refreshes: the date only
-holds scheduled runs, and Spotify's own `invalid_grant` ends the refresh (web-ui.md step 5).
+unthrottled; `manual`, the Library's Refresh button (`request_manual()`, POST
+/api/library/refresh), unthrottled too. Never during a run, except the run's own refresh: `watch`
+checks the `runs` table just before it starts a queued refresh, and drops it while a run is
+going. Not connected (no Client ID or no token), or Spotify already answered `invalid_grant`: no
+row is written, the result says `skipped`. A connection past its `expires_at` date still
+refreshes: the date only holds scheduled runs, and Spotify's own `invalid_grant` ends the refresh
+(web-ui.md step 5).
+
+**The Refresh button** (`request_manual()`): refused with 409 `run_active` during a run, and
+with `not_connected` or `connection_expired` by the rule above. Otherwise it answers at once and
+coalesces: while a refresh runs, a press joins it (`running`, with its id); while one with
+`manual` among its triggers is queued, or taken by `watch` but without its row yet, a press joins
+that (`running`, no id yet); else it queues `manual` (`started`). Queued triggers run as one
+refresh recorded under the first in `_TRIGGER_ORDER`, and `manual` comes first, so the button's
+refresh always carries `manual`. A press in the moment between `watch` taking another trigger's
+refresh and that refresh writing its row queues `manual` after it: one extra refresh, never a
+lost one.
 
 **auto_track_owned:** a settings listener (`services.settings.add_listener`), acting only when
 the value changes. Turned on: every owned item is tracked, and new ones will be. Turned off before
@@ -94,8 +117,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
+from spotivault.api.models import LibraryRefresh
 from spotivault.catalog.tracks import ListedTrack, replace_item_tracks
 from spotivault.clock import iso_ms, parse_iso
+from spotivault.errors import ApiError, run_active
 from spotivault.logs import redact
 from spotivault.ports import (
     ApiScope,
@@ -125,12 +150,21 @@ PREVIEW_COVER_TTL_S = 12 * 3600  # a suggestion's cover URL is offered this long
 LIKED_ID = "liked"
 LIKED_NAME = "Liked Songs"
 
-type RefreshTrigger = Literal["run", "page_open", "setup", "item_added"]
+type RefreshTrigger = Literal["run", "page_open", "setup", "item_added", "manual"]
 type RefreshOutcome = Literal["ok", "partial", "failed", "skipped"]
+# Why a refresh failed or was skipped, in `catalog.refresh` (ErrorCode values, openapi.yaml).
+type RefreshReason = Literal[
+    "run_active",
+    "not_connected",
+    "connection_expired",
+    "rate_limited",
+    "spotify_unavailable",
+    "internal",
+]
 
 # When several background refreshes are queued at once, one runs, recorded with the first of
-# these that was asked for.
-_TRIGGER_ORDER: tuple[RefreshTrigger, ...] = ("setup", "item_added", "page_open")
+# these that was asked for. `manual` first: the Refresh button waits for a refresh with its name.
+_TRIGGER_ORDER: tuple[RefreshTrigger, ...] = ("manual", "setup", "item_added", "page_open")
 _NO_API = ScopeSummary(requests=0, retried=0, rate_limited=0)
 
 
@@ -145,9 +179,12 @@ class RefreshResult:
     covers_fallback: int
     api: ScopeSummary
     error: str | None = None
-    # Tracked playlists without item access (followed, linked) whose snapshot_id this refresh
-    # didn't read, so D13 can't call them Up to date (module docstring, step 6).
+    # Playlists without item access (followed, linked), tracked or not, whose snapshot_id this
+    # refresh didn't read, so D13 can't call them Up to date (module docstring, step 6).
     snapshots_unread: tuple[str, ...] = ()
+    # New Library items (owned playlists it made), and new suggestions for the + modal.
+    items_added: int = 0
+    suggestions_added: int = 0
 
 
 class _StopTrackLists(Exception):
@@ -162,10 +199,13 @@ class _Progress:
     refresh_id: int
     scope: ApiScope
     changed: set[str] = field(default_factory=set)
+    added: set[str] = field(default_factory=set)  # owned playlists this refresh made
+    suggested: set[str] = field(default_factory=set)  # new followed playlists to suggest
     covers_saved: int = 0  # fallbacks included
     covers_fallback: int = 0
     failed_items: int = 0
     listing_failed: bool = False
+    reason: RefreshReason | None = None  # why the listing failed, for `catalog.refresh`
     error: str | None = None
     # Items whose snapshot_id this refresh read: from the listing, or a linked one's own read.
     snapshots_read: set[str] = field(default_factory=set)
@@ -174,12 +214,21 @@ class _Progress:
         if self.error is None:
             self.error = message
 
+    def listing_stopped(self, exc: BaseException, message: str) -> None:
+        """The refresh can't go on: it ends `failed`, with the error's reason."""
+        self.listing_failed = True
+        if self.reason is None:
+            self.reason = _reason(exc)
+        self.note_error(message)
+
 
 @dataclass(slots=True)
 class _Listing:
     """What applying GET /me/playlists to the database found (see `_apply_listing`)."""
 
     changed: set[str] = field(default_factory=set)
+    added: set[str] = field(default_factory=set)  # owned playlists made now
+    suggested: set[str] = field(default_factory=set)  # followed ones new to the listing
     covers: list[tuple[str, tuple[Image, ...]]] = field(default_factory=list)
     to_fetch: list[tuple[str, str | None]] = field(default_factory=list)  # (id, snapshot_id)
 
@@ -195,6 +244,8 @@ class CatalogService:
         self._idle = asyncio.Event()  # set while nothing is queued or running in the background
         self._idle.set()
         self._last_started_at: datetime | None = None  # for the 15-minute throttle
+        self._running_id: int | None = None  # the refresh that's running, once its row is written
+        self._taken: set[RefreshTrigger] = set()  # the queued triggers `watch` is running now
         self._auto_track_owned: bool | None = None  # the setting as last seen
         # Followed playlists' cover URLs as the last listing gave them, with when. Kept in memory
         # only: playlist image URLs expire within a day (getLibrarySuggestions).
@@ -219,13 +270,33 @@ class CatalogService:
         try:
             if trigger == "page_open" and not self._pending and self._throttled():
                 return False
-            self._pending.add(trigger)
-            self._idle.clear()
-            self._wake.set()
+            self._queue(trigger)
             return True
         except Exception:
             log.exception("catalog: couldn't queue a %s refresh", trigger)
             return False
+
+    async def request_manual(self) -> LibraryRefresh:
+        """The Library's Refresh button (POST /api/library/refresh): asks for a `manual` refresh,
+        unthrottled, and answers at once. Raises ApiError: 409 `run_active` during a run;
+        `not_connected` or `connection_expired` when the refresh would be skipped. A press while a
+        refresh runs, or while a `manual` one is queued, joins it (module docstring)."""
+        if await self._run_is_active():
+            raise run_active()
+        auth = await self.services.auth.load()
+        state = auth.state(self.services.clock.now())
+        # The same rule as `_refresh`'s skip, worded as the Web API errors are (errors.py).
+        if state in ("not_configured", "disconnected"):
+            raise ApiError(409, "not_connected", "Connect the Spotify Web API first.")
+        if auth.invalid_grant_at is not None:
+            raise ApiError(409, "connection_expired", "The Spotify connection expired. Reconnect.")
+        if self._running_id is not None:
+            return LibraryRefresh(state="running", refresh_id=self._running_id)
+        if "manual" in self._pending or "manual" in self._taken:
+            return LibraryRefresh(state="running", refresh_id=None)  # its row isn't written yet
+        self._queue("manual")
+        log.info("catalog: a refresh was asked for (Refresh button)")
+        return LibraryRefresh(state="started", refresh_id=None)
 
     async def last_refresh_at(self) -> datetime | None:
         """When the last refresh that ran finished, or None before the first."""
@@ -243,10 +314,13 @@ class CatalogService:
             triggers, self._pending = self._pending, set()
             if triggers:
                 trigger = next(t for t in _TRIGGER_ORDER if t in triggers)
+                self._taken = triggers
                 try:
                     await self._run_queued(trigger)
                 except Exception:
                     log.exception("catalog: the %s refresh failed", trigger)
+                finally:
+                    self._taken = set()
             if not self._pending:
                 self._idle.set()
 
@@ -284,9 +358,15 @@ class CatalogService:
             self._last_started_at = parse_iso(text)
         self._auto_track_owned = bool(await self.services.settings.get_value("auto_track_owned"))
 
+    def _queue(self, trigger: RefreshTrigger) -> None:
+        self._pending.add(trigger)
+        self._idle.clear()
+        self._wake.set()
+
     async def _run_queued(self, trigger: RefreshTrigger) -> None:
         if await self._run_is_active():
             log.info("catalog: no %s refresh during a run", trigger)
+            self._publish_event(None, trigger, "skipped", None, reason="run_active")
             return
         if trigger == "page_open" and self._throttled():
             return  # a refresh ran since this one was asked for
@@ -316,6 +396,10 @@ class CatalogService:
             log.info(
                 "catalog: %s refresh skipped, the Web API isn't connected (%s)", trigger, state
             )
+            # As request_manual's 409s.
+            not_connected = state in ("not_configured", "disconnected")
+            reason: RefreshReason = "not_connected" if not_connected else "connection_expired"
+            self._publish_event(None, trigger, "skipped", None, reason=reason)
             return RefreshResult(
                 None,
                 "skipped",
@@ -330,18 +414,35 @@ class CatalogService:
         started = services.clock.now()
         refresh_id = await self._insert_row(trigger, run_id, started)
         self._last_started_at = started
+        self._running_id = refresh_id
         progress = _Progress(refresh_id=refresh_id, scope=ApiScope("refresh", refresh_id))
         log.info("catalog: refresh %d started (%s)", refresh_id, trigger)
+        self._publish_event(refresh_id, trigger, None, None)
         try:
-            await self._fetch_everything(progress, auth.user_id, trigger)
+            result = await self._refresh_started(progress, auth.user_id, trigger)
+        except BaseException:
+            # `ended` even when it raised or was cancelled, so the Refresh button stops waiting.
+            self._running_id = None
+            reason = progress.reason or "internal"
+            self._publish_event(refresh_id, trigger, "failed", progress, reason=reason)
+            raise
+        self._running_id = None
+        self._publish_event(refresh_id, trigger, result.outcome, progress, reason=progress.reason)
+        return result
+
+    async def _refresh_started(
+        self, progress: _Progress, user_id: str | None, trigger: RefreshTrigger
+    ) -> RefreshResult:
+        """Steps 2 to 7, once the row is written."""
+        services = self.services
+        try:
+            await self._fetch_everything(progress, user_id, trigger)
         except (NotConnected, ConnectionExpired) as exc:
-            progress.listing_failed = True
-            progress.note_error(_message(exc))
-            log.warning("catalog: refresh %d stopped: %s", refresh_id, _message(exc))
+            progress.listing_stopped(exc, _message(exc))
+            log.warning("catalog: refresh %d stopped: %s", progress.refresh_id, _message(exc))
         except Exception as exc:
             # A bug or a database error: the row is closed as failed, and the caller sees it.
-            progress.listing_failed = True
-            progress.note_error(f"internal error: {type(exc).__name__}")
+            progress.listing_stopped(exc, f"internal error: {type(exc).__name__}")
             await self._finish(progress, _NO_API)
             raise
 
@@ -351,6 +452,42 @@ class CatalogService:
             await services.library.publish(item_id)
         await self._update_backlog()
         return result
+
+    def _publish_event(
+        self,
+        refresh_id: int | None,
+        trigger: RefreshTrigger,
+        outcome: RefreshOutcome | None,
+        progress: _Progress | None,
+        *,
+        reason: RefreshReason | None = None,
+    ) -> None:
+        """`catalog.refresh` (events.md): `started` while `outcome` is None, else `ended`. The
+        counts come from `progress` (zero without one); `reason` says why one failed or was
+        skipped. Never raises: the event is for the UI, and a refresh never fails for it."""
+        try:
+            counts: dict[str, int | None]
+            if outcome is None:
+                counts = {"items_changed": None, "items_added": None, "suggestions_added": None}
+            else:
+                counts = {
+                    "items_changed": len(progress.changed) if progress else 0,
+                    "items_added": len(progress.added) if progress else 0,
+                    "suggestions_added": len(progress.suggested) if progress else 0,
+                }
+            self.services.bus.publish(
+                "catalog.refresh",
+                {
+                    "refresh_id": refresh_id,
+                    "trigger": trigger,
+                    "state": "started" if outcome is None else "ended",
+                    "outcome": outcome,
+                    **counts,
+                    "reason": reason if outcome in ("failed", "skipped") else None,
+                },
+            )
+        except Exception:
+            log.exception("catalog: couldn't publish catalog.refresh")
 
     async def _fetch_everything(
         self, progress: _Progress, user_id: str | None, trigger: RefreshTrigger
@@ -367,8 +504,7 @@ class CatalogService:
         except (NotConnected, ConnectionExpired):
             raise
         except WebApiError as exc:
-            progress.listing_failed = True
-            progress.note_error(_message(exc))
+            progress.listing_stopped(exc, _message(exc))
             log.warning("catalog: the playlist listing failed: %s", _message(exc))
             return
 
@@ -387,6 +523,8 @@ class CatalogService:
 
         listing = await self.services.store.transaction(apply)
         progress.changed |= listing.changed
+        progress.added |= listing.added
+        progress.suggested |= listing.suggested
         progress.snapshots_read.update(playlist.id for playlist in playlists)
         self._remember_preview_covers(playlists, user_id)
         await self._save_covers(progress, listing.covers)
@@ -734,10 +872,11 @@ class CatalogService:
             return _NO_API
 
     async def _snapshots_unread(self, read: set[str]) -> tuple[str, ...]:
-        """The tracked items without item access whose snapshot_id isn't in `read` (step 6)."""
+        """The items without item access, tracked or not, whose snapshot_id isn't in `read`
+        (step 6)."""
         rows = await self.services.store.fetchall(
             "SELECT id FROM items WHERE kind IN ('followed', 'linked') AND item_access = 0 "
-            "AND tracked = 1 AND removed_at IS NULL ORDER BY id"
+            "AND removed_at IS NULL ORDER BY id"
         )
         return tuple(row["id"] for row in rows if row["id"] not in read)
 
@@ -783,6 +922,8 @@ class CatalogService:
             api=api,
             error=progress.error,
             snapshots_unread=await self._snapshots_unread(progress.snapshots_read),
+            items_added=len(progress.added),
+            suggestions_added=len(progress.suggested),
         )
 
     async def _update_backlog(self) -> None:
@@ -851,6 +992,7 @@ def _apply_listing(
         row["id"]: row
         for row in conn.execute("SELECT * FROM items WHERE kind <> 'album'").fetchall()
     }
+    followed_before = {row["id"] for row in conn.execute("SELECT id FROM followed_playlists")}
     conn.execute("DELETE FROM followed_playlists")
     listed: set[str] = set()
     for order, playlist in enumerate(playlists):
@@ -878,6 +1020,9 @@ def _apply_listing(
                 ),
             )
         row = rows.get(playlist.id)
+        in_library = row is not None and row["removed_at"] is None
+        if not owned and not in_library and playlist.id not in followed_before:
+            result.suggested.add(playlist.id)  # a new suggestion for the + modal
         if row is None:
             if owned:
                 _insert_owned(conn, playlist, tracked=auto_track, now=now, result=result)
@@ -923,6 +1068,7 @@ def _insert_owned(
     if cur.rowcount == 0:
         return  # an album with the same id, in theory
     result.changed.add(playlist.id)
+    result.added.add(playlist.id)
     result.covers.append((playlist.id, playlist.images))
     if tracked:
         result.to_fetch.append((playlist.id, playlist.snapshot_id))
@@ -1075,6 +1221,20 @@ def _json_list(text: str | None) -> list[str]:
         return []
     value = json.loads(text)
     return [str(v) for v in value] if isinstance(value, list) else []
+
+
+def _reason(exc: BaseException) -> RefreshReason:
+    """Why a refresh stopped, as errors.py's `_webapi_error` codes the same error for a REST
+    answer: any other Web API error is `spotify_unavailable`, anything else `internal`."""
+    if isinstance(exc, NotConnected):
+        return "not_connected"
+    if isinstance(exc, ConnectionExpired):
+        return "connection_expired"
+    if isinstance(exc, RateLimited):
+        return "rate_limited"
+    if isinstance(exc, WebApiError):
+        return "spotify_unavailable"
+    return "internal"
 
 
 def _message(exc: Exception) -> str:

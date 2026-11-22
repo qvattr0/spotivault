@@ -1,0 +1,56 @@
+/* The page frame (components.md § Page layout). */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-height: 100%;
+  padding: 28px var(--s-8);
+}
+
+.flush {
+  gap: 0;
+  padding: 0;
+}
+
+/* The panel's height, so a list inside can take the rest and scroll by itself (History › Logs).
+   On a short window the page still scrolls, once that list is at its smallest. */
+.fill {
+  height: 100%;
+}
+
+.title {
+  font: var(--type-page-title);
+}
+
+/* The tint fades into the panel's colour over the top 45 % of the panel. The panel is a size
+   container (AppLayout), so 45cqh is 45 % of its visible height, however long the page is, and
+   the tint scrolls away with the page. 45vh is the fallback for browsers without cqh. */
+.tinted {
+  background: linear-gradient(var(--page-tint), var(--bg-base) 45vh) no-repeat;
+  background: linear-gradient(var(--page-tint), var(--bg-base) 45cqh) no-repeat;
+}
+
+.tintDashboard {
+  --page-tint: var(--tint-dashboard);
+}
+
+.tintDashboardRunning {
+  --page-tint: var(--tint-dashboard-running);
+}
+
+.tintLibraryDetail {
+  --page-tint: var(--tint-library-detail);
+}
+
+.tintAlbums {
+  --page-tint: var(--tint-albums);
+}
+
+.tintSchedule {
+  --page-tint: var(--tint-schedule);
+}
+
+.tintHistory {
+  --page-tint: var(--tint-history);
+}
