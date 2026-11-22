@@ -1,0 +1,7 @@
+# Spectral ruleset for openapi.yaml. CI runs it with --fail-severity=warn,
+# so a warning fails the job too.
+extends:
+  - [spectral:oas, all]
+rules:
+  # The project has no contact email to publish.
+  contact-properties: off

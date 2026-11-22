@@ -1,0 +1,12 @@
+#!/bin/sh
+# Logs one service: to docker's stdout, prefixed with its name, and to /config/logs/<name>/current
+# with timestamps (UTC: s6-log runs without TZ), rotated at 1 MB, 10 files kept. s6-log rotates by
+# size only, per service; the controller deletes rotated files older than 14 days, and the oldest
+# while /config/logs is over 50 MB (controller/src/spotivault/logview/retention.py). History › Logs
+# reads these files: keep the `T` timestamp format.
+case "$1" in
+    # Xvfb's keymap compiler warns about every new keysym in xkb-data on each start. Not an error.
+    xserver) drop='-.*(Could not resolve keysym|XKEYBOARD keymap compiler|Errors from xkbcomp).*' ;;
+    *) drop='-^$' ;;
+esac
+exec s6-setuidgid app s6-log -b -- "$drop" "p$1:" 1 p T n10 s1048576 "/config/logs/$1"

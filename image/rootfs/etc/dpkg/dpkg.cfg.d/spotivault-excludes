@@ -1,0 +1,33 @@
+# spotivault: files left out of every package installed in the image. ubuntu:24.04 already drops
+# man pages and docs (/etc/dpkg/dpkg.cfg.d/excludes).
+
+# Translations, docs and manuals: nothing reads them in a container.
+path-exclude=/usr/share/locale/*
+path-include=/usr/share/locale/locale.alias
+path-exclude=/usr/share/doc/*
+path-include=/usr/share/doc/*/copyright
+path-exclude=/usr/share/man/*
+path-exclude=/usr/share/info/*
+path-exclude=/usr/share/lintian/*
+path-exclude=/usr/share/bug/*
+
+# Mesa's drivers and the LLVM they're built on (about 180 MB). The client runs with --disable-gpu
+# and draws with its own bundled SwiftShader, and Xvfb runs without them. libgbm.so.1, which the
+# client links, loads its driver only when used.
+path-exclude=/usr/lib/x86_64-linux-gnu/libLLVM*
+path-exclude=/usr/lib/x86_64-linux-gnu/libgallium-*
+path-exclude=/usr/lib/x86_64-linux-gnu/dri/*
+path-exclude=/usr/lib/x86_64-linux-gnu/gbm/*
+
+# Desktop icon themes GTK pulls in. The client draws its UI in Chromium; only cursors are kept.
+path-exclude=/usr/share/icons/Humanity*
+path-exclude=/usr/share/icons/ubuntu-mono-*
+path-exclude=/usr/share/icons/LoginIcons/*
+path-exclude=/usr/share/icons/Adwaita/*
+path-include=/usr/share/icons/Adwaita/index.theme
+path-include=/usr/share/icons/Adwaita/cursor.theme
+path-include=/usr/share/icons/Adwaita/cursors/*
+
+# Language and country names for GStreamer's tag library, which PulseAudio links only for RTP.
+path-exclude=/usr/share/iso-codes/*
+path-exclude=/usr/share/xml/iso-codes/*

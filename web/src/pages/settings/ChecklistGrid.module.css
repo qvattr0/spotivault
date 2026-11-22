@@ -1,0 +1,34 @@
+/* The checklist's rows (t6RqK): two columns 24 apart, each row a card 32 tall, 6 apart, with its
+   setting's name (13 text) and its pill at the right. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px var(--s-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}
+
+.label {
+  font: var(--type-small);
+  color: var(--text);
+  min-width: 0;
+}
+
+@media (max-width: 800px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

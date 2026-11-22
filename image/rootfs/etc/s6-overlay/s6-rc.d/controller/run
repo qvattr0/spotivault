@@ -1,0 +1,12 @@
+#!/command/with-contenv sh
+# The controller (controller/ in the repository): the web UI and the REST/WS API on port 8080.
+# with-contenv passes it the container's environment, as the other services get it:
+#   from docker run   TZ, UMASK, DEVICE_NAME, UI_PASSWORD
+#   from the image    DISPLAY, DBUS_SESSION_BUS_ADDRESS, XDG_RUNTIME_DIR, PULSE_SERVER, HOME,
+#                     SPYTIFY_*, SPOTIVAULT_IMAGE_VERSION
+# umask 077 keeps /config private. UMASK applies to /music only: the controller sets it on the
+# recorder. On SIGTERM it stops within 30 s, inside s6's 50 s grace time.
+umask 077
+# The venv is byte-compiled and read-only for app; -P keeps the service folder off sys.path.
+export PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+exec s6-setuidgid app /opt/spotivault/venv/bin/python -P -m spotivault 2>&1

@@ -1,0 +1,26 @@
+/* The wizard screen. The glow is the accent at 12.5 %, fading out over the top half (sampled from
+   Oleh8; no .pen variable holds it). */
+
+/* The window scrolls, not the screen (`clip` isn't a scroll box): so step 4's client screen can stay
+   in view with `position: sticky`, which holds to the nearest scroll box. */
+.screen {
+  min-height: 100%;
+  overflow-x: clip;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, color-mix(in srgb, var(--accent) 12.5%, transparent), transparent)
+      no-repeat,
+    var(--bg-app);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 var(--s-4) 48px;
+}
+
+/* The wizard screen scrolls as a whole, so its toasts hold to the window. (Two classes, to win
+   over the viewport's own `position: absolute` whatever order the CSS loads in.) */
+.screen .toasts {
+  position: fixed;
+}

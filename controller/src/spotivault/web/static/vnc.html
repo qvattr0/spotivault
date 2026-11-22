@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spotivault screen</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #121212; color: #b3b3b3; font: 14px system-ui, sans-serif; }
+  #screen { position: absolute; inset: 0; }
+  #status { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); padding: 4px 12px;
+            border-radius: 999px; background: #2a2a2a; z-index: 1; }
+  #status.hidden { display: none; }
+</style>
+</head>
+<body>
+<div id="status">Connecting…</div>
+<div id="screen"></div>
+<script type="module">
+  // The client's screen at full size: the S2 stub's page, kept by the controller (web/spa.py) as a
+  // fallback that works without the web UI. The UI's Player page embeds noVNC itself.
+  // noVNC's core comes from the web root: <web root>/novnc/core/rfb.js.
+  import RFB from './novnc/core/rfb.js';
+
+  const status = document.getElementById('status');
+  const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/vnc';
+
+  function show(text) {
+    status.textContent = text;
+    status.classList.toggle('hidden', !text);
+  }
+
+  function connect() {
+    show('Connecting…');
+    const rfb = new RFB(document.getElementById('screen'), url);
+    rfb.scaleViewport = true;
+    rfb.background = '#121212';
+    rfb.addEventListener('connect', () => show(''));
+    rfb.addEventListener('disconnect', () => {
+      show('Screen not available. Retrying…');
+      setTimeout(connect, 2000);
+    });
+  }
+
+  connect();
+</script>
+</body>
+</html>

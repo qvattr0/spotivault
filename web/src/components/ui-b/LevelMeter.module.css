@@ -1,0 +1,23 @@
+/* `LevelMeter` (c900x): 24 segments, each 4 × 14 with 1 px corners, 2 apart. 142 × 14 overall. */
+
+.meter {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  height: 14px;
+}
+
+.segment {
+  width: 4px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--bg-press);
+}
+
+.accent {
+  background: var(--accent);
+}
+
+.warn {
+  background: var(--warn);
+}

@@ -1,0 +1,131 @@
+/* An item of a run (History · Run page, bWcg0): an outlined box, 56 tall, 6 apart: the chevron at
+   the left (right when closed, down when open), a 36 px cover, the name 14/700, the badges, and the
+   ✓ ↷ ✕ counts in 60 px columns (14 text-sub, the icon in its colour). Open, the box turns
+   bg-elevated and shows the tracks under the row. */
+
+.item {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-base);
+}
+
+.itemOpen {
+  background: var(--bg-elevated);
+}
+
+.head {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px 36px minmax(0, 1fr) auto 60px 60px 60px;
+  column-gap: var(--s-3);
+  align-items: center;
+  min-height: 54px;
+  padding: 8px 14px 8px var(--s-3);
+}
+
+.head:hover {
+  background: var(--bg-highlight);
+}
+
+/* The toggle covers the row. Everything else in it is inert, so the clicks reach the toggle. */
+.toggle {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  cursor: pointer;
+}
+
+/* The ring goes inside: the item's overflow: hidden would cut the usual one, 2 px outside, away. */
+.toggle:focus-visible {
+  outline-offset: -2px;
+}
+
+.head > :not(.toggle) {
+  pointer-events: none;
+}
+
+.names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reason {
+  overflow: hidden;
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--text-sub);
+  font: var(--type-body);
+  font-weight: 500;
+}
+
+.count > svg {
+  flex: none;
+}
+
+.recorded {
+  color: var(--accent);
+}
+
+.failed {
+  color: var(--danger);
+}
+
+.chevron {
+  color: var(--text-sub);
+  transition: transform 0.15s;
+}
+
+.open {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 0 var(--s-3) var(--s-3);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+}

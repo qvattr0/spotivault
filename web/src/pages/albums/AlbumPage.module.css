@@ -1,0 +1,11 @@
+/* The detail view's footer (Albums · Detail): Remove from Albums, and the note that files stay. */
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.note {
+  color: var(--text-muted);
+}

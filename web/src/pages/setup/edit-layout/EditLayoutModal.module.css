@@ -1,0 +1,132 @@
+/* The Edit layout modal (w1uXEY), 720 wide: the intro (14 text-sub), the black Example box
+   (radius 8, padding 14, a 12/600 label with a green file-music icon, the path in 14 mono), the
+   Layout field (14 mono) and its Insert chips, the rules (13, bulleted), the options in a
+   bg-elevated panel (radius 8, padding 0 20, 14/600 titles, rows split by a border), and the warn
+   alert. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.intro {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: var(--bg-app);
+}
+
+.exampleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 600;
+}
+
+.exampleLabel svg {
+  color: var(--accent);
+}
+
+.examplePath {
+  color: var(--text);
+  font: var(--type-mono);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.exampleNone {
+  color: var(--text-muted);
+  font: var(--type-body);
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* The field's box (its only div child): the layout in 14 mono, not the usual 12. */
+.layoutField > div {
+  font-size: 14px;
+}
+
+.hint {
+  /* text-sub, not the drawn text-muted: 3.7:1 on the modal surface is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+.valid {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 18px;
+  list-style: disc;
+  color: var(--text-sub);
+  font: var(--type-small);
+}
+
+.rules li::marker {
+  color: var(--text-muted);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px;
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}
+
+.option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 45px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.option:last-child {
+  border-bottom: 0;
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optionTitle {
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 600;
+}
+
+.optionHint {
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}

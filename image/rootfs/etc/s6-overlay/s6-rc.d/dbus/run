@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+# The D-Bus session bus: MPRIS and the client's own IPC. Ready once it prints its address on fd 3.
+rm -f "$XDG_RUNTIME_DIR/bus"
+umask 077
+exec s6-setuidgid app dbus-daemon --session --nofork --nopidfile \
+    --address="unix:path=$XDG_RUNTIME_DIR/bus" --print-address=3 2>&1

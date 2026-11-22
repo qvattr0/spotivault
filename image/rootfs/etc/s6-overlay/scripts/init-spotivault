@@ -1,0 +1,112 @@
+#!/command/with-contenv sh
+# Runs once as root before any service: checks the settings, prepares the folders, then exits.
+# Every service after it runs as the unprivileged "app" user. A failed check stops the container.
+set -eu
+
+# Its messages go to docker's output, and once /config/logs/init exists also to its `current` in
+# s6-log's format (UTC time, nanoseconds, two spaces), so History › Logs shows them under System.
+# Writing there never stops the container: a full or read-only /config only loses the line.
+# Everything in /config belongs to app, and an app process could swap a file there for a link to
+# one of root's: so every write under /config runs as app (s6-setuidgid), never as root.
+init_log=/config/logs/init/current
+note() {
+    [ -d "${init_log%/*}" ] || return 0
+    # shellcheck disable=SC2016 # the script runs in app's shell, with $1 and $2 as arguments
+    s6-setuidgid app sh -c 'printf "%s  %s\n" "$(date -u "+%Y-%m-%d %H:%M:%S.%N")" "$1" >> "$2"' \
+        sh "$*" "$init_log" 2>/dev/null || true
+}
+
+say() {
+    echo "init: $*"
+    note "$*"
+}
+
+warn() {
+    echo "init: $*" >&2
+    note "$*"
+}
+
+fail() {
+    warn "error: $*"
+    exit 1
+}
+
+# --- Settings -----------------------------------------------------------------------------------
+
+# UMASK applies to /music only (the controller sets it on the recorder). /config stays private.
+case "${UMASK:-}" in
+    [0-7][0-7][0-7] | [0-7][0-7][0-7][0-7]) ;;
+    *) fail "UMASK must be 3 or 4 octal digits, such as 000 or 022 (got '${UMASK:-}')" ;;
+esac
+
+# TZ must name a zone in the image's tz database, such as Europe/Berlin.
+case "${TZ:-}" in
+    "" | /* | *..*) fail "TZ must be a time zone name, such as Europe/Berlin (got '${TZ:-}')" ;;
+esac
+[ -f "/usr/share/zoneinfo/$TZ" ] || fail "TZ: unknown time zone '$TZ'"
+
+# DEVICE_NAME becomes the client's hostname (see /usr/local/lib/hostname-shim.so), so it must fit
+# in one: at most 64 bytes, printable, no "/".
+name="${DEVICE_NAME:-}"
+[ -n "$name" ] || fail "DEVICE_NAME is empty"
+[ "$(printf %s "$name" | wc -c)" -le 64 ] || fail "DEVICE_NAME is longer than 64 bytes"
+case "$name" in
+    */* | *[[:cntrl:]]*) fail "DEVICE_NAME can't contain '/' or control characters" ;;
+esac
+
+# --- /config ------------------------------------------------------------------------------------
+
+# A fresh bind mount belongs to root. Everything in /config belongs to app and stays private:
+# it holds the client's login and, later, the Web API tokens.
+chown app:app /config
+chmod 0700 /config
+for d in home logs spotify spytify; do
+    [ -d "/config/$d" ] || install -d -o app -g app -m 0700 "/config/$d"
+done
+# init's own log, as app: its folder made if it's missing, a link where the file should be removed,
+# and the file kept to its last 1000 lines (a few lines per start).
+# shellcheck disable=SC2016 # the script runs in app's shell, with $1 as its argument
+s6-setuidgid app sh -c '
+    [ -d "${1%/*}" ] || mkdir -m 0700 "${1%/*}" || exit 0
+    [ -L "$1" ] && rm -f "$1"
+    rm -f "$1.new"
+    if [ -f "$1" ] && [ "$(wc -l < "$1")" -gt 2000 ]; then
+        tail -n 1000 "$1" > "$1.new" && mv -f "$1.new" "$1" || rm -f "$1.new"
+    fi
+    touch "$1" && chmod 0600 "$1"
+' sh "$init_log" 2>/dev/null || true
+
+# Keep one machine ID for the life of /config, not per container: the client's saved login is
+# tied to it. /etc/machine-id links here (set in the image). Written as app, through a new file
+# that replaces whatever was there, a link included.
+if ! grep -Eqx '[0-9a-f]{32}' /config/machine-id 2>/dev/null; then
+    s6-setuidgid app sh -c 'umask 022 && rm -f /config/machine-id.new &&
+        tr -d - < /proc/sys/kernel/random/uuid > /config/machine-id.new &&
+        mv -f /config/machine-id.new /config/machine-id'
+    say "new machine ID"
+fi
+
+# Chromium (inside the client) locks its profile to "<hostname>-<pid>". A lock left by an earlier
+# container makes the client quit at once. Nothing runs yet, so clear it.
+rm -f /config/home/.cache/spotify/Singleton*
+
+# --- /music -------------------------------------------------------------------------------------
+
+# Permissions are left to the music folder. The one exception is an empty folder owned by root:
+# that's one Docker just created for a bind mount, and app couldn't write to it.
+if [ -d /music ] && [ "$(stat -c %u /music)" = 0 ] && [ -z "$(ls -A /music)" ]; then
+    chown app:app /music
+    say "/music was a new empty folder owned by root; gave it to app"
+fi
+if ! s6-setuidgid app test -w /music; then
+    warn "warning: app (uid $(id -u app)) can't write to /music; recordings will fail"
+fi
+
+# --- Runtime folders ----------------------------------------------------------------------------
+
+# Sockets for D-Bus, PulseAudio and the recorder.
+install -d -o app -g app -m 0700 "$XDG_RUNTIME_DIR" "$XDG_RUNTIME_DIR/pulse"
+# X wants this owned by root and sticky.
+install -d -o root -g root -m 1777 /tmp/.X11-unix
+
+say "DEVICE_NAME=$name TZ=$TZ UMASK=$UMASK"

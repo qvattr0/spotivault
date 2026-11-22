@@ -1,0 +1,20 @@
+#!/bin/sh
+# Runs as app. Starts PulseAudio and tells s6 it's ready (a line on fd 3) once pactl gets an answer.
+# s6-notifyoncheck would do this, but it has to run as root.
+ready() {
+    i=0
+    while [ "$i" -lt 80 ]; do
+        if pactl info >/dev/null 2>&1; then
+            echo >&3
+            return
+        fi
+        sleep 0.25
+        i=$((i + 1))
+    done
+    echo "pulseaudio: not answering after 20 s" >&2
+}
+# Double fork: the check ends up a child of s6-svscan, which reaps it, not of pulseaudio.
+( ready & )
+exec 3>&-
+exec pulseaudio -n -F /etc/pulse/spotivault.pa --daemonize=no --exit-idle-time=-1 \
+    --realtime=no --high-priority=no --log-target=stderr

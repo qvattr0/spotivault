@@ -1,0 +1,420 @@
+{
+ "href": "https://api.spotify.com/v1/me/tracks?offset=0&limit=5&market=from_token",
+ "items": [
+  {
+   "added_at": "2026-11-04T06:00:34Z",
+   "track": {
+    "album": {
+     "album_type": "album",
+     "artists": [
+      {
+       "external_urls": {
+        "spotify": "https://open.spotify.com/artist/TaQh9F3Fw5x7D7YUbYO95Q"
+       },
+       "href": "https://api.spotify.com/v1/artists/TaQh9F3Fw5x7D7YUbYO95Q",
+       "id": "TaQh9F3Fw5x7D7YUbYO95Q",
+       "name": "Artist 1",
+       "type": "artist",
+       "uri": "spotify:artist:TaQh9F3Fw5x7D7YUbYO95Q"
+      }
+     ],
+     "external_urls": {
+      "spotify": "https://open.spotify.com/album/2CmcfbEF5FiI1h7J1F1ast"
+     },
+     "href": "https://api.spotify.com/v1/albums/2CmcfbEF5FiI1h7J1F1ast",
+     "id": "2CmcfbEF5FiI1h7J1F1ast",
+     "images": [
+      {
+       "height": 640,
+       "width": 640,
+       "url": "https://i.scdn.co/image/9b558284216084ed34fbc7ba59a5dcf9037fbe16"
+      },
+      {
+       "height": 300,
+       "width": 300,
+       "url": "https://i.scdn.co/image/6faad917836c83e0b763d82189d49aaf8d886701"
+      },
+      {
+       "height": 64,
+       "width": 64,
+       "url": "https://i.scdn.co/image/66ce94858bbfda81f10812efc9a8ac33be7f9ddc"
+      }
+     ],
+     "is_playable": true,
+     "name": "Album 1",
+     "release_date": "2024-08-01",
+     "release_date_precision": "day",
+     "total_tracks": 8,
+     "type": "album",
+     "uri": "spotify:album:2CmcfbEF5FiI1h7J1F1ast"
+    },
+    "artists": [
+     {
+      "external_urls": {
+       "spotify": "https://open.spotify.com/artist/TaQh9F3Fw5x7D7YUbYO95Q"
+      },
+      "href": "https://api.spotify.com/v1/artists/TaQh9F3Fw5x7D7YUbYO95Q",
+      "id": "TaQh9F3Fw5x7D7YUbYO95Q",
+      "name": "Artist 1",
+      "type": "artist",
+      "uri": "spotify:artist:TaQh9F3Fw5x7D7YUbYO95Q"
+     }
+    ],
+    "disc_number": 1,
+    "duration_ms": 322191,
+    "explicit": false,
+    "external_ids": {
+     "isrc": "XX0000000000"
+    },
+    "external_urls": {
+     "spotify": "https://open.spotify.com/track/m45SF0tsJZ56sblz46Gaot"
+    },
+    "href": "https://api.spotify.com/v1/tracks/m45SF0tsJZ56sblz46Gaot",
+    "id": "m45SF0tsJZ56sblz46Gaot",
+    "is_local": false,
+    "is_playable": true,
+    "name": "Track 2",
+    "track_number": 2,
+    "type": "track",
+    "uri": "spotify:track:m45SF0tsJZ56sblz46Gaot"
+   }
+  },
+  {
+   "added_at": "2026-10-02T09:21:30Z",
+   "track": {
+    "album": {
+     "album_type": "album",
+     "artists": [
+      {
+       "external_urls": {
+        "spotify": "https://open.spotify.com/artist/nQ6hXREC5HKH0jYPS7NZlQ"
+       },
+       "href": "https://api.spotify.com/v1/artists/nQ6hXREC5HKH0jYPS7NZlQ",
+       "id": "nQ6hXREC5HKH0jYPS7NZlQ",
+       "name": "Artist 3",
+       "type": "artist",
+       "uri": "spotify:artist:nQ6hXREC5HKH0jYPS7NZlQ"
+      },
+      {
+       "external_urls": {
+        "spotify": "https://open.spotify.com/artist/3ZX7RV9gYNi6ClluhFtD6M"
+       },
+       "href": "https://api.spotify.com/v1/artists/3ZX7RV9gYNi6ClluhFtD6M",
+       "id": "3ZX7RV9gYNi6ClluhFtD6M",
+       "name": "Artist 4",
+       "type": "artist",
+       "uri": "spotify:artist:3ZX7RV9gYNi6ClluhFtD6M"
+      }
+     ],
+     "external_urls": {
+      "spotify": "https://open.spotify.com/album/O6QmRFZO2cfCfUq5n7vgmF"
+     },
+     "href": "https://api.spotify.com/v1/albums/O6QmRFZO2cfCfUq5n7vgmF",
+     "id": "O6QmRFZO2cfCfUq5n7vgmF",
+     "images": [
+      {
+       "height": 640,
+       "width": 640,
+       "url": "https://i.scdn.co/image/d2fc47af2a46017dfe0513cf17d356205a831b92"
+      },
+      {
+       "height": 300,
+       "width": 300,
+       "url": "https://i.scdn.co/image/c02a7e662c6071326600888d4bfbc5786828ab24"
+      },
+      {
+       "height": 64,
+       "width": 64,
+       "url": "https://i.scdn.co/image/281127abf050cd9790821cbe0a0700ecaac23558"
+      }
+     ],
+     "is_playable": true,
+     "name": "Album 3",
+     "release_date": "2024-01-06",
+     "release_date_precision": "day",
+     "total_tracks": 11,
+     "type": "album",
+     "uri": "spotify:album:O6QmRFZO2cfCfUq5n7vgmF"
+    },
+    "artists": [
+     {
+      "external_urls": {
+       "spotify": "https://open.spotify.com/artist/nQ6hXREC5HKH0jYPS7NZlQ"
+      },
+      "href": "https://api.spotify.com/v1/artists/nQ6hXREC5HKH0jYPS7NZlQ",
+      "id": "nQ6hXREC5HKH0jYPS7NZlQ",
+      "name": "Artist 3",
+      "type": "artist",
+      "uri": "spotify:artist:nQ6hXREC5HKH0jYPS7NZlQ"
+     },
+     {
+      "external_urls": {
+       "spotify": "https://open.spotify.com/artist/3ZX7RV9gYNi6ClluhFtD6M"
+      },
+      "href": "https://api.spotify.com/v1/artists/3ZX7RV9gYNi6ClluhFtD6M",
+      "id": "3ZX7RV9gYNi6ClluhFtD6M",
+      "name": "Artist 4",
+      "type": "artist",
+      "uri": "spotify:artist:3ZX7RV9gYNi6ClluhFtD6M"
+     }
+    ],
+    "disc_number": 1,
+    "duration_ms": 221966,
+    "explicit": false,
+    "external_ids": {
+     "isrc": "XX0000000000"
+    },
+    "external_urls": {
+     "spotify": "https://open.spotify.com/track/PspGv06HfPlR24YpEo9ZI4"
+    },
+    "href": "https://api.spotify.com/v1/tracks/PspGv06HfPlR24YpEo9ZI4",
+    "id": "PspGv06HfPlR24YpEo9ZI4",
+    "is_local": false,
+    "is_playable": true,
+    "name": "Track 22",
+    "track_number": 1,
+    "type": "track",
+    "uri": "spotify:track:PspGv06HfPlR24YpEo9ZI4"
+   }
+  },
+  {
+   "added_at": "2026-09-29T10:13:01Z",
+   "track": {
+    "album": {
+     "album_type": "album",
+     "artists": [
+      {
+       "external_urls": {
+        "spotify": "https://open.spotify.com/artist/HkW7APTcKdjHPlRT8HAoo7"
+       },
+       "href": "https://api.spotify.com/v1/artists/HkW7APTcKdjHPlRT8HAoo7",
+       "id": "HkW7APTcKdjHPlRT8HAoo7",
+       "name": "Artist 5",
+       "type": "artist",
+       "uri": "spotify:artist:HkW7APTcKdjHPlRT8HAoo7"
+      }
+     ],
+     "external_urls": {
+      "spotify": "https://open.spotify.com/album/yz4RjmlWuKaxIL0FavBGCF"
+     },
+     "href": "https://api.spotify.com/v1/albums/yz4RjmlWuKaxIL0FavBGCF",
+     "id": "yz4RjmlWuKaxIL0FavBGCF",
+     "images": [
+      {
+       "height": 640,
+       "width": 640,
+       "url": "https://i.scdn.co/image/017a18212f421da7ddc944273fac61b7de6bcc05"
+      },
+      {
+       "height": 300,
+       "width": 300,
+       "url": "https://i.scdn.co/image/6eb252fa1c8936cea87327ee77840aa11de77fd3"
+      },
+      {
+       "height": 64,
+       "width": 64,
+       "url": "https://i.scdn.co/image/921ad958a2fe3dfc3f172346b11120fd3656c647"
+      }
+     ],
+     "is_playable": true,
+     "name": "Album 4",
+     "release_date": "2026-04-17",
+     "release_date_precision": "day",
+     "total_tracks": 10,
+     "type": "album",
+     "uri": "spotify:album:yz4RjmlWuKaxIL0FavBGCF"
+    },
+    "artists": [
+     {
+      "external_urls": {
+       "spotify": "https://open.spotify.com/artist/HkW7APTcKdjHPlRT8HAoo7"
+      },
+      "href": "https://api.spotify.com/v1/artists/HkW7APTcKdjHPlRT8HAoo7",
+      "id": "HkW7APTcKdjHPlRT8HAoo7",
+      "name": "Artist 5",
+      "type": "artist",
+      "uri": "spotify:artist:HkW7APTcKdjHPlRT8HAoo7"
+     }
+    ],
+    "disc_number": 1,
+    "duration_ms": 310373,
+    "explicit": false,
+    "external_ids": {
+     "isrc": "XX0000000000"
+    },
+    "external_urls": {
+     "spotify": "https://open.spotify.com/track/06gnq8lZ4PZIK0IjFWxOTf"
+    },
+    "href": "https://api.spotify.com/v1/tracks/06gnq8lZ4PZIK0IjFWxOTf",
+    "id": "06gnq8lZ4PZIK0IjFWxOTf",
+    "is_local": false,
+    "is_playable": true,
+    "name": "Track 23",
+    "track_number": 1,
+    "type": "track",
+    "uri": "spotify:track:06gnq8lZ4PZIK0IjFWxOTf"
+   }
+  },
+  {
+   "added_at": "2026-09-28T11:45:17Z",
+   "track": {
+    "album": {
+     "album_type": "single",
+     "artists": [
+      {
+       "external_urls": {
+        "spotify": "https://open.spotify.com/artist/5CgQrReKqlE75Q9B1vXzN7"
+       },
+       "href": "https://api.spotify.com/v1/artists/5CgQrReKqlE75Q9B1vXzN7",
+       "id": "5CgQrReKqlE75Q9B1vXzN7",
+       "name": "Artist 6",
+       "type": "artist",
+       "uri": "spotify:artist:5CgQrReKqlE75Q9B1vXzN7"
+      }
+     ],
+     "external_urls": {
+      "spotify": "https://open.spotify.com/album/nepBh13qxujtWwLFf4iuQU"
+     },
+     "href": "https://api.spotify.com/v1/albums/nepBh13qxujtWwLFf4iuQU",
+     "id": "nepBh13qxujtWwLFf4iuQU",
+     "images": [
+      {
+       "height": 640,
+       "width": 640,
+       "url": "https://i.scdn.co/image/05477cc235ffcfac1b3764d9fa37ca413fd65101"
+      },
+      {
+       "height": 300,
+       "width": 300,
+       "url": "https://i.scdn.co/image/2a14ce4341e97b02f1e55946d4779f2d079b4bed"
+      },
+      {
+       "height": 64,
+       "width": 64,
+       "url": "https://i.scdn.co/image/ebb07c8979f1f3ef65cc091f1c33de00559c7377"
+      }
+     ],
+     "is_playable": true,
+     "name": "Album 5",
+     "release_date": "2024-06-27",
+     "release_date_precision": "day",
+     "total_tracks": 1,
+     "type": "album",
+     "uri": "spotify:album:nepBh13qxujtWwLFf4iuQU"
+    },
+    "artists": [
+     {
+      "external_urls": {
+       "spotify": "https://open.spotify.com/artist/5CgQrReKqlE75Q9B1vXzN7"
+      },
+      "href": "https://api.spotify.com/v1/artists/5CgQrReKqlE75Q9B1vXzN7",
+      "id": "5CgQrReKqlE75Q9B1vXzN7",
+      "name": "Artist 6",
+      "type": "artist",
+      "uri": "spotify:artist:5CgQrReKqlE75Q9B1vXzN7"
+     }
+    ],
+    "disc_number": 1,
+    "duration_ms": 155761,
+    "explicit": false,
+    "external_ids": {
+     "isrc": "XX0000000000"
+    },
+    "external_urls": {
+     "spotify": "https://open.spotify.com/track/RliUSTJo82jiQ8ltujrgv4"
+    },
+    "href": "https://api.spotify.com/v1/tracks/RliUSTJo82jiQ8ltujrgv4",
+    "id": "RliUSTJo82jiQ8ltujrgv4",
+    "is_local": false,
+    "is_playable": true,
+    "name": "Track 24",
+    "track_number": 1,
+    "type": "track",
+    "uri": "spotify:track:RliUSTJo82jiQ8ltujrgv4"
+   }
+  },
+  {
+   "added_at": "2026-09-27T14:56:57Z",
+   "track": {
+    "album": {
+     "album_type": "album",
+     "artists": [
+      {
+       "external_urls": {
+        "spotify": "https://open.spotify.com/artist/Nu25DkRvIy5hijUm1LLa1z"
+       },
+       "href": "https://api.spotify.com/v1/artists/Nu25DkRvIy5hijUm1LLa1z",
+       "id": "Nu25DkRvIy5hijUm1LLa1z",
+       "name": "Artist 7",
+       "type": "artist",
+       "uri": "spotify:artist:Nu25DkRvIy5hijUm1LLa1z"
+      }
+     ],
+     "external_urls": {
+      "spotify": "https://open.spotify.com/album/520Rwkjf6mhPr0bUYMzCSc"
+     },
+     "href": "https://api.spotify.com/v1/albums/520Rwkjf6mhPr0bUYMzCSc",
+     "id": "520Rwkjf6mhPr0bUYMzCSc",
+     "images": [
+      {
+       "height": 640,
+       "width": 640,
+       "url": "https://i.scdn.co/image/5ab7e2e264f14a700dc76551c0db49b5975b27df"
+      },
+      {
+       "height": 300,
+       "width": 300,
+       "url": "https://i.scdn.co/image/8ccbe4a6f0139ad33921c70320deafae0c010473"
+      },
+      {
+       "height": 64,
+       "width": 64,
+       "url": "https://i.scdn.co/image/f249317eb0c70fa518fd1b6fcf45d9255053c725"
+      }
+     ],
+     "is_playable": true,
+     "name": "Album 6",
+     "release_date": "2020-10-28",
+     "release_date_precision": "day",
+     "total_tracks": 30,
+     "type": "album",
+     "uri": "spotify:album:520Rwkjf6mhPr0bUYMzCSc"
+    },
+    "artists": [
+     {
+      "external_urls": {
+       "spotify": "https://open.spotify.com/artist/Nu25DkRvIy5hijUm1LLa1z"
+      },
+      "href": "https://api.spotify.com/v1/artists/Nu25DkRvIy5hijUm1LLa1z",
+      "id": "Nu25DkRvIy5hijUm1LLa1z",
+      "name": "Artist 7",
+      "type": "artist",
+      "uri": "spotify:artist:Nu25DkRvIy5hijUm1LLa1z"
+     }
+    ],
+    "disc_number": 1,
+    "duration_ms": 103468,
+    "explicit": false,
+    "external_ids": {
+     "isrc": "XX0000000000"
+    },
+    "external_urls": {
+     "spotify": "https://open.spotify.com/track/q7AjNIBfVLrgcGcf3XBTqJ"
+    },
+    "href": "https://api.spotify.com/v1/tracks/q7AjNIBfVLrgcGcf3XBTqJ",
+    "id": "q7AjNIBfVLrgcGcf3XBTqJ",
+    "is_local": false,
+    "is_playable": true,
+    "name": "Track 25",
+    "track_number": 6,
+    "type": "track",
+    "uri": "spotify:track:q7AjNIBfVLrgcGcf3XBTqJ"
+   }
+  }
+ ],
+ "limit": 5,
+ "next": "https://api.spotify.com/v1/me/tracks?offset=5&limit=5&market=from_token",
+ "offset": 0,
+ "previous": null,
+ "total": 277
+}

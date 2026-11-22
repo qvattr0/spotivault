@@ -1,0 +1,53 @@
+# Checks the stack-neutral contracts in contracts/: the OpenAPI spec lints clean, the test
+# vectors still match their generator, and the SQLite schema loads.
+name: contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - contracts/**
+      - prototype/probe.py
+      - .github/workflows/contracts.yml
+  pull_request:
+    paths:
+      - contracts/**
+      - prototype/probe.py
+      - .github/workflows/contracts.yml
+
+permissions:
+  contents: read
+
+jobs:
+  openapi:
+    name: Lint openapi.yaml (Spectral)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # --fail-severity=warn: a warning fails the job too.
+      - run: npx --yes @stoplight/spectral-cli@6.15.0 lint contracts/openapi.yaml --ruleset contracts/.spectral.yaml --fail-severity=warn
+
+  vectors-and-schema:
+    name: Check vectors and schema
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # Recomputes every expected value from the inputs stored in contracts/vectors/*.json.
+      - run: python3 contracts/vectors/generate.py
+      # STRICT tables need SQLite 3.37 or later.
+      - name: Load schema.sql into SQLite
+        run: |
+          python3 - <<'EOF'
+          import sqlite3
+          print("SQLite", sqlite3.sqlite_version)
+          db = sqlite3.connect(":memory:")
+          db.execute("PRAGMA foreign_keys = ON")
+          db.executescript(open("contracts/schema.sql", encoding="utf-8").read())
+          print("schema.sql OK:", db.execute("select count(*) from sqlite_master where type = 'table'").fetchone()[0], "tables")
+          EOF

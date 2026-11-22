@@ -1,0 +1,8 @@
+# uv's virtual environment
+.venv/
+# Local data for `python -m spotivault --fake` (config, music)
+.dev/
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+__pycache__/

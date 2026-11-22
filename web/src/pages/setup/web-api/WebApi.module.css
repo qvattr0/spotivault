@@ -1,0 +1,86 @@
+/* Step 5 (j8m6AR): numbered sections 24 apart, 28 px discs (bg-highlight with the number, accent
+   with a tick once done), the title 16/600 beside it, and the content under the title, 10 apart,
+   in 14/400 text-sub. Fields and their button sit in a row, gap 12. */
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.section {
+  display: flex;
+  gap: var(--s-4);
+}
+
+.marker {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  color: var(--text);
+  font: var(--type-small);
+  font-weight: 700;
+}
+
+.markerDone {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.sectionBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.sectionTitle {
+  color: var(--text);
+  font: var(--type-subhead);
+}
+
+.text {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.fieldRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.fieldRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.blocked {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.blocked a {
+  color: var(--text);
+  text-decoration: underline;
+}

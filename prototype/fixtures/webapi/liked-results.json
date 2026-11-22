@@ -1,0 +1,80 @@
+[
+ {
+  "context": "spotify:user:<user>:collection",
+  "offset": 0,
+  "play_status": 204,
+  "play_error": null,
+  "playing": true,
+  "reported_context": "spotify:playlist:noPHCCDq1BkjXPodPICblo",
+  "item_matches_me_tracks": true,
+  "mpris_trackid": "/com/spotify/track/m45SF0tsJZ56sblz46Gaot",
+  "mpris_id_matches_webapi": true,
+  "mpris_url_matches_webapi": true
+ },
+ {
+  "context": "spotify:user:<user>:collection",
+  "offset": 2,
+  "play_status": 204,
+  "play_error": null,
+  "playing": true,
+  "reported_context": "spotify:playlist:noPHCCDq1BkjXPodPICblo",
+  "item_matches_me_tracks": true,
+  "mpris_trackid": "/com/spotify/track/06gnq8lZ4PZIK0IjFWxOTf",
+  "mpris_id_matches_webapi": true,
+  "mpris_url_matches_webapi": true
+ },
+ {
+  "context": "spotify:collection:tracks",
+  "offset": 0,
+  "play_status": 204,
+  "play_error": null,
+  "playing": false,
+  "reported_context": "",
+  "item_matches_me_tracks": false,
+  "mpris_trackid": "/com/spotify/track/06gnq8lZ4PZIK0IjFWxOTf",
+  "mpris_id_matches_webapi": false,
+  "mpris_url_matches_webapi": false
+ },
+ {
+  "context": "spotify:collection:tracks",
+  "offset": 2,
+  "play_status": 204,
+  "play_error": null,
+  "playing": false,
+  "reported_context": "",
+  "item_matches_me_tracks": false,
+  "mpris_trackid": "/com/spotify/track/06gnq8lZ4PZIK0IjFWxOTf",
+  "mpris_id_matches_webapi": false,
+  "mpris_url_matches_webapi": false
+ },
+ {
+  "context": "spotify:user:<user>:collection:tracks",
+  "offset": 0,
+  "play_status": 400,
+  "play_error": {
+   "status": 400,
+   "message": "Invalid context uri"
+  },
+  "playing": false,
+  "reported_context": "",
+  "item_matches_me_tracks": false,
+  "mpris_trackid": "/com/spotify/track/06gnq8lZ4PZIK0IjFWxOTf",
+  "mpris_id_matches_webapi": false,
+  "mpris_url_matches_webapi": false
+ },
+ {
+  "context": "spotify:user:<user>:collection:tracks",
+  "offset": 2,
+  "play_status": 400,
+  "play_error": {
+   "status": 400,
+   "message": "Invalid context uri"
+  },
+  "playing": false,
+  "reported_context": "",
+  "item_matches_me_tracks": false,
+  "mpris_trackid": "/com/spotify/track/06gnq8lZ4PZIK0IjFWxOTf",
+  "mpris_id_matches_webapi": false,
+  "mpris_url_matches_webapi": false
+ }
+]

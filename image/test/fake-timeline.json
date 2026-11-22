@@ -1,0 +1,10 @@
+{
+  "name": "spotivault-smoke",
+  "seed": 7,
+  "lead_in_ms": 500,
+  "tail_ms": 1500,
+  "items": [
+    {"artist": "Smoke Test", "title": "First Light", "album": "Container Check", "track_number": 1, "year": 2026, "length_ms": 4000, "gap_ms": 800},
+    {"artist": "Smoke Test", "title": "Second Wind", "album": "Container Check", "track_number": 2, "year": 2026, "length_ms": 4000, "gap_ms": 800}
+  ]
+}
