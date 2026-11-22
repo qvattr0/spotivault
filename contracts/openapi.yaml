@@ -32,7 +32,7 @@ info:
     owner and cover come from `GET /playlists/{id}`, so they're always known.
 
     **Left out (deferred UI features):** the Schedule page's preview, notifications, the UI password,
-    custom cover uploads, History's Tracks and Logs tabs, and the logs zip.
+    custom cover uploads, and History's Tracks tab.
   contact:
     name: spotivault
     url: https://github.com/qvattr0/spotivault
@@ -1279,6 +1279,112 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/logs:
+    get:
+      tags: [history]
+      operationId: listLogs
+      summary: History › Logs, a page of log lines
+      description: |
+        The newest lines that match the filters, older than `before` when it's given, oldest first in
+        the page. Pass `next_before` back as `before` for the page before it. The lines come from every
+        log in `/config/logs`: the controller's, the Spotify client's and the system services' (s6-log,
+        rotated files included), and Spytify's own log for each item. Spytify's raw events files aren't
+        read. Every message is masked: tokens, auth codes, `Authorization` values and the UI password
+        show as `[redacted]`. New lines come live on `WS /api/events` (`log.lines`, events.md).
+
+        A page reads about 8 MB of log text (the last file it opens is read whole). When a search
+        or a filter finds few lines, the page can hold fewer than `limit` lines, even none, and still
+        have a `next_before`: there's more to read.
+      parameters:
+        - name: source
+          in: query
+          description: >-
+            The Source chips. Lines from any of these; all four when left out. `client` is the Spotify
+            client; `system` is the s6 services (dbus, pulseaudio, vnc, wm, xserver) and the start-up
+            checks (`init`).
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/LogSource' }
+            maxItems: 4
+        - name: level
+          in: query
+          description: >-
+            The Level chips. Lines at any of these levels. Left out, every level but `debug`: debug lines
+            show only when asked for.
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/LogLevel' }
+            maxItems: 4
+        - name: run
+          in: query
+          description: >-
+            One run's lines: the controller's, the client's and the system's from the run's start to its
+            end (5 s either side; to now for a run still going), and the Spytify logs of the run's items.
+            A run id from History; a row that isn't a run (missed, skipped, held) is `not_found`.
+          schema: { type: integer, minimum: 1 }
+        - name: q
+          in: query
+          description: Text search, case-insensitive, in the masked message.
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: before
+          in: query
+          description: A line's `id`, or a page's `next_before`. Opaque.
+          schema: { type: string, maxLength: 200 }
+        - name: limit
+          in: query
+          description: Lines per page, at most.
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: A page of lines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LogPage' }
+              examples:
+                page:
+                  $ref: '#/components/examples/LogPageRun'
+        '404':
+          description: No run with this id (`not_found`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error: { code: not_found, message: No run with this id., details: null }
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /api/logs/download:
+    get:
+      tags: [history]
+      operationId: downloadLogs
+      summary: The logs as a .zip, for bug reports
+      description: >-
+        Every log file with lines from the last `days` days: the controller's, the Spotify client's,
+        the system services' and Spytify's item logs, in one folder per service (`controller/current`,
+        `spytify/42-liked.log`). Spytify's events files are left out. Each file is whole, and every line
+        is masked as in `listLogs`. Built once the request comes, then streamed.
+      parameters:
+        - name: days
+          in: query
+          description: How many days back. Logs are kept 14 days at most.
+          schema: { type: integer, minimum: 1, maximum: 14, default: 7 }
+      responses:
+        '200':
+          description: The zip.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: '`attachment; filename="spotivault-logs-20261115-0142.zip"`'
+          content:
+            application/zip:
+              schema: { type: string, contentMediaType: application/zip }
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
   /api/schedule:
     get:
       tags: [schedule]
@@ -1669,6 +1775,40 @@ components:
             p95_ms: 410
         rate_limits: []
         warnings: []
+
+    LogPageRun:
+      summary: A run's lines, every source
+      value:
+        lines:
+          - id: 1794704640002000000-0-controller
+            at: '2026-11-15T01:04:00.002Z'
+            source: controller
+            service: controller
+            level: info
+            message: 'runs: run 42 started (Scheduled), 3 items'
+            run_id: null
+          - id: 1794704644104000000-0-42-4glBZ0bZMgkmFyi6TD4h69
+            at: '2026-11-15T01:04:04.104Z'
+            source: spytify
+            service: 42-4glBZ0bZMgkmFyi6TD4h69
+            level: info
+            message: session 20261115-010404 started
+            run_id: 42
+          - id: 1794704701870000000-0-spotify
+            at: '2026-11-15T01:05:01.870Z'
+            source: client
+            service: spotify
+            level: warning
+            message: 'Warning: network stall, retrying'
+            run_id: null
+          - id: 1794704702310000000-0-controller
+            at: '2026-11-15T01:05:02.310Z'
+            source: controller
+            service: controller
+            level: error
+            message: 'webapi: GET /me/player failed: Authorization: Bearer [redacted] was refused'
+            run_id: null
+        next_before: 1794704640002000000-0-controller
 
   schemas:
     Error:
@@ -3007,3 +3147,65 @@ components:
                   a row from one endpoint. `above_median`: a refresh or run with more than twice its 7-day
                   median of requests.
               message: { type: string }
+
+    LogSource:
+      type: string
+      enum: [controller, spytify, client, system]
+      description: >-
+        Where a line comes from: the controller; Spytify (one log per item); the Spotify client;
+        the system (the s6 services dbus, pulseaudio, vnc, wm and xserver, and the start-up checks).
+
+    LogLevel:
+      type: string
+      enum: [debug, info, warning, error]
+      description: >-
+        The line's level, as its writer gave it: Python's levels for the controller (CRITICAL is
+        `error`), Spytify's own, and for the client and the system the markers their programs print
+        (`E:` and `W:` from PulseAudio, `(EE)` and `(WW)` from X, Chromium's `:ERROR:`, a leading
+        `Error:` or `Warning:`). A line with no marker is `info`. A traceback's lines take the level
+        of the line they belong to.
+
+    LogLine:
+      type: object
+      required: [id, at, source, service, level, message, run_id]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          maxLength: 200
+          description: Unique, and the line's place in the order. Pass it as `before` for the lines before it. Opaque.
+        at:
+          type: string
+          format: date-time
+          description: When it was written, UTC with milliseconds.
+        source: { $ref: '#/components/schemas/LogSource' }
+        service:
+          type: string
+          description: >-
+            The log it's from: `controller`, `spotify` (the client), `dbus`, `pulseaudio`, `vnc`, `wm`,
+            `xserver` or `init`; for Spytify, the item's log name, `<run>-<item>`, with `-2` for a
+            second attempt.
+        level: { $ref: '#/components/schemas/LogLevel' }
+        message:
+          type: string
+          maxLength: 4000
+          description: >-
+            The line without its time and level (and, for the controller, without the logger's name),
+            masked. Cut at 4000 characters.
+        run_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Spytify's lines, the run the item's log belongs to. Null for the other sources.
+
+    LogPage:
+      type: object
+      required: [lines, next_before]
+      additionalProperties: false
+      properties:
+        lines:
+          type: array
+          description: Oldest first.
+          items: { $ref: '#/components/schemas/LogLine' }
+        next_before:
+          type: [string, 'null']
+          description: Pass it as `before` for the page before this one. Null when nothing older matches.

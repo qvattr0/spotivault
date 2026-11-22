@@ -62,7 +62,7 @@ The `.pen` file draws most components in their default state only. The UI fills 
 | A failed wizard step | Drawn in the stepper as the active step, as Setup 2 · Failed shows it. |
 | A done step on screen | Drawn Done, like the steps before it, with the bar to the next step green. Nothing else marks it as the step you're on; screen readers hear it as the current step. |
 | Stepper motion | A step that turns done without being active (a live check ahead of the step on screen) fills green from its empty ring. A step's label turns white when its dot starts to move. The stepper shows a change 80 ms after it stops changing, so Continue's two updates (the setup state and the page) play as one. A change that comes while a flow is still playing joins it: the parts already playing carry on untouched, and a new part starts in its turn, or at once if its turn has passed. A move back ends the flow at once. |
-| Narrow windows | Under 800 px the sidebar keeps its icons and hides its status card. The bottom bar drops "Item n of m" under 1000 px and the track names under 700 px. |
+| Narrow windows | Under 800 px the sidebar keeps its icons and hides its status card. The bottom bar drops "Item n of m" under 1000 px and the track names under 700 px. History › Logs puts a line's time and badge above its message when its box is under 560 px wide. |
 | Small grey text on cards and modals | `text-muted` on `bg-elevated` is 4.2:1, and on the modal surface 3.7:1, both under WCAG AA's 4.5:1. Where the drawings put it there, the UI uses `text-sub`: the status card's connection line, the docked strip's track times, the noVNC panel's connection state (steps 3 and 4), step 4's "Auto" labels, the run page's track numbers and file paths, the + modals' list headings, and Edit layout's rule hint and "Insert:" label. The grey dot and the bottom bar's times (on `bg-app`) stay as drawn. |
 
 **Pages (S8)**
@@ -85,6 +85,7 @@ Where web-ui.md gave no words or rule, S8 built the more cautious answer below. 
 | Albums detail | It reads the whole list of added albums, since the contract has no `GET /api/albums/{id}`. An album's tracks follow its state: recorded first, then Missing. It is never New. |
 | Dashboard | The run header's time left is the run's own (§ Run header), not the backlog's. Its words for items of unknown length are ours: "+ 2 playlists of unknown length". It counts down between the controller's updates and stands still while the run is paused, at what the run records once resumed. For a scheduled run it's capped at the window's end, so it never says more than "stops by" allows. The current item's pill says Stopping, not Waiting, while the last track records after Stop after this track. The Full backup card isn't built (plan D8). The Next backup card has no "Change schedule" in M1. |
 | Paused after a takeover | The paused item shows the track table as the controller sends it. In the controller it is empty; in the mock it keeps the discarded take as "Discarded · will redo". The contract doesn't say which is right. |
+| History › Logs | See § Logs tab, "As built". |
 | History | A run still going is listed first, as the controller lists it, with a Running pill that links to the Dashboard and no counts until it ends. Its run page says so too, and follows the run: "Building the queue…" until the queue is built after the pre-run check, then its items, and an open item's tracks as each take ends. An item's reason shows as a line under its name on the run page. An item stopped while paused after a takeover keeps the controller's "Interrupted, retried" badge. Each take is a row, so the controller's idle-exit take shows as an extra "Skipped (duplicate)" row with no position. |
 | Player | The client's screen is 16 : 10, as 1280 × 800 is, not the drawn 640 × 440 or 520 × 658. Take control asks first. |
 | Settings | "Save Spotify's covers" keeps web-ui.md's text, which mentions custom covers, with no link. The Unsaved changes bar sits at the foot of the panel. It never covers the focused control: a control that brings the bar up is scrolled clear of it. Notifications and Security aren't shown. |
@@ -859,6 +860,24 @@ The raw output, for debugging.
 - **Download:** saves the last 7 days of logs as a `.zip`, for bug reports.
 - **Retention:** logs rotate after 14 days or 50 MB, whichever comes first. The tab says so in its footer.
 
+**As built (M1).** Where the spec says no more, these are the cautious answers. None has been reviewed yet.
+
+| Topic | Built as |
+|---|---|
+| Sources | Controller is the controller's log. Spytify is each item's own log (`spytify/<run>-<item>.log`); its raw events files aren't shown. Spotify client is the client's output. System is dbus, pulseaudio, vnc, wm, xserver, and the start-up checks (`init`, which now writes its own lines in s6-log's format). s6-overlay's own messages only go to docker's output. |
+| Line | The time in the browser's time zone (the full date and milliseconds on hover), a badge ("Client" for the Spotify client, as drawn), and the message. A row marks each new day, and the first day if it isn't today. The controller's lines drop the logger's name; the zip keeps it. A line is cut at 4000 characters. A System line's service (xserver, pulseaudio, …) and a Spytify line's item log are on hover, and screen readers hear them after the badge. In a box under 560 px wide, the time and badge sit above the message. |
+| Levels | The controller's are Python's; Spytify's its own. The client and the system print none, so only clear markers count: PulseAudio's `E:`/`W:`, X's `(EE)`/`(WW)`, Chromium's `:ERROR:`, GLib's `-WARNING **`, a leading `Error:` or `Warning:`. Anything else is Info. A traceback's lines take their line's level. The level shows as colour and, for screen readers, as a word, unless the message already starts with it ("Warning: …"). |
+| Debug lines | Hidden. The Level chips are the three drawn; no chip asks for debug. The API can (`level=debug`), and the zip has them. |
+| Chips | Several can be on at once, in each group. None on means all; for Level, every level but debug. |
+| Run filter | The run's controller, client and system lines are the ones from 5 s before it started to 5 s after it ended (to now while it goes on); its Spytify lines are its items' logs. The list holds History's newest 50 runs; a run from the address that isn't among them gets its own entry. A run that doesn't exist says so, with "Show all runs". |
+| Search | Case-insensitive, in the masked text, 250 ms after the last key. A page reads about 8 MB of logs, so a rare match (or a Level chip on a noisy log) can take a few pages. When a page finds nothing, the tab reads up to three more pages by itself, on the first read and on each "Load older lines". If those find nothing either, it says "No lines match … in the newest logs." and offers "Load older lines". |
+| Live tail | Only while the tab is open: the controller reads the files only while someone follows. New lines come at most twice a second, 200 at most each time. When more came, or the controller skipped lines because a log grew too fast, the tab says "n lines came too fast to show live", with "Show them", which reads the page again. After a reconnect, the newest page is read again. If more lines were written while the socket was down than that page holds, the tab starts from that page, and scrolling up reads the ones before it, in order. |
+| Paused | Scrolling up pauses the follow. New lines wait, and "Jump to latest" adds them (screen readers hear how many wait); the keyboard's focus then stays in the log. The page holds 2000 lines at most: older ones load as you scroll up, and when that pushes lines off the bottom, Jump to latest reads the newest page again. |
+| Load older lines | Not drawn. A small pill at the top of the box, outside the scrolling lines: it shows when the lines are scrolled to the top, when there are none, or when it has the keyboard's focus. Focusing it never moves the lines or pauses the follow. It stays focusable while it loads. |
+| Masking | Every line, from every source, on the screen and in the zip: Spotify tokens, `Authorization` values, `code=` and `access_token=` in addresses, refresh tokens, PKCE verifiers and the UI password show as `[redacted]`, also inside URL-encoded text. The search looks at the masked text. |
+| Download | "Download last 7 days (.zip)": every log file written to in the last 7 days, whole, masked, without Spytify's events files. The zip is built when asked for, one at a time; the button shows a spinner meanwhile, and a failure is a toast. |
+| Retention | 14 days or 50 MB for all of `/config/logs`, whichever comes first, checked at start-up and every hour: files last written over 14 days ago go, then, while the files it may delete pass 50 MB together, the oldest go, Spytify's events files first. Never deleted, and not counted in the 50 MB: s6-log's live files, the files of a run still going, and the rotated s6-log files written since that run started (its controller, client and system lines). So one long run's events file can't take every other log with it. The 14 days are real time, never fake mode's faster clock. s6-log also keeps each service to 10 files of 1 MB. |
+
 ### History endpoints
 
 | Method | Path | Notes |
@@ -869,9 +888,9 @@ The raw output, for debugging.
 | POST | `/api/runs` | `{items: [...]}`. Retry failed or retry all failed. Shared with the Dashboard. |
 | GET | `/api/tracks` | Takes `?q=&result=&cursor=`. |
 | GET | `/api/tracks/{id}` | The track's file and its attempts. |
-| GET | `/api/logs` | Takes `?source=&level=&run=&q=&before=`. Returns a page of older lines. |
-| WS | `/api/events` | `log.line` for the live tail, and `run.finished` to refresh the list. |
-| GET | `/api/logs/download?days=7` | The `.zip`. |
+| GET | `/api/logs` | Takes `?source=&level=&run=&q=&before=&limit=` (`source` and `level` can repeat). Returns a page of older lines and a `next_before` cursor. |
+| WS | `/api/events` | `log.lines` for the live tail, after the tab sends `logs.follow` with its filters; and `run.finished` to refresh the list. |
+| GET | `/api/logs/download?days=7` | The `.zip`. `days` is 1 to 14. |
 
 ---
 
@@ -1100,4 +1119,4 @@ The feasibility prototype (`prototype/`) and step S0 of the M1 plan settle these
 20. **A whole item's time limit:** at the limit, the take playing is finished, as design.md § Run flow says: the controller stops the recorder after this track, and sends SIGTERM only if it still runs 30 s after that track's end. So the item can run up to one track past its limit. The other option is to cut the take. Built: finished.
 21. **Turning on an hour in a window in progress:** if no run is going, one starts for that window at the next scheduler check. Should the window wait for the next one instead? Built: the run starts.
 22. **Episodes between tracks:** when the plan jumps over an episode, Spytify records it as incomplete, and it's counted as "Skipped (other)". Should it show in the counts at all? Built: counted.
-23. **Spytify's own logs:** `/config/logs/spytify/` is never rotated or deleted. The rule of 14 days or 50 MB covers only the controller and the s6 services. Spytify writes a `level` line up to ten times a second, so a 24-hour item's events file can reach about 150 MB. Built: kept. It needs a retention rule.
+23. ~~**Spytify's own logs:**~~ **Resolved** (2026-11-22): they follow the Logs tab's retention line. The 14 days or 50 MB covers all of `/config/logs`, Spytify's item logs and events files included. Over 50 MB, the events files go first (a 24-hour item's can reach about 150 MB, and the tab doesn't show them). The files of a run still going are never deleted. See § Logs tab.

@@ -1,14 +1,14 @@
 // Helpers for tests and the gallery: live events and stores in a given state, without a socket.
 
 import { helloFor, type Scenario } from '@mock/fixtures.ts';
-import type { Envelope, EventMap, EventType } from '@/state/events.ts';
+import { isVolatile, type Envelope, type EventMap, type EventType } from '@/state/events.ts';
 import { createLiveStore, type LiveStore } from '@/state/store.ts';
 
 let seq = 0;
 
-/** A live event as the socket would deliver it. `seq` counts up across calls; `level` gets null. */
+/** A live event as the socket would deliver it. `seq` counts up across calls; `level` and `log.lines` get null. */
 export function envelope<K extends EventType>(type: K, data: EventMap[K], at = new Date().toISOString()): Envelope<K> {
-  const next = type === 'level' ? null : ++seq;
+  const next = isVolatile(type) ? null : ++seq;
   return { seq: next, type, at, data } as Envelope<K>;
 }
 

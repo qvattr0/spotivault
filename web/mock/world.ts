@@ -22,6 +22,7 @@
 import * as f from './fixtures.ts';
 import type { Hub } from './hub.ts';
 import { workOut, type ItemLeft, type MissingTrack } from './time-left.ts';
+import { createLogBook } from './logs.ts';
 import type {
   Album,
   Backlog,
@@ -303,6 +304,12 @@ export interface WorldOptions {
 export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: WorldOptions = {}) {
   const speed = options.speed && options.speed > 0 ? options.speed : 1;
   let data = initialData(scenario);
+  /** History › Logs: made-up lines, and the world's events as log lines (mock/logs.ts). */
+  const logs = createLogBook(
+    hub,
+    () => data.history,
+    () => world.liveHistoryRow(),
+  );
   /** Bumped on reset: simulations started before it stop at their next wait. */
   let generation = 0;
   const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -1107,6 +1114,8 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
     setup,
     /** The live socket's side, for the /__mock socket controls (drop, restart, gap, slow). */
     hub,
+    /** History › Logs: GET /api/logs, the live tail and POST /__mock/logs. */
+    logs,
     /** The "controller process": changes when the mock restarts (hub.restart). */
     bootId: () => hub.bootId(),
     hello(): Hello {
@@ -1138,6 +1147,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       refreshing = null;
       queueBuilt = false;
       recordedKeys = new Set();
+      logs.reset();
       hub.restart();
       if (next === 'running' || next === 'paused') {
         // A scheduled run in a window that ends in 6 h ("stops by 07:00"). Liked Songs was cut off
@@ -1605,6 +1615,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       for (const timer of timers) clearTimeout(timer);
       timers.clear();
       setLevel(false);
+      logs.close();
     },
   };
 

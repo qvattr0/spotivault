@@ -123,6 +123,7 @@ One WebSocket to `/api/events` for the whole app ([contracts/events.md](../contr
 | `useSocketState()` / `useLiveReady()` | The socket (`idle`, `connecting`, `open`, `reconnecting`), and whether a snapshot has arrived (`hello`, or a REST read while the socket can't connect). For a Retry button: `useLiveStore().reconnect()`. |
 | `useLive(s => s.x)` | Any other part of `LiveState`. Return a part of the state, never a new object. |
 | `useLiveEvent(type, handler)` | Calls `handler` for each event of a type: `track.finished`, `library.item`, `run.finished` and the rest. For page lists and toasts. |
+| `useLiveStore().followLogs({ follow_id, filter } \| null)` | History › Logs: sends `logs.follow` (events.md § Logs) now and after every hello, so `log.lines` events come to `useLiveEvent`; null sends `logs.unfollow`. |
 
 Every event type and payload is typed in [state/events.ts](src/state/events.ts) (`EventMap`, `LiveEvent`). In tests and the gallery, give components a store in a known state:
 
@@ -144,6 +145,7 @@ render(<LiveStoreProvider store={store}><NowPlaying /></LiveStoreProvider>);
 | `seq` gap | Logged; the state is read again through REST (`GET /api/setup`, `/api/status`, `/api/spotify/connection`, `/api/client/status`, `/api/runs/current`). Events arriving meanwhile wait, and are applied after it. A read gives up after 10 s. If the read fails, the socket reconnects. |
 | Queue read fails | Tried again after 2 s, doubling to 30 s, while the same run goes on and the socket is open. |
 | Close code `1013` | An ordinary reconnect. |
+| `log.lines` | Volatile like `level` (`seq` null): it changes no state, and only its listeners get it. It comes only after `followLogs`. |
 | 45 s with nothing heard | Browsers don't see WebSocket pings, so the socket sends a frame the server ignores (a connection the server already dropped then closes), asks `GET /api/health`, and reconnects only if there's no answer or the `boot_id` changed. |
 | The computer slept | The quiet check fires a minute or more late, or is overdue when the tab is visible again: the socket reconnects. Back online with the socket open: the line is checked at once. |
 | Socket down for 5 s | The state is read through REST every 10 s until a `hello` arrives, so the app still works behind a proxy that doesn't pass WebSockets. |
@@ -214,6 +216,7 @@ curl -X POST localhost:5173/__mock/scenario -H 'Content-Type: application/json' 
 | `POST /__mock/history` | `{"empty": true}`: no runs ("No backups yet"). `{"older": 60}`: the sample rows plus 60 older runs, for History's paging. |
 | `POST /__mock/setup/next` | Marks the active wizard step done, whatever it is: a shortcut past a step's own write. Step 9 is `POST /api/setup/complete`, which the mock answers for real. |
 | `POST /__mock/new-playlist` | `{"name": "Road Trip"}`: a playlist made in Spotify; `{"name": …, "followed": true}`: one followed there. The Library's next Refresh (`POST /api/library/refresh`) finds it: a new item (tracked while auto-tracking is on), or a new suggestion in the + modal. 409 for one already there: in the Library, waiting for a refresh, or a suggestion. |
+| `POST /__mock/logs` | History › Logs: `{"add": [{"source": "spytify", "level": "error", "message": "…"}]}` adds lines now (the live tail sends them); `{"burst": 450}` adds that many at once, more than one `log.lines` holds (200; the rest is `dropped`); `{"empty": true}` leaves no lines at all; `{"read_budget": 20}` makes a page look at 20 lines at most (the controller's page reads about 8 MB), so a sparse search gets pages with no lines and a cursor, until the next scenario. |
 | `POST /__mock/drop` | The line drops (the browser sees 1006). Clients reconnect to the same controller. `{"every_s": 30}` repeats it; `{"every_s": 0}` stops. |
 | `POST /__mock/restart` | A controller restart: a new `boot_id`, `seq` from 1 again, sockets closed with 1012. The world's state stays. |
 | `POST /__mock/gap` | Loses one event: clients see a `seq` gap and read the state through REST. |
@@ -234,6 +237,7 @@ curl -X POST localhost:5173/__mock/scenario -H 'Content-Type: application/json' 
 - **Run pages:** a run the mock ran lists each item's own track results (recorded, skipped duplicate, failed low volume, interrupted or discarded by Stop now). The sample runs show a sample for the items that played, and nothing for an up-to-date or removed item. Run 33 failed when the container restarted.
 - **Album tracks** follow the album's state: recorded ones first, then the rest Missing (after the low-volume failure when Partial). An album's tracks are never New.
 - **Covers** are SVG gradients, not the contract's JPEG or PNG.
+- **Logs** ([mock/logs.ts](mock/logs.ts)): made-up lines from every source around the sample runs and a start-up 3 h ago, about 570 in the `idle` scenario, so paging works. A run going on adds the controller's and Spytify's lines as its events go out. A socket that sent `logs.follow` gets `log.lines` every 0.5 s with the lines its filter matches, 200 at most, and at once the last 10 s. `GET /api/logs/download` answers a tiny made-up zip.
 
 ## Page building blocks (S8)
 
@@ -241,9 +245,9 @@ What every page uses, beyond the components. Each file says more at its top.
 
 | Name | Where | What |
 |---|---|---|
-| `Page` | `@/shell` | The page's frame: padding, gap and its tint (`tint="dashboard"`, ...). Every app page draws itself inside one. |
+| `Page` | `@/shell` | The page's frame: padding, gap and its tint (`tint="dashboard"`, ...). Every app page draws itself inside one. `fill` makes it the panel's height, for a list that scrolls by itself (History › Logs). |
 | `PageHeader` | `@/shell` | The title (the page's h1, and the tab's name), its `summary` line, `actions` at the right (search, sort, view switch, +, ⋯), and a `bar` of chips or tabs below (`barEnd` at its right). |
-| `PageTabs` | `@/shell` | A page's tabs as chip links, for PageHeader's `bar`. History lists only Runs in M1. |
+| `PageTabs` | `@/shell` | A page's tabs as chip links, for PageHeader's `bar`. History lists Runs and Logs in M1 (`HistoryTabs`). |
 | `useApi(..., { keepData })` | `@/api` | Page data: see § REST helpers. |
 | `useListQuery({ filter, sort })` | `@/lib/list-query.ts` | A list page's filter chip, search box and sort, sent to the server (the list endpoints filter, search and sort themselves). Returns `{ filter, setFilter, search, setSearch, clearSearch, sort, setSort, query }`; `query` is `{ filter, sort, q? }` with the search 250 ms after the last key, and is the same object until one changes: pass it as the request's `query` and as the useApi dep. |
 | `useViewMode('library' \| 'albums')` | `@/lib/view-mode.ts` | The List / Grid choice, remembered per browser, separately per page. `[view, setView]`, for ViewSwitch. |
@@ -281,10 +285,10 @@ Each page has its own folder in [src/pages/](src/pages/). A page's unit and comp
 | **Albums** | `src/pages/albums/`: `AlbumsPage.tsx` (grid and list), `AlbumPage.tsx` (detail), `AddAlbumsModal.tsx` | `e2e/albums.spec.ts`, `e2e-controller/demo/albums.spec.ts` | Empty, grid, list, each state pill, detail (it reads the whole list: the contract has no `GET /api/albums/{id}`), the + modal (list, nothing to add, no connection). |
 | **Dashboard** | `src/pages/dashboard/`: `IdleDashboard.tsx`, `RunningDashboard.tsx`, `RunQueue.tsx`, `CurrentItem.tsx`, `RunAlerts.tsx` | `e2e/dashboard*.spec.ts`, `e2e-controller/demo/dashboard.spec.ts` | Idle (Next backup in each variant, Last run), running queue-first (header, Stop menu, docked strip, Done, current item with its track table, Up next, Carried over), warnings (playback moved, Spytify error, Web API, client not running). No Full backup card (plan D8). |
 | **Player** | `src/pages/player/`; the view is `components/ui-c/VncView.tsx` | `e2e/player.spec.ts`, `e2e-controller/demo/player.spec.ts` | Interactive; fullscreen; not logged in; screen not up; during a run (view-only, banner, Take control). |
-| **History** | `src/pages/history/`: `RunsPage.tsx`, `RunDetail.tsx` (the run page), `RunItemRow.tsx`, `ItemTracks.tsx` | `e2e/history*.spec.ts`, `e2e-controller/demo/history.spec.ts` | Runs list (every outcome, a run still going as Running, filter chips, paging, empty), run page (each outcome, a run still going, items with tracks, Copy path, Retry failed). A run still going is read again on `run.queue`, `run.state` and `item.state`, and an open item's tracks as takes end. No Tracks or Logs tabs. |
+| **History** | `src/pages/history/`: `RunsPage.tsx`, `RunDetail.tsx` (the run page), `RunItemRow.tsx`, `ItemTracks.tsx`; the Logs tab: `LogsPage.tsx`, `LogList.tsx` (the lines, following and paused), `use-log-view.ts` (pages, the live tail, the 2000-line cap), `log-words.ts`; `HistoryTabs.tsx` | `e2e/history*.spec.ts`, `e2e-controller/demo/history.spec.ts`, `e2e-controller/demo/logs.spec.ts` | Runs list (every outcome, a run still going as Running, filter chips, paging, empty), run page (each outcome, a run still going, items with tracks, Copy path, Retry failed, Logs for this run). A run still going is read again on `run.queue`, `run.state` and `item.state`, and an open item's tracks as takes end. Logs: loading, empty, Source and Level chips, the run (`?run=`), search, the live tail following the bottom, paused with Jump to latest, older pages on scroll up, lines the tail left out, Download. No Tracks tab. |
 | **Settings** | `src/pages/settings/`: one file per section, `settings-draft.ts` (the unsaved changes), `SaveBar.tsx` | `e2e/settings*.spec.ts`, `e2e-controller/demo/settings.spec.ts` | Recording, Files (with the Edit layout modal), Library, Spotify account, Spotify client, Container, About; the Unsaved changes bar; Run setup again. No Notifications or Security. |
 
-**Left out of M1,** with no link to it anywhere: the Schedule page and week grid, run-order drag, notifications, the UI password, custom cover upload, History's Tracks and Logs tabs, the logs zip, animations other than the wizard stepper's and Expand on steps 3 and 4. **Not yet (plan D8, waits for your review):** the Dashboard's Full backup card and step 9's backup-length line.
+**Left out of M1,** with no link to it anywhere: the Schedule page and week grid, run-order drag, notifications, the UI password, custom cover upload, History's Tracks tab, animations other than the wizard stepper's and Expand on steps 3 and 4. History's Logs tab and the logs zip moved into M1. **Not yet (plan D8, waits for your review):** the Dashboard's Full backup card and step 9's backup-length line.
 
 **Screenshots of every page frame:** `npm run e2e` takes them from the list in [e2e/page-screens.ts](e2e/page-screens.ts) (each frame's scenario, route, size and the steps that put the page in the drawn state), and `e2e/screenshots/index.html` shows each one beside its drawing.
 

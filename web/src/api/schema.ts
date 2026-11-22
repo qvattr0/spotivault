@@ -904,6 +904,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * History › Logs, a page of log lines
+         * @description The newest lines that match the filters, older than `before` when it's given, oldest first in
+         *     the page. Pass `next_before` back as `before` for the page before it. The lines come from every
+         *     log in `/config/logs`: the controller's, the Spotify client's and the system services' (s6-log,
+         *     rotated files included), and Spytify's own log for each item. Spytify's raw events files aren't
+         *     read. Every message is masked: tokens, auth codes, `Authorization` values and the UI password
+         *     show as `[redacted]`. New lines come live on `WS /api/events` (`log.lines`, events.md).
+         *
+         *     A page reads about 8 MB of log text (the last file it opens is read whole). When a search
+         *     or a filter finds few lines, the page can hold fewer than `limit` lines, even none, and still
+         *     have a `next_before`: there's more to read.
+         */
+        get: operations["listLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logs/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The logs as a .zip, for bug reports
+         * @description Every log file with lines from the last `days` days: the controller's, the Spotify client's, the system services' and Spytify's item logs, in one folder per service (`controller/current`, `spytify/42-liked.log`). Spytify's events files are left out. Each file is whole, and every line is masked as in `listLogs`. Built once the request comes, then streamed.
+         */
+        get: operations["downloadLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/schedule": {
         parameters: {
             query?: never;
@@ -1736,6 +1785,39 @@ export interface components {
                 kind: "rate_limited" | "burst" | "repeated_4xx" | "above_median";
                 message: string;
             }[];
+        };
+        /**
+         * @description Where a line comes from: the controller; Spytify (one log per item); the Spotify client; the system (the s6 services dbus, pulseaudio, vnc, wm and xserver, and the start-up checks).
+         * @enum {string}
+         */
+        LogSource: "controller" | "spytify" | "client" | "system";
+        /**
+         * @description The line's level, as its writer gave it: Python's levels for the controller (CRITICAL is `error`), Spytify's own, and for the client and the system the markers their programs print (`E:` and `W:` from PulseAudio, `(EE)` and `(WW)` from X, Chromium's `:ERROR:`, a leading `Error:` or `Warning:`). A line with no marker is `info`. A traceback's lines take the level of the line they belong to.
+         * @enum {string}
+         */
+        LogLevel: "debug" | "info" | "warning" | "error";
+        LogLine: {
+            /** @description Unique, and the line's place in the order. Pass it as `before` for the lines before it. Opaque. */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was written, UTC with milliseconds.
+             */
+            at: string;
+            source: components["schemas"]["LogSource"];
+            /** @description The log it's from: `controller`, `spotify` (the client), `dbus`, `pulseaudio`, `vnc`, `wm`, `xserver` or `init`; for Spytify, the item's log name, `<run>-<item>`, with `-2` for a second attempt. */
+            service: string;
+            level: components["schemas"]["LogLevel"];
+            /** @description The line without its time and level (and, for the controller, without the logger's name), masked. Cut at 4000 characters. */
+            message: string;
+            /** @description Spytify's lines, the run the item's log belongs to. Null for the other sources. */
+            run_id: number | null;
+        };
+        LogPage: {
+            /** @description Oldest first. */
+            lines: components["schemas"]["LogLine"][];
+            /** @description Pass it as `before` for the page before this one. Null when nothing older matches. */
+            next_before: string | null;
         };
     };
     responses: {
@@ -3190,6 +3272,84 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    listLogs: {
+        parameters: {
+            query?: {
+                /** @description The Source chips. Lines from any of these; all four when left out. `client` is the Spotify client; `system` is the s6 services (dbus, pulseaudio, vnc, wm, xserver) and the start-up checks (`init`). */
+                source?: components["schemas"]["LogSource"][];
+                /** @description The Level chips. Lines at any of these levels. Left out, every level but `debug`: debug lines show only when asked for. */
+                level?: components["schemas"]["LogLevel"][];
+                /** @description One run's lines: the controller's, the client's and the system's from the run's start to its end (5 s either side; to now for a run still going), and the Spytify logs of the run's items. A run id from History; a row that isn't a run (missed, skipped, held) is `not_found`. */
+                run?: number;
+                /** @description Text search, case-insensitive, in the masked message. */
+                q?: string;
+                /** @description A line's `id`, or a page's `next_before`. Opaque. */
+                before?: string;
+                /** @description Lines per page, at most. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of lines. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPage"];
+                };
+            };
+            /** @description No run with this id (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "not_found",
+                     *         "message": "No run with this id.",
+                     *         "details": null
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    downloadLogs: {
+        parameters: {
+            query?: {
+                /** @description How many days back. Logs are kept 14 days at most. */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The zip. */
+            200: {
+                headers: {
+                    /** @description `attachment; filename="spotivault-logs-20261115-0142.zip"` */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
         };
     };
     getSchedule: {

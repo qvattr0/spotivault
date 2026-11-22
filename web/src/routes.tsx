@@ -4,13 +4,13 @@
 //
 // Not routes: modals, menus, hover states and the Library/Albums List-Grid choice (screens.md).
 // No sign-in route: the UI password isn't in M1.
-// Not in M1 (plan § Scope): the Schedule page and History's Tracks and Logs tabs. Their routes stay
+// Not in M1 (plan § Scope): the Schedule page and History's Tracks tab. Their routes stay
 // (web-ui.md § Routes) with a "not in this version" page, and nothing links to them.
 
 import { Navigate, type RouteObject } from 'react-router';
 import { AlbumPage, AlbumsPage } from './pages/albums/index.ts';
 import { DashboardPage } from './pages/dashboard/index.ts';
-import { RunPage, RunsPage } from './pages/history/index.ts';
+import { LogsPage, RunPage, RunsPage } from './pages/history/index.ts';
 import { Later } from './pages/Later.tsx';
 import { LibraryPage, PlaylistPage } from './pages/library/index.ts';
 import { NotFound } from './pages/NotFound.tsx';
@@ -85,7 +85,7 @@ export const routes: RouteObject[] = [
           { path: '/history/runs', element: <RunsPage /> },
           { path: '/history/runs/:id', element: <RunPage /> },
           { path: '/history/tracks', element: <Later title="History" /> },
-          { path: '/history/logs', element: <Later title="History" /> },
+          { path: '/history/logs', element: <LogsPage /> },
           { path: '/schedule', element: <Later title="Schedule" /> },
           { path: '/settings', element: <SettingsPage /> },
           { path: '/player', element: <PlayerPage /> },

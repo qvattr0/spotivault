@@ -14,10 +14,13 @@
 //   app still works behind a proxy that doesn't pass WebSockets. (Cautious extra: events.md has
 //   no rule for it.)
 // - `level` (10 a second) is kept apart from the state, so the meter re-renders and nothing else.
+// - `log.lines` (History › Logs) changes no state: only its listeners get it. The socket gets it
+//   after `logs.follow` (followLogs), which the store sends again after every hello: a follow
+//   lasts as long as one connection (events.md § Logs).
 
 import type { QueueItem } from '../api/types.ts';
 import type { EventType, Envelope, LevelEvent, LiveEvent } from './events.ts';
-import { isKnownEvent } from './events.ts';
+import { isKnownEvent, isVolatile } from './events.ts';
 import { initialLiveState, type LevelReading, type LiveState } from './live-state.ts';
 import { applySnapshot, reduce } from './reducer.ts';
 import { createLiveRest, type LiveRest, type Snapshot } from './rest.ts';
@@ -49,6 +52,17 @@ export interface LiveStore {
   disconnect(): void;
   /** Drops the connection and opens a new one now: a "Retry" button while reconnecting. */
   reconnect(): void;
+  /**
+   * Follows the logs (`logs.follow`, events.md § Logs) with this filter, from now and after every
+   * reconnect, or stops (null: `logs.unfollow`). `log.lines` events then come to onEvent.
+   */
+  followLogs(follow: LogFollow | null): void;
+}
+
+/** What History › Logs follows: `logs.follow`'s `follow_id` and `filter`. */
+export interface LogFollow {
+  follow_id: number;
+  filter: { source?: string[] | null; level?: string[] | null; run?: number | null; q?: string | null };
 }
 
 export interface LiveStoreOptions {
@@ -96,6 +110,14 @@ export function createLiveStore(options: LiveStoreOptions = {}): LiveStore {
   let fallbackChain = 0;
   let queueRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let queueRetryWait = QUEUE_RETRY_FIRST_MS;
+  /** What the Logs tab follows, sent after each hello. */
+  let logFollow: LogFollow | null = null;
+
+  /** Sends the follow (or the unfollow) on this connection, once it has had its hello. */
+  function sendLogFollow(follow: LogFollow | null) {
+    if (!socket || lastSeq === null) return;
+    socket.send(JSON.stringify(follow ? { type: 'logs.follow', ...follow } : { type: 'logs.unfollow' }));
+  }
 
   function setState(next: LiveState) {
     if (next === state) return;
@@ -113,6 +135,8 @@ export function createLiveStore(options: LiveStoreOptions = {}): LiveStore {
   function apply(event: LiveEvent) {
     if (event.type === 'level') {
       setLevel({ level: event.data as LevelEvent, receivedAt: Date.now() });
+    } else if (event.type === 'log.lines') {
+      // No state: the Logs tab listens for it.
     } else {
       setState(reduce(state, event));
       // The meter falls silent when the run stops recording.
@@ -129,7 +153,7 @@ export function createLiveStore(options: LiveStoreOptions = {}): LiveStore {
   function receive(text: string) {
     const event = parseEvent(text);
     if (!event) return;
-    if (event.type === 'level') {
+    if (isVolatile(event.type)) {
       apply(event); // Volatile: no seq, never held back.
       return;
     }
@@ -167,6 +191,7 @@ export function createLiveStore(options: LiveStoreOptions = {}): LiveStore {
     stopQueueRetry();
     socket?.healthy();
     apply(event);
+    if (logFollow) sendLogFollow(logFollow);
     if (event.data.status.run) void readThroughRest('queue');
   }
 
@@ -313,6 +338,12 @@ export function createLiveStore(options: LiveStoreOptions = {}): LiveStore {
     reconnect() {
       socket?.reconnect();
     },
+    followLogs(follow) {
+      const was = logFollow;
+      logFollow = follow;
+      if (follow) sendLogFollow(follow);
+      else if (was) sendLogFollow(null);
+    },
   };
 }
 
@@ -327,7 +358,7 @@ function parseEvent(text: string): LiveEvent | null {
   }
   if (typeof parsed !== 'object' || parsed === null || !isKnownEvent(parsed)) return null;
   const { seq, data } = parsed as { seq: unknown; data: unknown };
-  const seqOk = parsed.type === 'level' ? seq === null : Number.isInteger(seq);
+  const seqOk = isVolatile(parsed.type) ? seq === null : Number.isInteger(seq);
   if (!seqOk || typeof data !== 'object' || data === null) {
     console.warn('live: a malformed event; ignored', parsed.type);
     return null;

@@ -99,6 +99,18 @@ export function mockControls(request: APIRequestContext) {
      */
     newPlaylist: (name: string, options: { followed?: boolean } = {}) =>
       post('new-playlist', { name, followed: options.followed === true }),
+    /**
+     * History › Logs: lines now, for the live tail (`add`); `burst` lines at once, more than one
+     * `log.lines` holds (the live cap); `empty`: no lines at all; or `read_budget`: a page looks at
+     * that many lines at most, as the controller's reads about 8 MB (until the next scenario).
+     */
+    logs: (
+      change:
+        | { add: { source: 'controller' | 'spytify' | 'client' | 'system'; level: 'debug' | 'info' | 'warning' | 'error'; message: string }[] }
+        | { burst: number }
+        | { empty: true }
+        | { read_budget: number },
+    ) => post('logs', change),
   };
 }
 

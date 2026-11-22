@@ -9,6 +9,7 @@
 // out, Spotify down, ...) and make the live socket misbehave. See web/README.md § Mock backend.
 
 import * as f from './fixtures.ts';
+import { LOG_LEVELS, LOG_SOURCES, sampleZip } from './logs.ts';
 import type { ChecklistRowValue, SpotifyHealth, World } from './world.ts';
 import type { paths } from '../src/api/schema.ts';
 import type {
@@ -27,8 +28,10 @@ import { checkLayout } from '../src/lib/layout.ts';
 export interface Reply {
   status: number;
   body?: unknown;
-  /** For cover images. */
+  /** For cover images and the logs zip. */
   contentType?: string;
+  /** More headers: the zip's Content-Disposition. */
+  headers?: Record<string, string>;
 }
 
 interface Request {
@@ -484,6 +487,40 @@ const ROUTES: Record<string, Handler> = {
     return ok({ tracks } satisfies Answer<'/api/runs/{id}/items/{item}/tracks', 'get'>);
   },
 
+  // History › Logs (mock/logs.ts)
+  'GET /api/logs': (w, req) => {
+    const source = req.query.getAll('source');
+    const level = req.query.getAll('level');
+    if (source.some((s) => !(LOG_SOURCES as readonly string[]).includes(s)) || source.length > 4) {
+      return fail(422, 'validation_failed', `source is one of ${LOG_SOURCES.join(', ')}.`, { field: 'source' });
+    }
+    if (level.some((l) => !(LOG_LEVELS as readonly string[]).includes(l)) || level.length > 4) {
+      return fail(422, 'validation_failed', `level is one of ${LOG_LEVELS.join(', ')}.`, { field: 'level' });
+    }
+    const runText = req.query.get('run');
+    const run = runText === null ? null : Number(runText);
+    if (run !== null && (!Number.isInteger(run) || run < 1)) return fail(422, 'validation_failed', 'run is a run id.', { field: 'run' });
+    const limit = Number(req.query.get('limit') ?? 200);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) return fail(422, 'validation_failed', 'limit is 1 to 500.', { field: 'limit' });
+    const q = req.query.get('q');
+    if (q !== null && (q.length < 1 || q.length > 200)) return fail(422, 'validation_failed', 'q is 1 to 200 characters.', { field: 'q' });
+    const page = w.logs.page({ source, level, run, q, before: req.query.get('before'), limit });
+    if (page === 'unknown_run') return fail(404, 'not_found', 'No run with this id.');
+    if (page === 'bad_before') return fail(422, 'validation_failed', "before isn't a line's id.", { field: 'before' });
+    return ok(page satisfies Answer<'/api/logs', 'get'>);
+  },
+  'GET /api/logs/download': (_w, req) => {
+    const days = Number(req.query.get('days') ?? 7);
+    if (!Number.isInteger(days) || days < 1 || days > 14) return fail(422, 'validation_failed', 'days is 1 to 14.', { field: 'days' });
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
+    return {
+      status: 200,
+      body: sampleZip(),
+      contentType: 'application/zip',
+      headers: { 'Content-Disposition': `attachment; filename="spotivault-logs-${stamp}.zip"`, 'Cache-Control': 'no-store' },
+    };
+  },
+
   // Schedule (its page isn't in M1; the Dashboard reads /api/schedule/next)
   'GET /api/schedule': (w) => ok(w.data.schedule),
   'PUT /api/schedule': (w, req) => {
@@ -585,6 +622,35 @@ const ROUTES: Record<string, Handler> = {
       [...f.suggestions, ...w.data.foundSuggestions].some((p) => p.id === id);
     if (known) return fail(409, 'already_added', 'A playlist with that name is already there.');
     w.addInSpotify(name, req.body.followed === true);
+    return noContent;
+  },
+  'POST /__mock/logs': (w, req) => {
+    // {"empty": true}: no lines. {"burst": 500}: that many lines at once (the live cap).
+    // {"read_budget": 20}: a page looks at 20 lines at most (the controller's 8 MB), until the next reset.
+    // {"add": [{"source": "controller", "level": "error", "message": "…"}]}: lines now.
+    if (req.body.empty === true) {
+      w.logs.empty();
+      return noContent;
+    }
+    if (req.body.read_budget !== undefined) {
+      const budget = Number(req.body.read_budget);
+      if (!Number.isInteger(budget) || budget < 1) return fail(422, 'validation_failed', 'read_budget is 1 or more.');
+      w.logs.setReadBudget(budget);
+      return noContent;
+    }
+    if (req.body.burst !== undefined) {
+      const burst = Number(req.body.burst);
+      if (!Number.isInteger(burst) || burst < 1 || burst > 5000) return fail(422, 'validation_failed', 'burst is 1 to 5000.');
+      w.logs.burst(burst);
+      return noContent;
+    }
+    const add = req.body.add;
+    if (!Array.isArray(add)) return fail(422, 'validation_failed', 'Send empty, burst or add.');
+    const lines = add as { source: (typeof LOG_SOURCES)[number]; level: (typeof LOG_LEVELS)[number]; message: string }[];
+    if (lines.some((l) => !LOG_SOURCES.includes(l.source) || !LOG_LEVELS.includes(l.level) || typeof l.message !== 'string')) {
+      return fail(422, 'validation_failed', 'Each line has a source, a level and a message.');
+    }
+    w.logs.addLines(lines);
     return noContent;
   },
   'POST /__mock/storage': (w, req) => {

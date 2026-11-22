@@ -62,8 +62,8 @@ export function startMockServer(options: MockOptions = {}): Promise<MockServer> 
         : handle(world, req.method ?? 'GET', url, body);
 
     if (reply.contentType) {
-      res.writeHead(reply.status, { 'Content-Type': reply.contentType, 'Cache-Control': 'private, max-age=86400' });
-      res.end(reply.body as string);
+      res.writeHead(reply.status, { 'Content-Type': reply.contentType, 'Cache-Control': 'private, max-age=86400', ...reply.headers });
+      res.end(reply.body as string | Buffer);
     } else if (reply.body === undefined) {
       res.writeHead(reply.status);
       res.end();

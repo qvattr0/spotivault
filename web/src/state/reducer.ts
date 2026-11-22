@@ -140,6 +140,7 @@ export function reduce(state: LiveState, event: LiveEvent): LiveState {
     case 'album.item':
     case 'catalog.refresh':
     case 'level':
+    case 'log.lines':
       return next;
   }
 }

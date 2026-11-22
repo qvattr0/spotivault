@@ -8,11 +8,11 @@ One WebSocket carries every live update, for every page. This file is its contra
 
 - **URL:** `ws://<host>:8080/api/events`. No subprotocol, no auth in M1 (plan D11).
 - **Origin:** a browser page from another site is refused before the handshake (HTTP 403). Allowed: no `Origin` header, the same host and port, or both on loopback (`localhost`, `127.0.0.1`, `[::1]`, any port), which covers a Vite dev server proxying to a local controller.
-- **Direction:** server to client only. Messages the client sends are ignored, except WebSocket pings.
+- **Direction:** server to client, except the Logs tab's two messages ([Logs](#logs)): `logs.follow` and `logs.unfollow`. Anything else the client sends is ignored, as are WebSocket pings.
 - **Frames:** one JSON text frame per event.
 - **Keep-alive:** the server sends a WebSocket ping every 20 s. A client that hears nothing for 45 s reconnects.
 - **Reconnecting:** with backoff, 1 s doubling to 15 s at most. Every new connection starts with a fresh `hello`, so there's no replay and no `since`.
-- **Slow clients:** the server keeps up to 256 unsent events per connection. If that fills, it closes the socket with code `1013` ("try again later"), and the client reconnects and gets a new `hello`. The one exception is `level`, which is dropped instead (see [Level throttling](#level-throttling)).
+- **Slow clients:** the server keeps up to 256 unsent events per connection. If that fills, it closes the socket with code `1013` ("try again later"), and the client reconnects and gets a new `hello`. The two exceptions are `level` and `log.lines`, which are dropped or merged instead (see [Level throttling](#level-throttling) and [Logs](#logs)).
 - **Close codes:** `1013` for a slow client, `1011` when the `hello` snapshot fails or a ping goes unanswered, and `1012` when the controller is stopping. The client reconnects on all three. (`WS /vnc` closes with `1013` while there's no screen yet.)
 
 ## Envelope
@@ -23,14 +23,14 @@ One WebSocket carries every live update, for every page. This file is its contra
 
 | Field | Type | Meaning |
 |---|---|---|
-| `seq` | integer or null | Counts up by 1 for each event the controller publishes, from 1 at controller start. Null only for `level`. |
+| `seq` | integer or null | Counts up by 1 for each event the controller publishes, from 1 at controller start. Null only for `level` and `log.lines`. |
 | `type` | string | The event type, from the tables below. |
 | `at` | string | When the event happened, RFC 3339 in UTC with milliseconds. |
 | `data` | object | The payload. Its shape depends on `type`. |
 
 **Rules for `seq`:**
 - **Per controller process.** It restarts at 1 when the controller restarts. `hello.boot_id` tells the client that happened.
-- **No gaps on one connection.** Every event goes to every client, so after `hello` the client sees `hello.seq + 1`, `+ 2` and so on. A gap means a bug: the client reloads its state through REST and logs it.
+- **No gaps on one connection.** Every event goes to every client (`log.lines` only to the ones that follow the logs, and with no `seq`), so after `hello` the client sees `hello.seq + 1`, `+ 2` and so on. A gap means a bug: the client reloads its state through REST and logs it.
 - **Ordering against REST:** events are published after the state they describe is committed. So a REST read made after an event already shows that event's change.
 
 **Unknown types** are ignored by the client. New types and new fields are additions; a field is never renamed or removed without a contract change.
@@ -169,6 +169,47 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 | `run_id`, `item_id` | integer, string or null | Set during a run. |
 | `facts` | object or null | Spytify's facts (no names or paths), or the controller's. For the log. |
 
+### Logs
+
+History's Logs tab follows the logs live. A connection gets `log.lines` only after it asks for them, so the logs aren't read while no Logs tab is open.
+
+**The client's messages** (text frames, JSON):
+
+```json
+{"type": "logs.follow", "follow_id": 3, "filter": {"source": ["controller", "spytify"], "level": ["warning", "error"], "run": 42, "q": "timeout"}}
+{"type": "logs.unfollow"}
+```
+
+| Message | Meaning |
+|---|---|
+| `logs.follow` | Start following, or change the filter. `filter`'s fields are `GET /api/logs`'s parameters, and each may be left out or null: `source` and `level` are lists (left out: every source, and every level but `debug`), `run` a run id, `q` a search. `follow_id` (an integer, or a string of up to 64 characters; optional) comes back in each `log.lines`, so the client can drop a batch that was on its way under the filter before. A message that doesn't fit this is ignored. |
+| `logs.unfollow` | Stop. Closing the socket stops it too. |
+
+The follow lasts as long as the connection: after a reconnect, send `logs.follow` again, after the `hello`.
+
+**The event:**
+
+| Type | `data` | When |
+|---|---|---|
+| `log.lines` | `{lines: [LogLine], dropped, follow_id}` | New lines that match the connection's filter, oldest first, at most twice a second. `dropped` counts the matching lines left out of this batch (see below). `follow_id` is the one `logs.follow` gave, or null. |
+
+```json
+{"seq": null, "type": "log.lines", "at": "2026-11-15T01:05:02.400Z", "data": {
+  "lines": [{"id": "1794704702310000000-0-controller", "at": "2026-11-15T01:05:02.310Z", "source": "controller",
+             "service": "controller", "level": "warning", "message": "runs: playback moved to Pixel 9", "run_id": null}],
+  "dropped": 0, "follow_id": 3}}
+```
+
+**Rules:**
+1. **Batched:** the controller looks for new lines every 0.5 s, and sends each following connection one `log.lines` with the ones its filter matches. Nothing is sent when nothing matched.
+2. **The first batch** comes at once after `logs.follow`: the matching lines of the last 10 s. A page read through `GET /api/logs` and the follow can cross, so a line can come both ways: the client drops it by `id`.
+3. **Capped:** at most 200 lines per event, the newest. Older ones in the batch are counted in `dropped`. So are lines the controller skipped because a log grew too fast to read in one go (an estimate, from their size), so a batch can hold no lines and only a `dropped` count. They're still in the files: `GET /api/logs` reads them.
+4. **Volatile:** `seq` is null. It isn't stored, isn't in `hello`, and isn't counted in the 256-event buffer.
+5. **Merged per connection:** if a client hasn't been sent the previous `log.lines` yet, the new lines join it, under the same 200-line cap. A slow client gets a `dropped` count, never a closed socket. A batch for an earlier `follow_id` that hasn't gone out is dropped.
+6. **Masked:** as in `GET /api/logs`.
+7. **Debug lines** go out only to a filter whose `level` asks for `debug`.
+8. **A run's filter:** the controller's, the client's and the system's lines pass while that run goes on (and 5 s after it ends); Spytify's lines pass when they're from one of the run's item logs.
+
 ### Library and Albums
 
 | Type | `data` | When |
@@ -248,8 +289,8 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 | Dashboard | `run.state`, `run.queue`, `item.state`, `run.finished`, `backlog`, `track.*`, `level`, `session.state`, `device.moved`, `error` |
 | Library | `library.item`, `run.state`, `catalog.refresh` |
 | Albums | `album.item`, `run.state` |
-| History | `run.finished` |
+| History | `run.finished`; the Logs tab, `log.lines` |
 | Player | `run.state` (view-only), `client.status` |
 | Settings | `client.status`, `connection` |
 
-Every client gets every event; this table is only a guide.
+Every client gets every event, except `log.lines`; this table is only a guide.

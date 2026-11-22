@@ -12,7 +12,7 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
     const ids = Get(document, (n, c) => { if (c.depth === 0) { c.skipChildren(); return n.type === "frame" ? n.id : undefined; } return undefined; });
     Export(ids, "png", "\\\\wsl.localhost\\Ubuntu\\home\\qvattro\\Personal Projects\\spotivault\\web\\design-reference")
     ```
-- **Status:** the last column of each table says whether S8 built the frame. 26 of the 33 frames in the tables are built, and each was compared to its drawing (`npm run e2e` shoots them, from `web/e2e/page-screens.ts`). The other 7 aren't in M1: custom covers (3), the Schedule page (2) and History's Tracks and Logs tabs (2) are left out, with no link to them. Two undrawn or half-drawn parts wait for your review (plan D8): the Dashboard's Full backup card and step 9's backup-length line.
+- **Status:** the last column of each table says whether S8 built the frame. 27 of the 33 frames in the tables are built, and each was compared to its drawing (`npm run e2e` shoots them, from `web/e2e/page-screens.ts`). The other 6 aren't in M1: custom covers (3), the Schedule page (2) and History's Tracks tab (1) are left out, with no link to them. History's Logs tab moved into M1. Two undrawn or half-drawn parts wait for your review (plan D8): the Dashboard's Full backup card and step 9's backup-length line.
 - **Components:** see [components.md](components.md).
 
 ## Routes
@@ -100,9 +100,9 @@ Every screen frame in the `.pen` file, mapped to its page in web-ui.md, a route 
 | Frame | ID | Route | State | Differences from web-ui.md | Status |
 |---|---|---|---|---|---|
 | History · Runs | `o5vCh7` | `/history/runs` | Runs tab, All; rows for every outcome, plus Missed, Skipped and Held | None found. | Built, Runs tab only. |
-| History · Run page | `bWcg0` | `/history/runs/:id` | "Tue 12 Nov", Completed with issues; Chill Mix expanded with Recorded, Skipped (duplicate), Skipped (ad) and Failed tracks | The "Interrupted twice: Partial" and "Stopped" badges aren't drawn. | Built. No "Logs for this run" (not in M1). |
+| History · Run page | `bWcg0` | `/history/runs/:id` | "Tue 12 Nov", Completed with issues; Chill Mix expanded with Recorded, Skipped (duplicate), Skipped (ad) and Failed tracks | The "Interrupted twice: Partial" and "Stopped" badges aren't drawn. "Logs for this run" isn't drawn. | Built. "Logs for this run" is a tertiary link beside Retry all failed. |
 | History · Tracks | `doecA` | `/history/tracks` | Failed filter; side panel open for "Holocene" with its attempts and Retry | None found. The side panel could be `/history/tracks/:id`. | Not built: the Tracks tab isn't in M1. |
-| History · Logs | `xRi3r` | `/history/logs` | Live tail, all sources, Run: All, "Jump to latest" | The line badges say "Client" where the source chip says "Spotify client". | Not built: the Logs tab isn't in M1. |
+| History · Logs | `xRi3r` | `/history/logs` | Live tail, all sources, Run: All, "Jump to latest" | The line badges say "Client" where the source chip says "Spotify client". The Tracks tab is drawn; it isn't in M1. | Built, with the badges as drawn and no Tracks tab. The Client badge's purple is approximated from the PNG export (`--log-client` in fixed.css). Rows for a new day, "Load older lines" (a pill at the top of the box), the note for lines the live tail left out, and the narrow layout (under 560 px, a line's time and badge above its message) aren't drawn. |
 
 ## Settings
 

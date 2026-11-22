@@ -17,7 +17,9 @@
 #   8. bad settings stop the container with a clear message;
 #   9. with --install: the controller installs the client and WS /api/events shows the progress,
 #      spotify-install agrees, s6 starts the client with the shim loaded, the controller sees its
-#      window (not logged in) and restarts it, and a stop with the client running is quick.
+#      window (not logged in) and restarts it, and a stop with the client running is quick;
+#  10. after a restart, links an app process planted in /config (init's log, the machine ID)
+#      haven't let init-spotivault write to root's files.
 # Prints a size report at the end, and appends it to $GITHUB_STEP_SUMMARY when set.
 #
 # SMOKE_PORT publishes on that host port (default: a free one); SMOKE_NAME names the container.
@@ -398,6 +400,40 @@ if [ "$install" = 1 ]; then
     docker stop -t 60 "$name" >/dev/null
     took=$(($(date +%s) - t0))
     if [ "$took" -le 20 ]; then pass "docker stop took ${took} s"; else fail "docker stop took ${took} s"; fi
+fi
+
+step "10. init writes /config as app: a link app planted there leaves root's files alone"
+# Any app process can swap a file in /config for a link. At the next start, init-spotivault's
+# writes there (its own log, the machine ID) go through app, so a link to one of root's files
+# must leave that file as it was, and root's.
+if [ "$(docker inspect -f '{{.State.Running}}' "$name")" != true ]; then docker start "$name" >/dev/null; fi
+root_files=(/etc/passwd /etc/group /etc/shadow)
+before="$(docker exec "$name" sha256sum "${root_files[@]}")"
+in_app sh -c 'ln -sfn /etc/passwd /config/logs/init/current && ln -sfn /etc/shadow /config/logs/init/current.new &&
+    ln -sfn /etc/group /config/machine-id'
+docker restart -t 60 "$name" >/dev/null
+status=""
+for _ in $(seq 1 90); do
+    status="$(docker inspect -f '{{.State.Health.Status}}' "$name" 2>/dev/null || echo gone)"
+    [ "$status" = healthy ] || [ "$status" = gone ] && break
+    sleep 2
+done
+if [ "$status" = healthy ]; then pass "healthy again after the restart"; else fail "health is '$status' after the restart"; fi
+owners="$(docker exec "$name" stat -c %U "${root_files[@]}" | sort -u)"
+if [ "$(docker exec "$name" sha256sum "${root_files[@]}")" = "$before" ] && [ "$owners" = root ]; then
+    pass "/etc/passwd, /etc/group and /etc/shadow unchanged, and root's"
+else
+    fail "a root file changed through a link in /config (owners: $(tr '\n' ' ' <<<"$owners"))"
+fi
+if in_app test ! -L /config/logs/init/current && in_app grep -q 'DEVICE_NAME=' /config/logs/init/current; then
+    pass "init's log is a file again, with this start's lines"
+else
+    fail "init's log: still a link, or no lines from this start"
+fi
+if in_app test ! -L /config/machine-id && in_app grep -Eqx '[0-9a-f]{32}' /config/machine-id; then
+    pass "a new machine ID, in a file"
+else
+    fail "/config/machine-id: still a link, or no machine ID"
 fi
 
 step "size"

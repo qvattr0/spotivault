@@ -47,6 +47,7 @@ from spotivault.fake.seed import attach as attach_fake_world
 from spotivault.files import FilesService
 from spotivault.history import HistoryService
 from spotivault.imagecdn import HttpImageCdn
+from spotivault.logview import LogsService
 from spotivault.loopwatch import LoopWatch
 from spotivault.matching import MatchingService
 from spotivault.metrics import MetricsService
@@ -129,6 +130,7 @@ class Services:
         self.runs = RunEngine(self)  # engine-run: hello `status`
         self.schedule = ScheduleService(self)  # schedule
         self.metrics = MetricsService(self)  # history-files-metrics
+        self.logs = LogsService(self)  # History › Logs: the pages, the live tail, retention
 
     def add_startup(self, name: str, fn: HookFn) -> None:
         """`fn` is awaited once at start-up, after the store opens, in the order added. If it

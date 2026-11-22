@@ -7,9 +7,9 @@
 // state changes (run.state; the ones sent once a second for counters alone are left out).
 
 import { Link } from 'react-router';
-import { ChevronLeft, CircleCheck, CircleX, CornerUpRight, HardDrive, RefreshCw } from 'lucide-react';
+import { ChevronLeft, CircleCheck, CircleX, CornerUpRight, HardDrive, RefreshCw, ScrollText } from 'lucide-react';
 import { api, useApi, type HistoryRow } from '@/api';
-import { Button } from '@/components/ui-a';
+import { Button, ButtonLink } from '@/components/ui-a';
 import { Alert, EmptyState } from '@/components/ui-b';
 import { OutcomePill } from '@/components/ui-c';
 import { errorText } from '@/lib/errors.ts';
@@ -106,11 +106,19 @@ export function RunDetail({ runId }: { runId: number }) {
           ) : (
             <span />
           )}
-          {retryable.length > 0 ? (
-            <Button variant="secondary" icon={RefreshCw} busy={retry.busy} onClick={() => void retry.run(retryable)}>
-              Retry all failed
-            </Button>
-          ) : null}
+          <div className={styles.actions}>
+            {/* web-ui.md § Run page: opens the Logs tab filtered to this run. */}
+            {run.kind === 'run' ? (
+              <ButtonLink variant="tertiary" icon={ScrollText} to={`/history/logs?run=${run.id}`}>
+                Logs for this run
+              </ButtonLink>
+            ) : null}
+            {retryable.length > 0 ? (
+              <Button variant="secondary" icon={RefreshCw} busy={retry.busy} onClick={() => void retry.run(retryable)}>
+                Retry all failed
+              </Button>
+            ) : null}
+          </div>
         </div>
       </header>
 
