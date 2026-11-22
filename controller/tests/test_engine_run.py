@@ -20,8 +20,8 @@ import pytest
 from fastapi import FastAPI
 
 from contract import assert_response, assert_schema
-from engine_sim import Sim
-from spotivault.api.models import Counters, HistoryRow
+from engine_sim import ELSEWHERE, ELSEWHERE_ARTIST, Sim
+from spotivault.api.models import Counters, HistoryRow, RunTimeLeft
 from spotivault.app import create_app
 from spotivault.clock import iso_ms, parse_iso
 from spotivault.config import Config
@@ -40,10 +40,12 @@ from spotivault.engine.types import (
     InterruptedBy,
     ItemControl,
     ItemJob,
+    ItemLeft,
     ItemLive,
     ItemOutcome,
     ItemReport,
     ItemTimings,
+    MissingTrack,
     RunFailure,
     StopRequest,
     Takeover,
@@ -89,6 +91,7 @@ class Script:
     until_stopped: bool = False  # plays until a stop comes
     ignore_stop: bool = False  # a stop changes nothing: it never ends (the SIGTERM bound)
     crash: bool = False  # run() raises in `playing`
+    left: ItemLeft | None = None  # ItemLive.left while playing (None: as if not planned yet)
 
 
 class ScriptedItem:
@@ -119,6 +122,7 @@ class ScriptedItem:
             session_state="recording" if self.phase == "playing" else None,
             now_playing=None,
             tracks=(),
+            left=self.script.left if self.phase == "playing" else None,
         )
 
     async def _enter(self, phase: ItemState, **extra: Any) -> None:
@@ -1372,6 +1376,251 @@ async def test_sigterm_past_the_bound_repairs_the_run(sim: Sim, items: ScriptedI
     assert sim.events_of("run.state")[-1]["state"] == "idle"
 
 
+# --- The run's own time left (RunSummary.time_left) --------------------------------------------
+
+
+@dataclass
+class Albums:
+    """Albums in Albums, in this order, by different artists (Spytify's key is the first artist
+    and the title, so one artist's "Track 1" on two albums would be one track)."""
+
+    first: str  # 100 s + 200 s
+    second: str  # 50 s
+    third: str  # 3 × 30 s
+
+
+async def albums_of_known_length(sim: Sim) -> Albums:
+    first = sim.album("First", [("F1", 100_000), ("F2", 200_000)], artist="Ann")
+    second = sim.album("Second", [("S1", 50_000)], artist="Bob")
+    third = sim.album("Third", [("T1", 30_000), ("T2", 30_000), ("T3", 30_000)], artist="Cat")
+    await sim.refresh()
+    for n, album in enumerate((first, second, third), start=1):
+        await sim.add_album(album)
+        await sim.services.store.execute(
+            "UPDATE items SET added_at = ? WHERE id = ?",
+            (f"2026-09-0{n}T00:00:00.000Z", album.album.id),
+        )
+    await sim.track("liked", False)
+    return Albums(first.album.id, second.album.id, third.album.id)
+
+
+async def flushed(sim: Sim) -> None:
+    """Lets a `run.state` the counters' second held back go out, and the reader catch up."""
+    await sim.clock.advance(1.5)
+    await asyncio.sleep(0.01)
+    await settle(sim)
+
+
+def time_left_of(sim: Sim) -> dict[str, Any] | None:
+    """The time left in the last `run.state`."""
+    return sim.events_of("run.state")[-1]["time_left"]
+
+
+def seconds_left(sim: Sim) -> int | None:
+    left = time_left_of(sim)
+    return left["seconds"] if left is not None else None
+
+
+async def test_the_time_left_is_this_runs_queue_not_the_backlog(
+    sim: Sim, items: ScriptedItems, client: httpx.AsyncClient
+) -> None:
+    """The current item before its plan is known counts its missing tracks as stored; each
+    waiting item adds its own and 35 s; a followed playlist that plays whole is of unknown
+    length. An album not in this run is the backlog's, not the run's."""
+    services = sim.services
+    albums = await albums_of_known_length(sim)
+    followed = sim.playlist("Theirs", tracks=4, access="followed")
+    await sim.refresh()
+    await sim.add_playlist(followed)
+    await services.settings.set_value("run_order", ["albums", "playlists", "liked", "carried_over"])
+    items.script(albums.first, Script(until_stopped=True))
+    run_id = await start(services, [albums.first, albums.second, followed.playlist.id])
+    await until(sim, running_item(items, albums.first))
+    await flushed(sim)
+    expected = {"seconds": 300 + 50 + 35, "unknown_items": 1}
+    left = time_left_of(sim)
+    assert left is not None and {k: left[k] for k in expected} == expected
+    backlog = await services.backlog.update()
+    assert backlog.seconds_left >= 300 + 35 + 50 + 35 + 90 + 35  # the third album too
+    # The same figure in the REST answers as in the last run.state.
+    current = await client.get("/api/runs/current")
+    assert_response(current, "/api/runs/current")
+    assert current.json()["run"]["time_left"] == left
+    status = await client.get("/api/status")
+    assert_response(status, "/api/status")
+    assert status.json()["run"]["time_left"] == left
+    await services.runs.stop("now")
+    await until(sim, idle(services))
+    assert time_left_of(sim) is None  # the last run.state: the run has ended
+    assert (await run_row(services, run_id))["outcome"] == "stopped"
+
+
+async def test_the_time_left_counts_the_current_take_and_plan_then_the_stops(
+    sim: Sim, items: ScriptedItems, client: httpx.AsyncClient
+) -> None:
+    """Once planned, the current item counts the rest of its take and its planned tracks not
+    started (the item engine's ItemLive.left). Stop after this track: just the take. Stop now:
+    nothing."""
+    services = sim.services
+    albums = await albums_of_known_length(sim)
+    left = ItemLeft(
+        take_ms=61_200,
+        take_key="ann\x1ff1",
+        tracks=(MissingTrack(key="ann\x1ff2", duration_ms=200_000),),
+    )
+    items.script(albums.first, Script(until_stopped=True, left=left))
+    await start(services, [albums.first, albums.second])
+    await until(sim, running_item(items, albums.first))
+    await flushed(sim)
+    assert seconds_left(sim) == 61 + 200 + 50 + 35  # 61.2 s rounds to 61
+    assert time_left_of(sim)["unknown_items"] == 0  # type: ignore[index]
+    await services.runs.stop("after_track")
+    await settle(sim)
+    assert time_left_of(sim)["seconds"] == 61  # type: ignore[index]
+    response = await client.get("/api/runs/current")
+    assert response.json()["run"]["time_left"]["seconds"] == 61
+    await services.runs.stop("now")
+    await settle(sim)
+    stopped = time_left_of(sim)
+    assert stopped is not None and (stopped["seconds"], stopped["unknown_items"]) == (0, 0)
+    await until(sim, idle(services))
+
+
+async def test_the_time_left_keeps_an_interrupted_item_and_drops_a_removed_one(
+    sim: Sim, items: ScriptedItems
+) -> None:
+    services = sim.services
+    albums = await albums_of_known_length(sim)
+    items.script(albums.first, Script(outcome="interrupted", interrupted_by="stall"), Script())
+    items.script(albums.second, Script(until_stopped=True))
+    await start(services, [albums.first, albums.second, albums.third])
+    await until(sim, running_item(items, albums.second))
+    await flushed(sim)
+    # The second album records; the third waits, and the first will retry at the end.
+    assert seconds_left(sim) == 50 + (90 + 35) + (300 + 35)
+    before = len(sim.events_of("run.state"))
+    await sim.clock.advance(2)  # out of the counters' second
+    await services.runs.remove_queued(albums.third)
+    await settle(sim)
+    sent = sim.events_of("run.state")[before:]
+    assert [e["time_left"]["seconds"] for e in sent] == [50 + 300 + 35]
+    await services.runs.stop("now")
+    await until(sim, idle(services))
+
+
+async def test_the_time_left_is_null_while_starting_and_stands_still_while_paused(
+    sim: Sim, items: ScriptedItems
+) -> None:
+    services = sim.services
+    albums = await albums_of_known_length(sim)
+    takeover = Script(outcome="interrupted", interrupted_by="takeover")
+    items.script(albums.first, takeover, Script(until_stopped=True))
+    await start(services, [albums.first, albums.second])
+    status = await services.runs.status()
+    assert status.run is not None and status.run.time_left is None  # the queue isn't built
+    await settle(sim)
+    assert [e["time_left"] for e in sim.events_of("run.state")] == [None]
+    await until(sim, state_is(services, "paused"))
+    await settle(sim)
+    paused = time_left_of(sim)
+    # What the run records once resumed: the first album runs again, so it counts whole, with
+    # its 35 s, though the scripted item played 10 s of it before the takeover.
+    assert paused is not None and paused["seconds"] == (300 + 35) + (50 + 35)
+    paused_at = parse_iso(paused["as_of"])
+    await sim.clock.advance(300)
+    status = await services.runs.status()
+    assert status.run is not None and status.run.time_left is not None
+    assert status.run.time_left.model_dump(mode="json") == paused  # stands still
+    # Resume: worked out again, to the same figure.
+    await services.runs.resume()
+    await settle(sim)
+    resumed = time_left_of(sim)
+    assert resumed is not None and resumed["seconds"] == (300 + 35) + (50 + 35)
+    assert parse_iso(resumed["as_of"]) > paused_at
+    await services.runs.stop("now")
+    await until(sim, idle(services))
+
+
+async def test_a_new_time_left_goes_out_only_when_it_moved() -> None:
+    """Worked out again often (each take's end, each phase), sent only when it moved 5 s or more
+    from its count-down, or its unknown items changed."""
+    at = parse_iso("2026-11-15T00:00:00.000Z")
+
+    def left(seconds: int, after_s: float = 0, unknown: int = 0) -> RunTimeLeft:
+        return RunTimeLeft(
+            seconds=seconds, unknown_items=unknown, as_of=at + timedelta(seconds=after_s)
+        )
+
+    moved = run_module._time_left_moved
+    assert not moved(None, None)
+    assert moved(None, left(300)) and moved(left(300), None)
+    assert not moved(left(300), left(240, after_s=60))  # just the count-down
+    assert not moved(left(300), left(244, after_s=60))  # 4 s off
+    assert moved(left(300), left(245, after_s=60))  # 5 s off: a jump, a skip, a stall
+    assert moved(left(300), left(300, after_s=60))  # stood still (a stall)
+    assert moved(left(300), left(240, after_s=60, unknown=1))
+    assert not moved(left(10), left(0, after_s=60))  # counted down to 0, never under
+
+
+async def test_the_time_left_follows_the_queue_while_paused(sim: Sim, items: ScriptedItems) -> None:
+    """Paused (D6 at the start here), the figure stands still, but a change to the queue works
+    it out again and sends it at once (no item runs, so nothing would send a held one): a
+    removed item takes its tracks and its 35 s away, and one Back up now adds brings its own."""
+    services = sim.services
+    albums = await albums_of_known_length(sim)
+    sim.world.player.play_elsewhere("Pixel 9")
+    await start(services, [albums.first, albums.second])
+    await until(sim, state_is(services, "paused"))
+    assert seconds_left(sim) == (300 + 35) + (50 + 35)
+    await services.runs.remove_queued(albums.second)
+    await settle(sim)
+    assert seconds_left(sim) == 300 + 35
+    created = await services.runs.create_run([albums.third])
+    assert created.added == [albums.third]
+    await settle(sim)
+    assert seconds_left(sim) == (300 + 35) + (90 + 35)
+    status = await services.runs.status()
+    assert status.run is not None and status.run.time_left is not None
+    assert status.run.time_left.model_dump(mode="json") == time_left_of(sim)
+    await services.runs.stop("now")
+    await until(sim, idle(services))
+
+
+async def test_a_scheduled_runs_time_left_ends_with_its_window(
+    sim: Sim, items: ScriptedItems
+) -> None:
+    """A scheduled run stops at its window's end, so its time left is at most what's left of
+    the window, and nothing of unknown length runs past it. When the window grows, the figure
+    is worked out again."""
+    services = sim.services
+    long = sim.album("Long", [(f"Part {n}", 600_000) for n in range(1, 19)], artist="Long Band")
+    followed = sim.playlist("Theirs", tracks=4, access="followed")
+    await sim.refresh()
+    await sim.add_album(long)
+    await sim.add_playlist(followed)
+    await sim.track("liked", False)
+    await services.settings.set_value("run_order", ["albums", "playlists", "liked", "carried_over"])
+    items.script(long.album.id, Script(until_stopped=True))
+    window = await scheduled_window(sim, hours=1)
+    assert window.end is not None
+    await services.runs.start_scheduled(window, trigger="scheduled")
+    await until(sim, running_item(items, long.album.id))
+    await flushed(sim)
+    # 3 h of tracks and a followed playlist, in a window with less than an hour left.
+    left = time_left_of(sim)
+    assert left is not None and left["unknown_items"] == 0
+    window_ms = (window.end - parse_iso(left["as_of"])) // timedelta(milliseconds=1)
+    assert 0 < window_ms < 3_600_000 and left["seconds"] == (window_ms + 500) // 1000
+    # The window grows to 6 h: the queue's own figure, and its playlist of unknown length.
+    longer = await scheduled_window(sim, hours=6)
+    await services.runs.set_window_end(longer.end)
+    await settle(sim)
+    left = time_left_of(sim)
+    assert left is not None and (left["seconds"], left["unknown_items"]) == (18 * 600, 1)
+    await services.runs.stop("now")
+    await until(sim, idle(services))
+
+
 # --- The real item engine (skipped until engine-item is built) ---------------------------------
 
 
@@ -1412,6 +1661,128 @@ async def test_a_real_takeover_pauses_and_resume_finishes(sim: Sim) -> None:
     row = (await run_items(services, run_id))[album.album.id]
     assert (row["state"], row["attempt"]) == ("done", 2)
     assert len(sim.recorded_titles(album)) == 5
+
+
+@needs_item_engine
+async def test_a_real_runs_time_left_counts_its_own_tracks_down(
+    sim: Sim, client: httpx.AsyncClient
+) -> None:
+    """Elsewhere with tracks 1 and 3 recorded: Distant Peak (90 s), Seaside Stillness (93 s) and
+    Last Hours (88 s) to record, 271 s."""
+    services = sim.services
+    use_history_rows(services)
+    album = sim.elsewhere()
+    await sim.refresh()
+    await sim.add_album(album)
+    await sim.track("liked", False)
+    sim.prerecord(album, [0, 2])
+    await start(services)
+    await until(sim, state_is(services, "running"))
+    assert seconds_left(sim) == 271 + 35  # waiting: its stored tracks and 35 s
+    await until(sim, lambda: bool(sim.events_of("track.started")))
+    assert seconds_left(sim) == 271  # the current item, planned: its own tracks
+    await sim.clock.advance(60)
+    # The UI counts the last figure down: within a few seconds of what's really left (the rest
+    # of Distant Peak, then the two others).
+    left = time_left_of(sim)
+    assert left is not None
+    shown = left["seconds"] - (sim.clock.now() - parse_iso(left["as_of"])).total_seconds()
+    playing = (await services.runs.status()).track
+    assert playing is not None and playing.title == "Distant Peak"
+    truth = 90 - (sim.clock.now() - playing.started_at).total_seconds() + 93 + 88
+    assert abs(shown - truth) < 5
+    response = await client.get("/api/runs/current")
+    assert response.json()["run"]["time_left"] == left
+    await until(sim, state_is(services, "finishing"), within=1800)
+    assert seconds_left(sim) == 0  # playback is over
+    await until(sim, idle(services), within=1800)
+    assert time_left_of(sim) is None
+    # Sent at changes, not every second: a handful over the run's ~5 minutes.
+    sent = [e["time_left"] for e in sim.events_of("run.state")]
+    assert len(sent) < 20
+
+
+@needs_item_engine
+async def test_a_real_runs_time_left_doesnt_count_again_what_it_recorded(sim: Sim) -> None:
+    """Elsewhere, then a Deluxe copy with the same five tracks (the same artist and titles, so
+    the same Spytify keys): the copy will have nothing to record, though its list, read when the
+    queue was built, has them all. The figure counts down with what's really left: the rest of
+    the track playing and Elsewhere's tracks after it, then nothing once it's finishing."""
+    services = sim.services
+    album = sim.elsewhere()
+    deluxe = sim.album("Elsewhere (Deluxe)", ELSEWHERE, artist=ELSEWHERE_ARTIST)
+    await sim.refresh()
+    for n, saved in enumerate((album, deluxe), start=1):
+        await sim.add_album(saved)
+        await services.store.execute(
+            "UPDATE items SET added_at = ? WHERE id = ?",
+            (f"2026-09-0{n}T00:00:00.000Z", saved.album.id),
+        )
+    await sim.track("liked", False)
+    await start(services)
+    await until(sim, lambda: bool(sim.events_of("track.started")))
+    lengths_s = {title: ms / 1000 for title, ms in ELSEWHERE}
+    order = [title for title, _ in ELSEWHERE]
+    checks = 0
+    while True:
+        await sim.clock.advance(5)
+        await asyncio.sleep(0.001)
+        await settle(sim)
+        status = await services.runs.status()
+        if status.item is None or status.item.item_id != album.album.id:
+            break  # Elsewhere is over
+        if status.item.state == "finishing":
+            truth = 0.0
+        elif status.track is not None:
+            played = (sim.clock.now() - status.track.started_at).total_seconds()
+            later = order[order.index(status.track.title) + 1 :]
+            truth = max(0.0, lengths_s[status.track.title] - played)
+            truth += sum(lengths_s[title] for title in later)
+        else:
+            continue
+        left = time_left_of(sim)
+        assert left is not None
+        shown = left["seconds"] - (sim.clock.now() - parse_iso(left["as_of"])).total_seconds()
+        assert abs(max(0.0, shown) - truth) < 5, (status.track, status.item.state, left)
+        checks += 1
+    assert checks > 80  # Elsewhere's 460 s and its finishing, every 5 s
+    await until(sim, idle(services), within=600)
+    # From Elsewhere's finishing on, through the switch to the copy, nothing was left.
+    sent = sim.events_of("run.state")
+    finishing = next(n for n, event in enumerate(sent) if event["state"] == "finishing")
+    assert [event["time_left"] for event in sent[finishing:-1]] != []
+    assert all(event["time_left"]["seconds"] == 0 for event in sent[finishing:-1])
+    assert sim.recorded_titles(deluxe) == set(order)
+
+
+@needs_item_engine
+async def test_a_real_whole_items_first_take_counts_from_its_start(sim: Sim) -> None:
+    """A followed playlist plays whole, then Elsewhere (460 s and 35 s). The whole item's
+    length isn't known, but the take playing is: it counts from the moment it starts, not only
+    once it ends."""
+    services = sim.services
+    catalog = sim.world.catalog
+    entries = [catalog.entry(title, artist="Band", duration_ms=150_000) for title in ("A", "B")]
+    playlist = sim.playlist("Theirs", entries, access="followed")
+    album = sim.elsewhere()
+    await sim.refresh()
+    await sim.add_playlist(playlist)
+    await sim.add_album(album)
+    await sim.track("liked", False)
+    await services.settings.set_value("run_order", ["playlists", "albums", "liked", "carried_over"])
+    await start(services)
+    await until(sim, lambda: bool(sim.events_of("track.started")))
+    await sim.clock.advance(20)
+    await settle(sim)
+    playing = (await services.runs.status()).track
+    assert playing is not None and playing.title == "A"
+    left = time_left_of(sim)
+    assert left is not None and left["unknown_items"] == 1  # the playlist plays whole
+    shown = left["seconds"] - (sim.clock.now() - parse_iso(left["as_of"])).total_seconds()
+    truth = 150 - (sim.clock.now() - playing.started_at).total_seconds() + 460 + 35
+    assert abs(shown - truth) < 5
+    await services.runs.stop("now")
+    await until(sim, idle(services), within=600)
 
 
 @pytest.fixture

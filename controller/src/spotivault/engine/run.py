@@ -50,6 +50,18 @@ stopCurrentRun, resumeCurrentRun, removeQueuedItem); events.md (`run.*`, `item.s
 8. **Run now** covers every tracked playlist (Liked Songs included) plus Queued and Partial
    albums; with `items`, just those.
 
+**The run's time left** (RunSummary.time_left; engine/time_left.py sums it): null while
+starting. Worked out again on every change of the run's state, each phase of the current item,
+each planned take's start, each change of its counts (a take ended), each change to the queue,
+and each move of the window's end; it's sent (a `run.state`, batched with the counters while an
+item runs) only when it moved 5 s or more from its count-down, or its unknown items changed.
+Paused, no item runs: the figure is what the run records once resumed (the paused item counts as
+waiting, as it runs again), and it stands still, worked out again only when the queue changes.
+Each queue entry keeps its missing tracks as stored (`time_left.item_estimates`), read when it
+joins the queue and again after each item (the index changed). The keys this run recorded
+(`_Run.recorded_keys`, each item's `ItemLeft.done_keys` as it ends) never count again, even
+before those lists are read again.
+
 **Start-up recovery** (recovery.py) is the start-up hook `runs.recover`, before the scheduler's.
 
 **The window** of a scheduled or start-up run follows the grid: the scheduler moves its end
@@ -87,11 +99,13 @@ from spotivault.api.models import (
     QueueItemExpect,
     RunCreated,
     RunSummary,
+    RunTimeLeft,
     Status,
 )
 from spotivault.catalog.covers import cover_url
 from spotivault.clock import iso_ms
 from spotivault.engine import queue as run_queue
+from spotivault.engine import time_left
 from spotivault.engine.item import ItemEngine
 from spotivault.engine.precheck import PreRunResult, pre_run_check
 from spotivault.engine.recovery import fail_unfinished_run
@@ -115,6 +129,7 @@ from spotivault.engine.types import (
     ItemControl,
     ItemJob,
     ItemKind,
+    ItemLeft,
     ItemLive,
     ItemReport,
     ItemTimings,
@@ -142,6 +157,7 @@ IDLE_STATUS = Status(
 
 SHUTDOWN_BOUND_S = 40.0  # SIGTERM: the run must be ended by then (docker's grace is 60 s)
 COUNTERS_INTERVAL_S = 1.0  # at most one `run.state` a second for counters alone (events.md)
+TIME_LEFT_SLACK_S = 5.0  # a new time left goes out when it moved this much from the count-down
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,6 +230,7 @@ class _Entry:
     forced: bool = False
     ran_order: int | None = None
     final: bool = False  # done with in this run (an item interrupted by a shutdown included)
+    missing: time_left.Missing = None  # its missing tracks as stored, for the time left
 
     @property
     def total(self) -> TrackCounts:
@@ -247,6 +264,8 @@ class _Run:
     ran: int = 0  # items that ran so far: ran_order
     counters_sent_at: float | None = None
     counters_dirty: bool = False
+    time_left: RunTimeLeft | None = None  # the last one worked out (null while starting)
+    recorded_keys: set[str] = field(default_factory=set)  # Spytify keys the ended items recorded
     ended: bool = False
 
 
@@ -417,6 +436,7 @@ class RunEngine:
             log.info("runs: run %d: %s removed from the queue", run.run_id, entry.name)
             self._publish_item_state(run, entry, previous)
             self._publish_queue(run)
+            self._time_left_changed(run)
         await self._publish_library(entry)
 
     # --- The scheduler -------------------------------------------------------------------------
@@ -467,6 +487,7 @@ class RunEngine:
                 run.run_id,
                 iso_ms(end) if end is not None else "never",
             )
+            run.time_left = self._work_out_time_left(run)  # capped by the window's end
             self._publish_run_state(run, run.state)
 
     # --- Lifecycle (registered in __init__) ----------------------------------------------------
@@ -554,6 +575,8 @@ class RunEngine:
                 await self._set_run_state(run, "finishing")
             elif phase != "finishing" and run.state == "finishing":
                 await self._set_run_state(run, "running")
+            else:
+                self._time_left_changed(run)  # planned now, say: its own tracks, not stored ones
         await self._publish_library(entry)
 
     async def item_counts(self, job: ItemJob, counts: TrackCounts) -> None:
@@ -565,8 +588,18 @@ class RunEngine:
             run, entry = found
             entry.counts = counts
             await self._store_counts(run, entry)
+            self._refresh_time_left(run)  # a take ended: goes out with the counters
             self._counters_changed(run)
         await self._publish_library(entry)
+
+    async def item_take_started(self, job: ItemJob) -> None:
+        """A planned take started: the time left counts it from now (a whole item's take isn't
+        in it before). Nothing is stored."""
+        async with self._lock:
+            found = self._current_for(job)
+            if found is None:
+                return
+            self._time_left_changed(found[0])
 
     # --- Driving a run (serve's task) ----------------------------------------------------------
 
@@ -662,6 +695,11 @@ class RunEngine:
         started = self.services.clock.now()
         report = await self._run_engine(run, engine)
         async with self._lock:
+            # What it recorded stays out of the time left, before the waiting items' lists are
+            # read again after it (_apply_report).
+            live = self._live(run)
+            if live is not None and live.left is not None:
+                run.recorded_keys |= live.left.done_keys
             run.engine = None
             run.control = None
         crashed = report is None
@@ -712,6 +750,7 @@ class RunEngine:
                 if item_id in infos
             ]
             await self._insert_entries(run, entries)
+            await self._estimate(run, entries)
             run.queue = entries
             run.queue_built = True
             log.info("runs: run %d: %d item(s) queued", run.run_id, len(entries))
@@ -813,12 +852,19 @@ class RunEngine:
                     self._publish_device_moved(run, pause_device, item_id=None, take_id=None)
             elif run.state == "finishing":
                 await self._set_run_state(run, "running")
+            else:
+                self._time_left_changed(run)
         await self._publish_library(entry)
         self.services.matching.invalidate()
         try:
             await self.services.backlog.update()
         except Exception:
             log.exception("runs: the backlog update after %s failed", entry.item_id)
+        # What the item recorded may be on waiting items' lists too: read them again.
+        await self._estimate(run, [e for e in run.queue if not e.final])
+        async with self._lock:
+            if not run.ended:
+                self._time_left_changed(run)
 
     async def _finish(self, run: _Run, end: RunEnd, failure: RunFailure | None) -> None:
         """Ends the run (module docstring, step 7)."""
@@ -991,6 +1037,7 @@ class RunEngine:
             await self.services.store.execute(
                 "UPDATE runs SET stop_mode = ? WHERE id = ?", (run.stop.mode, run.run_id)
             )
+            run.time_left = self._work_out_time_left(run)  # Stop now: nothing is left
             self._publish_run_state(run, run.state)
         self._wake.set()
 
@@ -1006,6 +1053,9 @@ class RunEngine:
             "UPDATE runs SET state = ?, paused_reason = ?, stop_mode = ? WHERE id = ?",
             (new, reason, run.stop.mode if run.stop else None, run.run_id),
         )
+        # Worked out anew. Paused, no item runs: it's what the run records once resumed (the
+        # paused item counts as waiting, as it runs again), and it stands still.
+        run.time_left = self._work_out_time_left(run)
         run.state = new
         run.paused_reason = reason
         self._publish_run_state(run, previous)
@@ -1035,6 +1085,7 @@ class RunEngine:
             if item_id in infos
         ]
         await self._insert_entries(run, fresh)
+        await self._estimate(run, fresh)
         by_id = {entry.item_id: entry for entry in chosen + fresh}
         forced = [by_id[item_id] for item_id in ids if item_id in by_id]
         if not forced:
@@ -1055,6 +1106,7 @@ class RunEngine:
             ", ".join(entry.name for entry in forced),
         )
         self._publish_queue(run)
+        self._time_left_changed(run)
         return [entry.item_id for entry in forced]
 
     async def _reorder_waiting(
@@ -1286,10 +1338,7 @@ class RunEngine:
         stem = f"{run.run_id}-{entry.item_id}"
         if entry.attempt > 1:
             stem += f"-{entry.attempt}"
-        if entry.kind in ("followed", "linked"):
-            snapshot_unread = run.refresh_failed or entry.item_id in run.snapshots_unread
-        else:
-            snapshot_unread = False
+        snapshot_unread = _snapshot_unread(run, entry)
         return ItemJob(
             run_id=run.run_id,
             run_item_id=entry.run_item_id,
@@ -1343,6 +1392,7 @@ class RunEngine:
             paused_reason=run.paused_reason,
             stop_mode=run.stop.mode if run.stop is not None else None,
             counters=self._counters(run),
+            time_left=run.time_left if run.state != "ended" else None,
         )
 
     def _queue_item(self, entry: _Entry) -> QueueItem:
@@ -1378,6 +1428,77 @@ class RunEngine:
         waiting = [e for e in run.queue if not e.final and e is not current]
         shown = ran + never_ran + ([current] if current is not None else []) + waiting
         return [self._queue_item(entry) for entry in shown]
+
+    def _work_out_time_left(self, run: _Run) -> RunTimeLeft | None:
+        """The run's time left now (engine/time_left.py), or None while the queue isn't built.
+        The current item counts by its live plan once it has one, else by its stored list; a
+        paused run's interrupted item, which runs again on Resume, counts as waiting. What this
+        run recorded doesn't count again, and the window's end caps it."""
+        if not run.queue_built:
+            return None
+        current = run.current if run.engine is not None else None
+        left: ItemLeft | None = None
+        if current is not None and not current.final:
+            live = self._live(run)
+            left = live.left if live is not None else None
+            if left is None:  # not planned yet
+                left = ItemLeft(take_ms=0, take_key=None, tracks=current.missing)
+        waiting = [
+            entry.missing
+            for entry in run.queue
+            if not entry.final and entry is not current and entry.state in WAITING_STATES
+        ]
+        stop_mode = run.stop.mode if run.stop is not None else None
+        recorded = (run.recorded_keys | left.done_keys) if left is not None else run.recorded_keys
+        now = self._now_ms()
+        window_ms: int | None = None
+        if run.window is not None and run.window.end is not None:
+            window_ms = max(0, round((run.window.end - now).total_seconds() * 1000))
+        total = time_left.work_out(
+            left, waiting, stop_mode=stop_mode, recorded=recorded, window_ms=window_ms
+        )
+        return RunTimeLeft(seconds=total.seconds, unknown_items=total.unknown_items, as_of=now)
+
+    def _refresh_time_left(self, run: _Run) -> bool:
+        """Works the time left out again and keeps it if it moved: 5 s or more from what the
+        last one shows now (its count-down; paused, the figure itself), or other unknown items.
+        True when it did (it's worth a `run.state`)."""
+        if run.ended:
+            return False
+        new = self._work_out_time_left(run)
+        if not _time_left_moved(run.time_left, new, paused=run.state == "paused"):
+            return False
+        run.time_left = new
+        return True
+
+    def _time_left_changed(self, run: _Run) -> None:
+        """A `run.state` for the new time left, if it moved: batched as counters are while an
+        item runs (its flusher sends the held one), else at once (paused, between items)."""
+        if not self._refresh_time_left(run):
+            return
+        if run.engine is None:
+            self._publish_run_state(run, run.state)
+        else:
+            self._counters_changed(run)
+
+    async def _estimate(self, run: _Run, entries: Sequence[_Entry]) -> None:
+        """Reads these entries' missing tracks as stored (time_left.item_estimates). A failure
+        is logged: they then count as of unknown length."""
+        if not entries:
+            return
+        pairs = [(entry.item_id, _snapshot_unread(run, entry)) for entry in entries]
+        try:
+            estimates = await time_left.item_estimates(self.services, pairs)
+        except Exception:
+            log.exception("runs: run %d: the items' lengths can't be read", run.run_id)
+            estimates = {}
+        for entry in entries:
+            entry.missing = estimates.get(entry.item_id)
+
+    def _now_ms(self) -> datetime:
+        """Now, to the millisecond, as times are stored and sent (iso_ms)."""
+        now = self.services.clock.now()
+        return now.replace(microsecond=now.microsecond // 1000 * 1000)
 
     def _counters_changed(self, run: _Run) -> None:
         """A `run.state` for new counters now, or within the second (events.md)."""
@@ -1574,6 +1695,34 @@ def _next_waiting(run: _Run) -> _Entry | None:
 
 def _ran_order(entry: _Entry) -> int:
     return entry.ran_order or 0
+
+
+def _snapshot_unread(run: _Run, entry: _Entry) -> bool:
+    """D13 can't skip it: this run's refresh didn't read its snapshot_id (followed and linked
+    playlists only; the refresh reads no other's)."""
+    if entry.kind not in ("followed", "linked"):
+        return False
+    return run.refresh_failed or entry.item_id in run.snapshots_unread
+
+
+def _counted_down(left: RunTimeLeft, now: datetime) -> float:
+    """A time left counted down to `now`, as the UI shows it while the run records."""
+    since = max(0.0, (now - left.as_of).total_seconds())
+    return max(0.0, left.seconds - since)
+
+
+def _time_left_moved(
+    old: RunTimeLeft | None, new: RunTimeLeft | None, *, paused: bool = False
+) -> bool:
+    """Whether a new time left is worth sending: it appeared or went, its unknown items
+    changed, or it's 5 s or more from what the old one shows: its count-down, or, while the run
+    is paused (the UI holds it still), the old figure itself."""
+    if old is None or new is None:
+        return old is not new
+    if old.unknown_items != new.unknown_items:
+        return True
+    shown = old.seconds if paused else _counted_down(old, new.as_of)
+    return abs(new.seconds - shown) >= TIME_LEFT_SLACK_S
 
 
 def _expect(entry: _Entry) -> QueueItemExpect:

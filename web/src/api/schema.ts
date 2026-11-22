@@ -1432,6 +1432,20 @@ export interface components {
              */
             stop_mode: "after_track" | "now" | null;
             counters: components["schemas"]["Counters"];
+            /** @description This run's own time left, for the run header ("about 9 min left in this run"). Null while the run starts (its queue isn't built yet), and in the last `run.state`, once it has ended. */
+            time_left: components["schemas"]["RunTimeLeft"] | null;
+        };
+        /** @description How long this run still records, worked out by the controller from what it has stored, with no Web API request. Only this run's items count: the whole backlog's time left is `Backlog.seconds_left`, the Full backup card's. */
+        RunTimeLeft: {
+            /** @description Recording time left at `as_of`, of the items whose length is known. It adds up the rest of the take recording now (its length less the time it has recorded), the current item's planned tracks that haven't started, and each waiting item's missing tracks (Up next, and interrupted items that will retry), from their stored durations, plus 35 s for each waiting item with a track to record, as the backlog estimate counts. A track two items share counts once, as Spytify records it once, and a track this run already recorded doesn't count again. Removed items don't count. A scheduled or start-up run stops at its window's end, so until a stop is asked for, it's at most the time from `as_of` to `window_end`. After Stop after this track, it's just the rest of that track, even past the window's end; after Stop now, 0. While the run is paused, it's what the run records once resumed: the paused item counts as waiting, as it runs again. */
+            seconds: number;
+            /** @description Items still to run whose length isn't known, so they're left out of `seconds`: playlists played whole (followed and linked ones that aren't Up to date by D13, and any whose track list this run can't trust). The current item counts here while it plays whole. 0 once a stop is asked for, and when the window's end caps `seconds`, since nothing runs past it. */
+            unknown_items: number;
+            /**
+             * Format: date-time
+             * @description When `seconds` was worked out. While the run is running, finishing or stopping, the time since then counts down: show `seconds` less it, never under 0, and, until a stop is asked for, never more than the time left to `window_end` (then without `unknown_items`). While it's paused, the figure stands still, still capped at `window_end`. The controller works it out again at each planned track's start and end, each phase of the current item, each change to the queue, each change of the run's state and each move of `window_end`, and sends a `run.state` when it moved by 5 s or more from what the last one shows (its count-down; paused, the figure itself), or `unknown_items` changed.
+             */
+            as_of: string;
         };
         /**
          * @description An item's state in a run. While it's the current item: `planning`, `preflight`, `preparing`,

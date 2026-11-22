@@ -7,6 +7,7 @@ decisions. Times are on the fake clock: an album of five 90 s tracks takes milli
 import asyncio
 import stat
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -23,13 +24,16 @@ from spotivault.engine.steering import ContextCheck, Steering, same_context
 from spotivault.engine.types import (
     ItemControl,
     ItemJob,
+    ItemLeft,
     ItemReport,
+    MissingTrack,
     StopRequest,
     Takeover,
     Timeouts,
 )
 from spotivault.fake.catalog import CatalogAlbum, CatalogPlaylist
 from spotivault.fake.recorder import SimRecorderSession
+from spotivault.matching import track_key
 from spotivault.ports import (
     Device,
     NotConnected,
@@ -1174,6 +1178,98 @@ async def test_live_and_the_recorder_pid_while_it_records(sim: Sim) -> None:
     ]
     assert engine.live().tracks[1].size_bytes and engine.recorder_pid is None
     assert engine.live().phase == "finishing"
+
+
+async def test_live_says_whats_left_to_play_for_the_runs_time_left(sim: Sim) -> None:
+    """ItemLive.left: the rest of the take recording now (its length less the time it has
+    recorded) and the planned tracks that haven't started; after Stop after this track, only the
+    take; after Stop now, or once playback is over, nothing."""
+    _, job = await album_job(sim, [0, 2, 4])  # Distant Peak (90 s) and Seaside Stillness (93 s)
+    control = ItemControl()
+    engine = ItemEngine(sim.services, job, host=RecordingHost(), control=control)
+    assert engine.live().left is None  # not planned yet
+    task = asyncio.ensure_future(engine.run())
+    await sim.clock.advance(30)
+    live = engine.live()
+    playing = live.now_playing
+    assert playing is not None and playing.title == "Distant Peak"
+    played_ms = (sim.clock.now() - playing.started_at).total_seconds() * 1000
+    assert 0 < played_ms < playing.length_ms
+    seaside = MissingTrack(key=track_key("fakename", "Seaside Stillness"), duration_ms=93_000)
+    distant = track_key("fakename", "Distant Peak")
+    assert live.left == ItemLeft(
+        take_ms=round(playing.length_ms - played_ms),
+        take_key=distant,
+        tracks=(seaside,),
+        done_keys=frozenset({distant}),  # being recorded
+    )
+    await sim.clock.advance(10)
+    assert engine.live().left.take_ms == round(playing.length_ms - played_ms - 10_000)  # type: ignore[union-attr]
+
+    control.request_stop(StopRequest("after_track", "user"))
+    after = engine.live().left
+    assert after is not None and after.tracks == () and after.take_ms > 0
+    control.request_stop(StopRequest("now", "user"))
+    now = engine.live().left
+    assert now is not None and (now.take_ms, now.take_key, now.tracks) == (0, None, ())
+    await sim.advance_until(task.done, within=600)
+    await task
+    # The take was discarded: nothing was recorded.
+    assert engine.live().left == ItemLeft(take_ms=0, take_key=None, tracks=())
+
+
+async def test_a_whole_item_has_no_planned_length_but_its_take_counts(sim: Sim) -> None:
+    playlist = await followed_playlist(sim, ["One", "Two", "Three"])
+    job = await sim.job(playlist.playlist.id)
+    host = RecordingHost()
+    engine = ItemEngine(sim.services, job, host=host, control=ItemControl())
+    task = asyncio.ensure_future(engine.run())
+    await sim.advance_until(lambda: engine.live().now_playing is not None, within=120)
+    left = engine.live().left
+    assert left is not None and left.tracks is None  # plays whole: its length isn't known
+    assert left.take_key == track_key("Band", "One") and 0 < left.take_ms <= 60_000
+    # The run engine is told as the take starts, so its time left counts it from then.
+    assert host.takes_started == 1
+    await sim.advance_until(task.done, within=600)
+    await task
+    assert host.takes_started == 3
+
+
+async def test_live_says_what_this_attempt_recorded(sim: Sim) -> None:
+    """ItemLeft.done_keys: the keys recorded so far, counting the take playing and one that
+    played and waits for its result (Spytify saves it after the next one started), so a waiting
+    item that lists them doesn't count them again in the run's time left. A discarded take's
+    key goes once its result comes."""
+    album, job = await album_job(sim, [0, 2])  # Distant Peak, Seaside Stillness, Last Hours
+    control = ItemControl()
+    engine = ItemEngine(sim.services, job, host=RecordingHost(), control=control)
+    task = asyncio.ensure_future(engine.run())
+
+    def playing(title: str) -> Callable[[], bool]:
+        def check() -> bool:
+            now = engine.live().now_playing
+            return now is not None and now.title == title
+
+        return check
+
+    distant, seaside = (
+        track_key("fakename", "Distant Peak"),
+        track_key("fakename", "Seaside Stillness"),
+    )
+    await sim.advance_until(playing("Distant Peak"), within=120)
+    left = engine.live().left
+    assert left is not None and left.done_keys == {distant}
+    await sim.advance_until(playing("Seaside Stillness"), within=300)
+    left = engine.live().left
+    assert left is not None and left.done_keys == {distant, seaside}
+    await sim.advance_until(lambda: engine.live().tracks[1].state == "recorded", within=60)
+    await sim.clock.advance(10)
+    control.request_stop(StopRequest("now", "user"))  # Seaside Stillness is discarded
+    await sim.advance_until(task.done, within=900)
+    await task
+    left = engine.live().left
+    assert left is not None and left.done_keys == {distant}
+    assert sim.recorded_titles(album) == {"Passage", "Now And Then", "Distant Peak"}
 
 
 async def test_the_m3u_and_stale_files_are_asked_for(

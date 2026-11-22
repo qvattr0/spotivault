@@ -424,6 +424,7 @@ export const runRunning: RunSummary = {
   paused_reason: null,
   stop_mode: null,
   counters: { recorded: 12, skipped_duplicate: 230, skipped_other: 0, failed: 1, bytes_added: 41_943_040 },
+  time_left: { seconds: 1946, unknown_items: 1, as_of: '2026-11-15T00:42:10Z' },
 };
 
 export function queueItem(q: Partial<QueueItem> & Pick<QueueItem, 'item_id' | 'name'>): QueueItem {

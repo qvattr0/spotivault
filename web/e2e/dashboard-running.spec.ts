@@ -18,8 +18,9 @@ test('the run header: title, line, live counters and Stop; the strip docked unde
   await openPage(page, '/dashboard');
   await expect(page.getByRole('heading', { level: 1, name: 'Backing up' })).toBeVisible();
   await expect(page.getByText('Running', { exact: true })).toBeVisible({ timeout: 10_000 });
-  // "started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00", then the backlog's time left.
-  await expect(page.getByText(/^started \d\d:\d\d · 0:0\d elapsed · Scheduled · stops by \d\d:\d\d · about 27 h left$/)).toBeVisible();
+  // "started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00", then this run's own time left: the
+  // mock's tracks last seconds, so a few minutes, not the backlog's 27 h.
+  await expect(page.getByText(/^started \d\d:\d\d · 0:0\d elapsed · Scheduled · stops by \d\d:\d\d · about \d min left in this run$/)).toBeVisible();
   const counters = page.getByLabel('Counters');
   await expect(counters).toContainText('Recorded 0');
   await expect(counters).toContainText('Failed 0');
@@ -61,6 +62,15 @@ test('the current item expands: progress, Recording, and the track table ticking
   await expect(first).toContainText(/Recorded · \d\.\d MB/);
   await expect(rows.nth(2)).toHaveAttribute('data-state', 'recording');
   await expect(current.getByText('2 / 3')).toBeVisible();
+});
+
+test("Back up now of one playlist: the header says that run's own time left", async ({ page, request }) => {
+  await useScenario(request, 'idle');
+  await openPage(page, '/dashboard');
+  await backUpNow(request, ['liked']);
+  await expect(page.getByRole('heading', { level: 1, name: 'Backing up' })).toBeVisible();
+  // Liked Songs' two new tracks (6 and 7.5 s in the mock): about a minute, not the backlog's 27 h.
+  await expect(page.getByText(/^started \d\d:\d\d · 0:0\d elapsed · Run now · about 1 min left in this run$/)).toBeVisible({ timeout: 10_000 });
 });
 
 test('the session pill says Waiting until a track records, then Recording', async ({ page, request }) => {

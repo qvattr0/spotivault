@@ -9,7 +9,8 @@
 // session.state stopping, item.state and run.state finishing, a `backlog` event, and on to the next
 // item. Liked Songs first skips a track it already has (track.skipped, duplicate); an album's
 // second track comes out too quiet (a failed track, the album ends Partial). At the end:
-// run.state idle and run.finished.
+// run.state idle and run.finished. Each run.state carries the run's own time left, summed as the
+// controller sums it (time-left.ts).
 //
 // Mock controls cut a run short the ways web-ui.md § Warnings describes: a takeover (the run
 // pauses), a stall (Interrupted · will retry, at the end of the queue), a fatal error (Partial), the
@@ -20,6 +21,7 @@
 
 import * as f from './fixtures.ts';
 import type { Hub } from './hub.ts';
+import { workOut, type ItemLeft, type MissingTrack } from './time-left.ts';
 import type {
   Album,
   Backlog,
@@ -38,6 +40,7 @@ import type {
   RunItem,
   RunState,
   RunSummary,
+  RunTimeLeft,
   RunTrack,
   SavedAlbum,
   Schedule,
@@ -279,6 +282,13 @@ const CLIENT_RESTART_MS = 3000;
 const DEVICE_WAIT_MS = 6000;
 /** How long the Library's Refresh takes: a few requests to Spotify, 250 ms apart in the controller. */
 const REFRESH_MS = 2000;
+/**
+ * A run's time left adds this for each waiting item with a track to record: the mock's own start of
+ * an item and its Finishing, shortened as its tracks are (the controller adds the backlog's 35 s).
+ */
+const ITEM_OVERHEAD_MS = 3500;
+/** As in the controller: a new time left goes out when it moved this much from its count-down. */
+const TIME_LEFT_SLACK_S = 5;
 
 /** Thrown inside a simulation when the world is reset under it. */
 class Cancelled extends Error {}
@@ -323,6 +333,10 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
   let pendingForced: string[] = [];
   /** The catalog refresh going on (the Library's Refresh), by its id. */
   let refreshing: number | null = null;
+  /** The run's queue is built: until then its time left isn't known. */
+  let queueBuilt = false;
+  /** The keys of the tracks this run recorded: they don't count in its time left again (controller: recorded_keys). */
+  let recordedKeys = new Set<string>();
 
   /** Runs `fn` after `ms`, unless the world is reset first. */
   function later(ms: number, fn: () => void) {
@@ -474,9 +488,78 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
   function publishRun(state: RunState, previous: RunState, patch: Partial<RunSummary> = {}) {
     const run = data.status.run;
     if (!run) return;
-    const next: RunSummary = { ...run, ...patch, state };
+    // Worked out anew. Paused, nothing plays: it's what the run records once resumed, standing still.
+    const next: RunSummary = { ...run, ...patch, state, time_left: timeLeftNow() };
     setStatus({ state, run: next, view_only: true });
     hub.publish('run.state', { ...next, previous_state: previous });
+  }
+
+  // --- The run's own time left (RunSummary.time_left), as the controller works it out --------------
+
+  /**
+   * This run's time left now (time-left.ts): the rest of the track recording now and the current
+   * item's tracks still pending, then each waiting item's tracks (Up next, and interrupted ones that
+   * will retry), none this run recorded. An item that's "checking" (no track list) is of unknown
+   * length. A scheduled run's is capped at what's left of its window. Null until the queue is built.
+   */
+  function timeLeftNow(): RunTimeLeft | null {
+    if (!queueBuilt) return null;
+    const windowEnd = data.status.run?.window_end ?? null;
+    const windowMs = windowEnd ? Math.max(0, Date.parse(windowEnd) - Date.now()) : null;
+    const current = data.queue.find((q) => CURRENT_STATES.includes(q.state)) ?? null;
+    let left: ItemLeft | null = null;
+    if (current?.state === 'finishing') left = { take_ms: 0, take_key: null, tracks: [] };
+    else if (current && tracksFor === current.item_id && ['starting', 'playing'].includes(current.state)) {
+      // Planned: its own track table. A take counts if it's a planned track (the duplicate the
+      // controller jumps over has no position).
+      const recording = data.currentTracks.find((t) => t.state === 'recording' && t.position !== null) ?? null;
+      const playing = data.status.track;
+      let takeMs = 0;
+      if (recording && playing && playing.take_id === recording.take_id) {
+        const played = (Date.now() - Date.parse(playing.started_at)) * speed;
+        takeMs = Math.max(0, Math.round(playing.length_ms - played));
+      }
+      const pending = data.currentTracks.filter((t) => t.state === 'pending').map(missingOf);
+      left = { take_ms: takeMs, take_key: recording ? keyOf(recording) : null, tracks: pending };
+    } else if (current) left = { take_ms: 0, take_key: null, tracks: tracksLeftOf(current) };
+    const waiting = data.queue.filter((q) => q !== current && WAITING_STATES.includes(q.state)).map(tracksLeftOf);
+    const sum = workOut(left, waiting, stopMode, { recorded: recordedKeys, windowMs, overheadMs: ITEM_OVERHEAD_MS });
+    return { seconds: sum.seconds, unknown_items: sum.unknown_items, as_of: new Date().toISOString() };
+  }
+
+  /** An item's tracks still to record, before it plays: the ones it will plan; null when "checking". */
+  function tracksLeftOf(item: QueueItem): MissingTrack[] | null {
+    if (item.expect.kind === 'checking') return null;
+    // A retried item keeps what it recorded (simulateItem): only its pending tracks are left.
+    if (tracksFor === item.item_id) return data.currentTracks.filter((t) => t.state === 'pending').map(missingOf);
+    return planTracks(item.item_id, plannedCount(item)).map(missingOf);
+  }
+
+  function keyOf(track: RunTrack): string {
+    return track.track_id ?? `${track.artists[0] ?? ''}\u001f${track.title}`;
+  }
+
+  function missingOf(track: RunTrack): MissingTrack {
+    return { key: keyOf(track), duration_ms: track.duration_ms ?? 0 };
+  }
+
+  /**
+   * A run.state for a new time left, when it moved 5 s or more from what the last one shows: its
+   * count-down, or while paused (the UI holds it still) the figure itself. As the controller.
+   */
+  function refreshTimeLeft() {
+    const run = data.status.run;
+    if (!run) return;
+    const next = timeLeftNow();
+    const old = run.time_left;
+    let moved: boolean;
+    if (old === null || next === null) moved = old !== next;
+    else {
+      const since = Math.max(0, (Date.parse(next.as_of) - Date.parse(old.as_of)) / 1000);
+      const shown = run.state === 'paused' ? old.seconds : Math.max(0, old.seconds - since);
+      moved = old.unknown_items !== next.unknown_items || Math.abs(next.seconds - shown) >= TIME_LEFT_SLACK_S;
+    }
+    if (moved) publishRun(run.state, run.state);
   }
 
   function publishQueue() {
@@ -677,8 +760,12 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       paused_reason: null,
       stop_mode: null,
       counters: { recorded: 0, skipped_duplicate: 0, skipped_other: 0, failed: 0, bytes_added: 0 },
+      // Not known until the queue is built.
+      time_left: null,
     };
     // The queue is built after the pre-run check (buildQueue), as in the controller: no items yet.
+    queueBuilt = false;
+    recordedKeys = new Set();
     data.queue = [];
     planned = items;
     pendingForced = [];
@@ -704,6 +791,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
     data.queue = [...forced, ...planned.filter((q) => !pendingForced.includes(q.item_id))];
     planned = [];
     pendingForced = [];
+    queueBuilt = true;
     publishQueue();
   }
 
@@ -789,6 +877,11 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
     };
   }
 
+  /** How many tracks an item plans: its "n new" or "n tracks", else 2 for a playlist and 3 for an album. */
+  function plannedCount(item: QueueItem): number {
+    return item.expect.kind === 'new_tracks' ? (item.expect.count ?? 2) : (item.expect.count ?? 3);
+  }
+
   /** The tracks the current item plans to record, for GET /api/runs/current's track table. */
   function planTracks(id: string, planned: number): RunTrack[] {
     return Array.from({ length: planned }, (_, i) => ({
@@ -822,7 +915,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       }
     }
 
-    const planned = item.expect.kind === 'new_tracks' ? (item.expect.count ?? 2) : (item.expect.count ?? 3);
+    const planned = plannedCount(item);
     if (planned === 0) {
       setItem(id, { state: 'up_to_date', planned: 0, badges: [...item.badges, 'up_to_date'] });
       return 'done';
@@ -832,6 +925,8 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
     setItemProgress(id, { run_id: run.id, state: 'starting', recorded: 0, planned });
     if (tracksFor !== id) data.currentTracks = planTracks(id, planned);
     tracksFor = id;
+    // Planned: its own track table now, not the estimate it waited with.
+    refreshTimeLeft();
     await wait(400);
     setItem(id, { state: 'playing' });
     setSession('waiting');
@@ -921,6 +1016,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
         bumpItemFailed(id);
       } else {
         track.state = 'recorded';
+        recordedKeys.add(keyOf(track));
         track.size_bytes = bytes;
         addTrackResult(run.id, id, resultOf(track, 'recorded', path));
         recorded += 1;
@@ -990,8 +1086,10 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
     data.runItems.set(run.id, data.queue.map((q, i) => runItemOf(q, i + 1, run.started_at, ended)));
     // The items this window's end cut off wait for the next run (only the last such window counts).
     if (outcome === 'window_ended') data.carriedOver = new Set(data.queue.filter((q) => q.state === 'carried_over').map((q) => q.item_id));
-    hub.publish('run.state', { ...run, state: 'idle', previous_state: previous });
+    hub.publish('run.state', { ...run, state: 'idle', time_left: null, previous_state: previous });
     data.status = f.statusIdle;
+    queueBuilt = false;
+    recordedKeys = new Set();
     data.queue = [];
     planned = [];
     pendingForced = [];
@@ -1038,6 +1136,8 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       planned = [];
       pendingForced = [];
       refreshing = null;
+      queueBuilt = false;
+      recordedKeys = new Set();
       hub.restart();
       if (next === 'running' || next === 'paused') {
         // A scheduled run in a window that ends in 6 h ("stops by 07:00"). Liked Songs was cut off
@@ -1220,6 +1320,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       rest.splice(currentIndex + 1, 0, ...moving);
       data.queue = rest;
       publishQueue();
+      refreshTimeLeft();
       return moving.map((q) => q.item_id);
     },
     /** An Up next item leaves the run: it stays in the queue as `removed`, as in the controller. */
@@ -1234,6 +1335,7 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
       if (!WAITING_STATES.includes(item.state)) return 'not_found';
       setItem(id, { state: 'removed', badges: [...item.badges, 'removed'] });
       publishQueue();
+      refreshTimeLeft();
       return 'ok';
     },
     stop(mode: 'after_track' | 'now') {

@@ -74,7 +74,7 @@ The first event on every connection. It holds everything the shell needs to draw
 
 | Type | `data` | When |
 |---|---|---|
-| `run.state` | `RunSummary`, plus `previous_state` | The run's state changes, a stop is asked for, the run pauses or resumes, or its counters change. Counter changes are batched: at most one `run.state` per second for counters alone. |
+| `run.state` | `RunSummary`, plus `previous_state` | The run's state changes, a stop is asked for, the run pauses or resumes, the window's end moves, or its counters or its time left change. While an item records, those two are batched: at most one `run.state` per second for counters and time left alone. A new time left while no item records (paused, or between items) goes out at once. The time left goes out when it moved by 5 s or more from what the last one shows (its count-down; paused, the figure itself), or its `unknown_items` changed (`RunTimeLeft`), so not every second. |
 | `run.queue` | `{run_id, queue: [QueueItem]}` | The queue's order or membership changes: items added by Back up now, removed, re-queued after an interruption, or carried over. Always the whole queue. |
 | `item.state` | `{run_id, item: QueueItem, previous_state}` | An item moves to another state, including the phases of the current item (`planning` … `finishing`). |
 | `run.finished` | `{run: HistoryRow}` | A run ends, or a missed, skipped or held row is written. History refreshes its list. |
@@ -86,8 +86,11 @@ The first event on every connection. It holds everything the shell needs to draw
   "id": 42, "trigger": "scheduled", "state": "paused", "previous_state": "running",
   "started_at": "2026-11-15T00:00:00Z", "window_end": "2026-11-15T07:00:00+01:00",
   "paused_reason": "device_moved", "stop_mode": null,
-  "counters": {"recorded": 12, "skipped_duplicate": 230, "skipped_other": 0, "failed": 1, "bytes_added": 41943040}}}
+  "counters": {"recorded": 12, "skipped_duplicate": 230, "skipped_other": 0, "failed": 1, "bytes_added": 41943040},
+  "time_left": {"seconds": 1874, "unknown_items": 1, "as_of": "2026-11-15T01:00:00.020Z"}}}
 ```
+
+**Time left** (`time_left`): this run's own, not the backlog's. Null while the run starts and in the last `run.state`. While the run records, the UI counts it down from `as_of`; while it's paused, as here, it stands still at what the run records once resumed. A scheduled run's is never more than what's left of its window.
 
 ```json
 {"seq": 1836, "type": "item.state", "at": "2026-11-15T01:00:00.031Z", "data": {
