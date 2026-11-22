@@ -37,7 +37,7 @@ Each entry says:
 - **Symptom:** when a session starts while the player is paused more than 300 ms into a track, Spytify treats it as already playing and won't record it. That's expected. But when the same track is then restarted from 0, Spytify ignores the `Seeked` if it lands within 2 s of the paused position (`seekSlackMs`). Paused at 980 ms, the restart is missed and the track plays unrecorded. Paused at 5.9 s, it's caught.
 - **Repro:** [prototype/upstream-issue-restart-draft.md](../../prototype/upstream-issue-restart-draft.md).
 - **Impact:** the retry of an interrupted item loses the track it was interrupted on.
-- **Workaround:** pause and seek to 0 (`PUT /me/player/seek?position_ms=0`) before starting the recorder, so no track is "already playing". Code: `engine/item.py` `_prepare`.
+- **Workaround:** pause (when something plays) and seek to 0 (`PUT /me/player/seek?position_ms=0`) before starting the recorder, so no track is "already playing". Code: `engine/item.py` `_prepare`.
 - **Upstream:** draft, not posted.
 - **Local patch:** none.
 

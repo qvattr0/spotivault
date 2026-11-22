@@ -931,6 +931,47 @@ async def test_d6_another_device_playing_is_device_busy(sim: Sim) -> None:
     assert [c for c in sim.webapi_calls()[calls:] if c.startswith("PUT")] == []
 
 
+def preparing_calls(sim: Sim, since: int) -> list[str]:
+    """The player commands sent after call `since`, up to the item's first play: preparing's."""
+    calls = sim.webapi_calls()[since:]
+    return [c for c in calls[: calls.index("PUT /me/player/play")] if c.startswith("PUT")]
+
+
+NOT_PAUSED = ["PUT /me/player/seek", "PUT /me/player/shuffle", "PUT /me/player/repeat"]
+
+
+@pytest.mark.parametrize("player", ["nothing_active", "ours_paused", "phone_paused"])
+async def test_nothing_playing_gets_no_pause_while_preparing(sim: Sim, player: str) -> None:
+    """Spotify answers a pause with nothing playing 403 "Restriction violated", and five 4xx in
+    a row raise the usage log's warning. So no pause when GET /me/player is 204 or not playing,
+    on any device. The seek to 0 (bug 2), shuffle and repeat stay."""
+    album, job = await album_job(sim, [0, 1, 2, 3])
+    world = sim.world
+    if player == "ours_paused":
+        sim.leave_player_on(album, 4, 1000)  # bug 2's case: paused 1 s into "Last Hours"
+    elif player == "phone_paused":
+        world.player.play_elsewhere("Pixel 9")
+        world.player.stop_elsewhere()
+    state = world.player.player_state()
+    if player == "nothing_active":
+        assert state is None  # GET /me/player answers 204
+    else:
+        assert state is not None and not state.is_playing
+    calls = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done" and "Last Hours" in sim.recorded_titles(album)
+    assert preparing_calls(sim, calls) == NOT_PAUSED
+
+
+async def test_our_device_playing_is_paused_while_preparing(sim: Sim) -> None:
+    album, job = await album_job(sim, [0, 1, 2, 3])
+    sim.world.player.load(album.album.uri, index=1, position_ms=5000, play=True)
+    calls = len(sim.webapi_calls())
+    report, _ = await run(sim, job)
+    assert report.outcome == "done" and "Last Hours" in sim.recorded_titles(album)
+    assert preparing_calls(sim, calls) == ["PUT /me/player/pause", *NOT_PAUSED]
+
+
 async def test_our_device_missing_fails_the_run(sim: Sim) -> None:
     _, job = await album_job(sim, [])
     sim.world.player.client_gone()  # our device is listed only while the client runs
