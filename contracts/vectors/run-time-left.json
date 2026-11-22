@@ -1,0 +1,602 @@
+{
+  "about": "A run's own time left (RunSummary.time_left, openapi.yaml RunTimeLeft): the Dashboard's run header, \"about 9 min left in this run\". The sum the controller (engine/time_left.py) and the web mock (mock/time-left.ts) both do.",
+  "generator": {
+    "script": "contracts/vectors/generate.py",
+    "how": "expected = run_time_left_expected in generate.py, which encodes openapi.yaml RunTimeLeft.seconds and unknown_items.",
+    "regenerate": "python3 contracts/vectors/generate.py --write"
+  },
+  "rules": [
+    "input.current is the current item: take_ms, the rest of the take recording now (its length less the time it has recorded), 0 when no take plays on; take_key, that take's Spytify key; tracks, its planned tracks that haven't started, or null when it plays whole. Before its plan is known: its missing tracks as stored, take_ms 0. Null with no current item.",
+    "input.waiting is every waiting item in queue order (Up next, and interrupted items that will retry; removed items are left out): its missing tracks as stored (playable, not in Spytify's index), or null when it plays whole (no item access and not Up to date by D13, or no track list the run can trust).",
+    "A track's key counts once in the whole sum, the first time it comes: Spytify records a track once, and skips it as a duplicate after that.",
+    "input.recorded is the keys this run has recorded so far (the current item's takes, and the items that ended): they don't count again, though a waiting item's list, read before, may still have them.",
+    "ms = take_ms + the current item's new tracks + for each waiting item with at least one new track, its new tracks + 35,000 ms (the backlog estimate's 35 s per item).",
+    "unknown_items: the current item if its tracks are null, plus each waiting item whose tracks are null.",
+    "input.window_left_ms is what's left of a scheduled or start-up run's window (null for no window). With no stop asked for, the run stops at the window's end: when ms is that or more, ms is window_left_ms (0 if under 0) and unknown_items 0.",
+    "stop_mode after_track: ms is take_ms alone, unknown_items 0 (the window doesn't cap it: the take plays on). stop_mode now: both 0.",
+    "seconds: ms rounded half up to whole seconds."
+  ],
+  "cases": [
+    {
+      "id": "nothing-left",
+      "note": "No current item and nothing waiting: 0.",
+      "input": {
+        "stop_mode": null,
+        "current": null,
+        "waiting": [],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 0,
+        "seconds": 0,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "mid-track-and-planned",
+      "note": "The rest of the take recording now (61.2 s of it left) and the current item's two planned tracks that haven't started. No 35 s for the current item: it has started.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 61200,
+          "take_key": "artist\u001fa",
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 200000
+            },
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 180000
+            }
+          ]
+        },
+        "waiting": [],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 441200,
+        "seconds": 441,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "waiting-items-add-35-s-each",
+      "note": "Each waiting item (Up next, or interrupted and waiting to retry) adds its missing tracks and 35 s, as the backlog estimate counts.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 30000,
+          "take_key": "artist\u001fa",
+          "tracks": []
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 100000
+            }
+          ],
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 50000
+            },
+            {
+              "key": "artist\u001fd",
+              "duration_ms": 70000
+            }
+          ]
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 320000,
+        "seconds": 320,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "current-not-planned-yet",
+      "note": "The current item before its plan is known (planning): its missing tracks as stored, with no 35 s.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 0,
+          "take_key": null,
+          "tracks": [
+            {
+              "key": "artist\u001fa",
+              "duration_ms": 120000
+            },
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 90000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 60000
+            }
+          ]
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 305000,
+        "seconds": 305,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "unknown-length",
+      "note": "The current item plays whole: its take counts, its length doesn't (1 unknown). Two waiting playlists play whole too: 3 unknown.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 45000,
+          "take_key": "artist\u001fa",
+          "tracks": null
+        },
+        "waiting": [
+          null,
+          [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 100000
+            }
+          ],
+          null
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 180000,
+        "seconds": 180,
+        "unknown_items": 3
+      }
+    },
+    {
+      "id": "shared-track-counted-once",
+      "note": "Track A records now and B is planned: the first waiting item adds only C (and 35 s); the second has nothing new, so no 35 s either.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 60000,
+          "take_key": "artist\u001fa",
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 100000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fa",
+              "duration_ms": 60000
+            },
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 90000
+            }
+          ],
+          [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 100000
+            }
+          ]
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 285000,
+        "seconds": 285,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "listed-twice-counts-once",
+      "note": "A track listed twice in one item is recorded once.",
+      "input": {
+        "stop_mode": null,
+        "current": null,
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fd",
+              "duration_ms": 100000
+            },
+            {
+              "key": "artist\u001fd",
+              "duration_ms": 100000
+            }
+          ]
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 135000,
+        "seconds": 135,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "up-to-date-waiting-item",
+      "note": "A waiting item with nothing missing (or Up to date by D13) adds nothing, not even 35 s.",
+      "input": {
+        "stop_mode": null,
+        "current": null,
+        "waiting": [
+          [],
+          [
+            {
+              "key": "artist\u001fe",
+              "duration_ms": 10000
+            }
+          ]
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 45000,
+        "seconds": 45,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "recorded-in-this-run",
+      "note": "The current item recorded A and B and is finishing. A waiting item's list, read before, still has them: only C counts, and 35 s.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 0,
+          "take_key": null,
+          "tracks": []
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fa",
+              "duration_ms": 100000
+            },
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 100000
+            },
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 60000
+            }
+          ]
+        ],
+        "recorded": [
+          "artist\u001fa",
+          "artist\u001fb"
+        ],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 95000,
+        "seconds": 95,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "recorded-then-playing",
+      "note": "The current item recorded A and B, records C now and has D planned: the waiting item adds only E, and 35 s.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 30000,
+          "take_key": "artist\u001fc",
+          "tracks": [
+            {
+              "key": "artist\u001fd",
+              "duration_ms": 50000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fa",
+              "duration_ms": 100000
+            },
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 100000
+            },
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 60000
+            },
+            {
+              "key": "artist\u001fd",
+              "duration_ms": 50000
+            },
+            {
+              "key": "artist\u001fe",
+              "duration_ms": 40000
+            }
+          ]
+        ],
+        "recorded": [
+          "artist\u001fa",
+          "artist\u001fb"
+        ],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 155000,
+        "seconds": 155,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "all-recorded-in-this-run",
+      "note": "An item that ended recorded A and B: a waiting item that lists only those has nothing new, so no 35 s.",
+      "input": {
+        "stop_mode": null,
+        "current": null,
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fa",
+              "duration_ms": 100000
+            },
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 100000
+            }
+          ],
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 60000
+            }
+          ]
+        ],
+        "recorded": [
+          "artist\u001fa",
+          "artist\u001fb"
+        ],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 95000,
+        "seconds": 95,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "window-caps-the-run",
+      "note": "A scheduled run stops at its window's end: 30 min are left in it, less than the queue's 55 min, so 30 min. Nothing past the window runs: no unknown items.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 60000,
+          "take_key": "artist\u001fa",
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 200000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 3000000
+            }
+          ],
+          null
+        ],
+        "recorded": [],
+        "window_left_ms": 1800000
+      },
+      "expected": {
+        "ms": 1800000,
+        "seconds": 1800,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "window-longer-than-the-run",
+      "note": "The window has 2 h left, more than the queue: the queue's sum, and its playlist of unknown length.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 60000,
+          "take_key": "artist\u001fa",
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 200000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 3000000
+            }
+          ],
+          null
+        ],
+        "recorded": [],
+        "window_left_ms": 7200000
+      },
+      "expected": {
+        "ms": 3295000,
+        "seconds": 3295,
+        "unknown_items": 1
+      }
+    },
+    {
+      "id": "window-ended-stop-after-this-track",
+      "note": "The window's end asks to stop after this track: the take plays on past it, so its rest counts.",
+      "input": {
+        "stop_mode": "after_track",
+        "current": {
+          "take_ms": 42400,
+          "take_key": "artist\u001fa",
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 200000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 100000
+            }
+          ]
+        ],
+        "recorded": [],
+        "window_left_ms": 0
+      },
+      "expected": {
+        "ms": 42400,
+        "seconds": 42,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "stop-after-this-track",
+      "note": "Stop after this track: just the rest of the take. Nothing after it runs, so no unknown items.",
+      "input": {
+        "stop_mode": "after_track",
+        "current": {
+          "take_ms": 42400,
+          "take_key": "artist\u001fa",
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 200000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 100000
+            }
+          ],
+          null
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 42400,
+        "seconds": 42,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "stop-after-this-track-no-take",
+      "note": "Stop after this track with no take recording: nothing is left.",
+      "input": {
+        "stop_mode": "after_track",
+        "current": {
+          "take_ms": 0,
+          "take_key": null,
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 200000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 100000
+            }
+          ]
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 0,
+        "seconds": 0,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "stop-now",
+      "note": "Stop now: the take is discarded, nothing is left.",
+      "input": {
+        "stop_mode": "now",
+        "current": {
+          "take_ms": 42400,
+          "take_key": "artist\u001fa",
+          "tracks": [
+            {
+              "key": "artist\u001fb",
+              "duration_ms": 200000
+            }
+          ]
+        },
+        "waiting": [
+          [
+            {
+              "key": "artist\u001fc",
+              "duration_ms": 100000
+            }
+          ],
+          null
+        ],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 0,
+        "seconds": 0,
+        "unknown_items": 0
+      }
+    },
+    {
+      "id": "rounding-half-up",
+      "note": "Milliseconds are summed, then rounded half up: 1,500 ms is 2 s.",
+      "input": {
+        "stop_mode": null,
+        "current": {
+          "take_ms": 1500,
+          "take_key": "artist\u001ff",
+          "tracks": []
+        },
+        "waiting": [],
+        "recorded": [],
+        "window_left_ms": null
+      },
+      "expected": {
+        "ms": 1500,
+        "seconds": 2,
+        "unknown_items": 0
+      }
+    }
+  ]
+}

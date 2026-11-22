@@ -1,0 +1,99 @@
+/* An item's tracks in a run (bWcg0): rows 32 tall with a 1 px rule above each, no visible header
+   (it's there for screen readers). # 12 text-muted, the title 13/600, the artist 13 text-sub, the
+   result (13/600, white once recorded) and the path in 11 mono text-muted, a copy button at the
+   right. The header and rows share one grid. */
+
+.header,
+.row {
+  display: grid;
+  grid-template-columns: 24px minmax(120px, 1fr) minmax(100px, 0.72fr) minmax(0, 2.7fr) 28px;
+  column-gap: var(--s-4);
+  align-items: center;
+  padding: 0 var(--s-2);
+}
+
+.row {
+  min-height: 32px;
+  border-top: 1px solid var(--border);
+}
+
+.row:hover {
+  background: var(--bg-highlight);
+}
+
+.number {
+  /* text-sub, not the drawn text-muted: 4.2:1 on bg-elevated is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+  text-align: right;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--text);
+  font: var(--type-small);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artist {
+  overflow: hidden;
+  color: var(--text-sub);
+  font: var(--type-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.result > :first-child {
+  flex: none;
+}
+
+/* Doubled classes: they win over TrackStatus's own, whatever order the CSS loads in. */
+.status.status {
+  font-weight: 600;
+}
+
+.statusRecorded.statusRecorded {
+  color: var(--text);
+}
+
+.path {
+  overflow: hidden;
+  /* text-sub, not the drawn text-muted: 4.2:1 on bg-elevated is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-mono);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.copyButton.copyButton {
+  width: 28px;
+  height: 28px;
+}
+
+.copyButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.note {
+  margin: 0;
+  padding: 8px;
+  color: var(--text-sub);
+  font: var(--type-small);
+}

@@ -1,7 +1,8 @@
-# Lints the scripts, tests the controller, builds the image and runs the container smoke test.
-# Nothing is pushed: publishing to Docker Hub comes in M3. To run the same checks locally:
+# Lints the scripts, tests the controller and the web UI, builds the image and runs the container
+# smoke test. Nothing is pushed: publishing to Docker Hub comes in M3. To run the same checks locally:
 #
 #   (cd controller && uv sync --frozen && uv run ruff check && uv run ruff format --check && uv run pytest)
+#   (cd web && npm ci && npx playwright install chromium && npm run check && npm run e2e:controller)
 #   docker build -t spotivault:ci .
 #   image/test/smoke.sh spotivault:ci --install
 name: ci
@@ -56,6 +57,38 @@ jobs:
         run: |
           uv run ruff check --config pyproject.toml ../image/test/
           uv run ruff format --config pyproject.toml --check ../image/test/
+
+  # The web UI (web/): npm run check (tokens, API types, colours, lint, typecheck, unit tests, the
+  # build, and the Playwright tests against the mock), then the Playwright tests against a real
+  # controller in fake mode, which needs uv and the runner's Python 3.12 (as the controller job does).
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    env:
+      UV_PYTHON_DOWNLOADS: never  # uv runs the controller on the runner's Python 3.12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Node
+        # The engines field in web/package.json asks for 22.18 or later.
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22.18'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install uv
+        # The version that wrote controller/uv.lock, as in the controller job.
+        run: pipx install uv==0.11.28
+      - name: npm ci
+        run: npm ci
+      - name: Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+      - name: npm run check
+        run: npm run check
+      - name: e2e against the controller (fake mode)
+        run: npm run e2e:controller
 
   image:
     runs-on: ubuntu-24.04

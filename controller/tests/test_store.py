@@ -39,9 +39,12 @@ async def test_open_creates_a_private_wal_database(store: Store) -> None:
         assert mode(side) == 0o600
 
 
-async def test_migration_1_is_applied(store: Store) -> None:
-    assert store.schema_version == 1
-    assert await store.fetchval("SELECT value FROM meta WHERE key = 'schema_version'") == "1"
+async def test_every_migration_is_applied(store: Store) -> None:
+    latest = load_migrations()[-1].version
+    assert store.schema_version == latest
+    assert await store.fetchval("SELECT value FROM meta WHERE key = 'schema_version'") == str(
+        latest
+    )
     steps = await store.fetchall("SELECT step, state FROM setup_steps ORDER BY ordinal")
     assert [row["step"] for row in steps][0] == "tos"
     assert len(steps) == 9
@@ -57,7 +60,7 @@ async def test_reopening_doesnt_migrate_again(tmp_path: Path) -> None:
     second = Store(path)
     await second.open()
     try:
-        assert second.schema_version == 1
+        assert second.schema_version == load_migrations()[-1].version
         assert await second.fetchval("SELECT state FROM setup_steps WHERE step = 'tos'") == "done"
     finally:
         await second.close()
@@ -121,7 +124,9 @@ async def test_closed_store_refuses_calls(tmp_path: Path) -> None:
 async def test_a_failed_migration_is_rolled_back_whole(tmp_path: Path) -> None:
     good = load_migrations()
     bad = Migration(
-        version=2, name="broken", sql="CREATE TABLE half (x INTEGER);\nTHIS IS NOT SQL;"
+        version=len(good) + 1,
+        name="broken",
+        sql="CREATE TABLE half (x INTEGER);\nTHIS IS NOT SQL;",
     )
     db = Store(tmp_path / "db" / "x.db", migrations=[*good, bad])
     with pytest.raises(sqlite3.OperationalError):
@@ -132,7 +137,7 @@ async def test_a_failed_migration_is_rolled_back_whole(tmp_path: Path) -> None:
     reopened = Store(tmp_path / "db" / "x.db")
     await reopened.open()
     try:
-        assert reopened.schema_version == 1
+        assert reopened.schema_version == good[-1].version
         assert (
             await reopened.fetchval("SELECT count(*) FROM sqlite_master WHERE name = 'half'") == 0
         )

@@ -1,0 +1,51 @@
+/* The noVNC view: the client's screen on bg-app, filling its box. Not a .pen component: the
+   Player (ZQChN) and Setup 3 and 4 (UzVcR, wNpTP) draw a screen in a dark box. The state over it
+   (connecting, reconnecting, disconnected with Retry) is ours: 14 text-sub, centred. */
+
+.view {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--bg-app);
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+}
+
+/* 100 %: noVNC's own box scrolls when the screen is larger than the view. The canvas keeps its
+   size: base.css caps a canvas at its box's width, and noVNC's flex box would shrink it. (In Fit,
+   noVNC sizes the canvas to the view itself.) */
+.actual {
+  overflow: auto;
+}
+
+.actual canvas {
+  flex-shrink: 0;
+  max-width: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.retry {
+  padding: 9px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  color: var(--text);
+  font: var(--type-button-sm);
+}
+
+.retry:hover {
+  border-color: var(--text);
+}

@@ -407,6 +407,24 @@ class LibrarySummary(BaseModel):
     auto_track_owned: bool
 
 
+class LibraryRefresh(BaseModel):
+    """
+    The answer to the Library's Refresh button. The refresh runs after it; its `catalog.refresh` events (events.md) tell how it went.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Literal["started", "running"]
+    """
+    `started`: this press asked for a refresh, and it starts at once. `running`: a refresh was already going or asked for, and this press joins it.
+    """
+    refresh_id: Annotated[int | None, Field(ge=1)]
+    """
+    The refresh that's going, once it has started; its `catalog.refresh` events carry the same id. Null while it waits for its turn: then its events carry the trigger `manual`.
+    """
+
+
 class UrlBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -416,7 +434,7 @@ class UrlBody(BaseModel):
 
 class PlaylistPreview(BaseModel):
     """
-    A playlist that can be added. For a linked playlist the name, owner and cover come from `GET /playlists/{id}`. Pending S0 (Q10): whether that answers when `/items` returns 403, so `name`, `owner` and `cover` may be null for a linked playlist; the UI then shows the id.
+    A playlist that can be added. A followed one comes from the last catalog refresh's `GET /me/playlists`, with its total. A linked one comes from `GET /playlists/{id}`, which answers with its name, owner, cover and `snapshot_id` but no `items`, so its total is null, and its `/items` answers 403 (S0, Q10).
     """
 
     model_config = ConfigDict(
@@ -427,15 +445,24 @@ class PlaylistPreview(BaseModel):
     A Spotify base-62 id.
     """
     uri: str
-    name: str | None
-    owner: str | None
+    name: str
+    owner: str
+    """
+    The owner's display name, or their id when Spotify gives none.
+    """
     cover: str | None
     """
-    A Spotify CDN URL, used straight away and never stored.
+    A Spotify CDN URL, used straight away and never stored. Null when the playlist has no image, or (a suggestion) when no refresh since the controller started has seen one.
     """
     kind: Literal["followed", "linked"]
     item_access: bool
+    """
+    False for a linked playlist, and for a followed one you don't collaborate on.
+    """
     total: Annotated[int | None, Field(ge=0)]
+    """
+    `items.total` for a followed playlist; null for a linked one (unknown).
+    """
     already_added: bool
 
 
@@ -542,36 +569,32 @@ class Counters(BaseModel):
     skipped_duplicate: Annotated[int, Field(ge=0)]
     skipped_other: Annotated[int, Field(ge=0)]
     """
-    Ads and Spytify's other skip reasons.
+    Ads, Spytify's other skip reasons, and a take dropped because the backup was stopped mid-track (Stop now, or the container stopping): not failures.
     """
     failed: Annotated[int, Field(ge=0)]
     bytes_added: Annotated[int, Field(ge=0)]
 
 
-class RunSummary(BaseModel):
+class RunTimeLeft(BaseModel):
+    """
+    How long this run still records, worked out by the controller from what it has stored, with no Web API request. Only this run's items count: the whole backlog's time left is `Backlog.seconds_left`, the Full backup card's.
+    """
+
     model_config = ConfigDict(
         extra="forbid",
     )
-    id: Annotated[int, Field(ge=1)]
-    trigger: Literal["scheduled", "run_now", "startup"]
+    seconds: Annotated[int, Field(ge=0)]
     """
-    `run_now` covers Run now, Back up now, Record now and Retry failed.
+    Recording time left at `as_of`, of the items whose length is known. It adds up the rest of the take recording now (its length less the time it has recorded), the current item's planned tracks that haven't started, and each waiting item's missing tracks (Up next, and interrupted items that will retry), from their stored durations, plus 35 s for each waiting item with a track to record, as the backlog estimate counts. A track two items share counts once, as Spytify records it once, and a track this run already recorded doesn't count again. Removed items don't count. A scheduled or start-up run stops at its window's end, so until a stop is asked for, it's at most the time from `as_of` to `window_end`. After Stop after this track, it's just the rest of that track, even past the window's end; after Stop now, 0. While the run is paused, it's what the run records once resumed: the paused item counts as waiting, as it runs again.
     """
-    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
+    unknown_items: Annotated[int, Field(ge=0)]
     """
-    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
+    Items still to run whose length isn't known, so they're left out of `seconds`: playlists played whole (followed and linked ones that aren't Up to date by D13, and any whose track list this run can't trust). The current item counts here while it plays whole. 0 once a stop is asked for, and when the window's end caps `seconds`, since nothing runs past it.
     """
-    started_at: AwareDatetime
-    window_end: AwareDatetime | None
+    as_of: AwareDatetime
     """
-    The window's end, for scheduled and start-up runs ("stops by 07:00").
+    When `seconds` was worked out. While the run is running, finishing or stopping, the time since then counts down: show `seconds` less it, never under 0, and, until a stop is asked for, never more than the time left to `window_end` (then without `unknown_items`). While it's paused, the figure stands still, still capped at `window_end`. The controller works it out again at each planned track's start and end, each phase of the current item, each change to the queue, each change of the run's state and each move of `window_end`, and sends a `run.state` when it moved by 5 s or more from what the last one shows (its count-down; paused, the figure itself), or `unknown_items` changed.
     """
-    paused_reason: Literal["device_moved", "device_busy"] | None
-    stop_mode: Literal["after_track", "now"] | None
-    """
-    Set once a stop is asked for, including the end of a window (`after_track`).
-    """
-    counters: Counters
 
 
 class QueueItemExpect(BaseModel):
@@ -711,36 +734,6 @@ class NowPlaying(BaseModel):
     """
 
 
-class Status(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
-    """
-    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
-    """
-    run: RunSummary | None
-    item: QueueItem | None
-    track: NowPlaying | None
-    session_state: Literal["idle", "waiting", "recording", "ad", "paused", "stopping"] | None
-    view_only: bool
-    """
-    The Player locks input (any state but `idle`).
-    """
-
-
-class CurrentRun(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    run: RunSummary | None
-    queue: list[QueueItem]
-    """
-    Every item of the run in display order. Finished items first, then the current one, then Up next and interrupted ones.
-    """
-    current_tracks: list[RunTrack]
-
-
 class RunCreated(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -751,6 +744,9 @@ class RunCreated(BaseModel):
     True when a new run started; false when the items joined the current run.
     """
     added: list[ItemId]
+    """
+    A new run: the `items` given, or empty for Run now. Joining a run: the items that now wait right after the current item, in the given order, both new ones and ones already waiting that moved there. The current item, and items that already ended or were removed in this run, are left out: a run has one row per item.
+    """
 
 
 class HistoryRowWindow(BaseModel):
@@ -889,9 +885,11 @@ class TrackResult(BaseModel):
     reason: str | None
     """
     - `skipped`: Spytify's skip reason: `duplicate`, `ad`, `too_short`, `incomplete`, `seeked`,
-      `low_quality` or `silent`.
-    - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`
-      (Stop now).
+      `low_quality` or `silent`; or `discarded`: the backup was stopped mid-track (Stop now,
+      or the container stopping), so the take was dropped. It's recorded next time.
+    - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`:
+      a partial take, which has a file; with no file, a take Stop now cut in an older run,
+      from before such a take was skipped.
 
     """
     size_bytes: Annotated[int | None, Field(ge=0)]
@@ -1007,7 +1005,7 @@ class WebApiUsageRateLimit(BaseModel):
     retry_after_s: Annotated[int | None, Field(ge=0)]
     scope: str
     """
-    `run:<id>`, `refresh:<id>` or `other`.
+    `run:<id>`, `refresh:<id>`, `setup` (the code exchange in wizard step 5) or `other`.
     """
 
 
@@ -1039,6 +1037,54 @@ class WebApiUsage(BaseModel):
     warnings: list[WebApiUsageWarning]
     """
     The usage-log warnings raised in the period (also in the controller log).
+    """
+
+
+class LogLine(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(max_length=200)]
+    """
+    Unique, and the line's place in the order. Pass it as `before` for the lines before it. Opaque.
+    """
+    at: AwareDatetime
+    """
+    When it was written, UTC with milliseconds.
+    """
+    source: Literal["controller", "spytify", "client", "system"]
+    """
+    Where a line comes from: the controller; Spytify (one log per item); the Spotify client; the system (the s6 services dbus, pulseaudio, vnc, wm and xserver, and the start-up checks).
+    """
+    service: str
+    """
+    The log it's from: `controller`, `spotify` (the client), `dbus`, `pulseaudio`, `vnc`, `wm`, `xserver` or `init`; for Spytify, the item's log name, `<run>-<item>`, with `-2` for a second attempt.
+    """
+    level: Literal["debug", "info", "warning", "error"]
+    """
+    The line's level, as its writer gave it: Python's levels for the controller (CRITICAL is `error`), Spytify's own, and for the client and the system the markers their programs print (`E:` and `W:` from PulseAudio, `(EE)` and `(WW)` from X, Chromium's `:ERROR:`, a leading `Error:` or `Warning:`). A line with no marker is `info`. A traceback's lines take the level of the line they belong to.
+    """
+    message: Annotated[str, Field(max_length=4000)]
+    """
+    The line without its time and level (and, for the controller, without the logger's name), masked. Cut at 4000 characters.
+    """
+    run_id: Annotated[int | None, Field(ge=1)]
+    """
+    Spytify's lines, the run the item's log belongs to. Null for the other sources.
+    """
+
+
+class LogPage(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    lines: list[LogLine]
+    """
+    Oldest first.
+    """
+    next_before: str | None
+    """
+    Pass it as `before` for the page before this one. Null when nothing older matches.
     """
 
 
@@ -1201,6 +1247,23 @@ class GetRunItemTracksResponse(BaseModel):
     tracks: list[TrackResult]
 
 
+class ListLogsParametersQuery(BaseModel):
+    source: Annotated[
+        list[Literal["controller", "spytify", "client", "system"]] | None, Field(max_length=4)
+    ] = None
+    level: Annotated[
+        list[Literal["debug", "info", "warning", "error"]] | None, Field(max_length=4)
+    ] = None
+    run: Annotated[int | None, Field(ge=1)] = None
+    q: Annotated[str | None, Field(max_length=200, min_length=1)] = None
+    before: Annotated[str | None, Field(max_length=200)] = None
+    limit: Annotated[int, Field(ge=1, le=500)] = 200
+
+
+class DownloadLogsParametersQuery(BaseModel):
+    days: Annotated[int, Field(ge=1, le=14)] = 7
+
+
 class GetWebApiUsageParametersQuery(BaseModel):
     days: Annotated[int, Field(ge=1, le=90)] = 7
 
@@ -1337,11 +1400,11 @@ class LibraryItem(BaseModel):
     uri: str
     name: str
     """
-    Pending S0 (Q10): a linked playlist whose metadata can't be read shows its id as the name until a refresh can read it.
+    The playlist's name, or "Liked Songs". Always known: a linked playlist's comes from `GET /playlists/{id}` (S0, Q10).
     """
     owner: str
     """
-    The owner's display name, or `you`.
+    The owner's display name (their id when Spotify gives none), or `you`.
     """
     cover: str | None
     """
@@ -1354,11 +1417,11 @@ class LibraryItem(BaseModel):
     tracked: bool
     item_access: bool
     """
-    False for followed and linked playlists you don't collaborate on. Their track list and total are unknown.
+    False for followed and linked playlists you don't collaborate on. Their track list is unknown.
     """
     total: Annotated[int | None, Field(ge=0)]
     """
-    Playable tracks. Null when unknown (no item access).
+    The playable tracks of its stored track list. Without one, a followed playlist's `items.total` from `GET /me/playlists` (every entry, playable or not: web-ui.md's "32 / 35 recorded"). Null for a linked playlist, whose total is unknown.
     """
     recorded: Annotated[int, Field(ge=0)]
     new: Annotated[int | None, Field(ge=0)]
@@ -1382,10 +1445,6 @@ class LibraryItem(BaseModel):
     removable: bool
     """
     True for followed and linked items only.
-    """
-    playback_note: Literal["liked_not_playable"] | None
-    """
-    Pending S0 (Q9). If Liked Songs can't be played as a context on this client, Liked Songs carries `liked_not_playable` here, shows "can't be played on this client yet", and runs skip it.
     """
     progress: ItemProgress | None
 
@@ -1412,6 +1471,66 @@ class Album(BaseModel):
     added_at: AwareDatetime
     completed_at: AwareDatetime | None
     progress: ItemProgress | None
+
+
+class RunSummary(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[int, Field(ge=1)]
+    trigger: Literal["scheduled", "run_now", "startup"]
+    """
+    `run_now` covers Run now, Back up now, Record now and Retry failed.
+    """
+    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
+    """
+    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
+    """
+    started_at: AwareDatetime
+    window_end: AwareDatetime | None
+    """
+    The window's end, for scheduled and start-up runs ("stops by 07:00").
+    """
+    paused_reason: Literal["device_moved", "device_busy"] | None
+    stop_mode: Literal["after_track", "now"] | None
+    """
+    Set once a stop is asked for, including the end of a window (`after_track`).
+    """
+    counters: Counters
+    time_left: RunTimeLeft | None
+    """
+    This run's own time left, for the run header ("about 9 min left in this run"). Null while the run starts (its queue isn't built yet), and in the last `run.state`, once it has ended.
+    """
+
+
+class Status(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Literal["idle", "starting", "running", "paused", "stopping", "finishing"]
+    """
+    `starting`: the pre-run check and catalog refresh. `finishing`: the ~25–30 s after an item, while the recorder saves the last track. `stopping`: a stop was asked for and is being carried out.
+    """
+    run: RunSummary | None
+    item: QueueItem | None
+    track: NowPlaying | None
+    session_state: Literal["idle", "waiting", "recording", "ad", "paused", "stopping"] | None
+    view_only: bool
+    """
+    The Player locks input (any state but `idle`).
+    """
+
+
+class CurrentRun(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    run: RunSummary | None
+    queue: list[QueueItem]
+    """
+    Every item of the run in display order. Finished items first, then the current one, then Up next and interrupted ones.
+    """
+    current_tracks: list[RunTrack]
 
 
 class Hours(BaseModel):

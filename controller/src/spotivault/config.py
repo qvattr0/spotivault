@@ -30,7 +30,8 @@ The controller's own variables, all optional (documented in controller/ARCHITECT
 | `SPOTIVAULT_FAKE_SPEED` | `1` | Fake mode's clock runs this many times faster. |
 
 Read as the image sets them: `XDG_RUNTIME_DIR`, `DISPLAY`, `DBUS_SESSION_BUS_ADDRESS`,
-`PULSE_SERVER`, `SPYTIFY_TARGET_MPRIS`, `SPYTIFY_FFMPEG` and `SPYTIFY_CONFIG`.
+`PULSE_SERVER`, `SPYTIFY_TARGET_PROCESS`, `SPYTIFY_TARGET_MPRIS`, `SPYTIFY_FFMPEG` and
+`SPYTIFY_CONFIG`. The recorder (S6) passes the last four on to spytifyd.
 """
 
 import os
@@ -79,6 +80,7 @@ class Config:
     allowed_hosts: tuple[str, ...] = ()
     spytifyd_path: Path = Path("/usr/local/bin/spytifyd")
     spotify_install_path: Path = Path("/usr/local/bin/spotify-install")
+    spytify_target_process: str = "spotify"  # SPYTIFY_TARGET_PROCESS: the client's process name
     fake_scenario: str | None = None  # None: fake/__init__.py picks by the clock
     fake_speed: float = 1.0
 
@@ -181,6 +183,7 @@ def load_config(env: Mapping[str, str] | None = None, *, fake: bool | None = Non
         dbus_address=env.get("DBUS_SESSION_BUS_ADDRESS") or f"unix:path={runtime_dir / 'bus'}",
         pulse_server=env.get("PULSE_SERVER", f"unix:{runtime_dir}/pulse/native"),
         mpris_name=env.get("SPYTIFY_TARGET_MPRIS", "org.mpris.MediaPlayer2.spotify"),
+        spytify_target_process=env.get("SPYTIFY_TARGET_PROCESS") or "spotify",
         ffmpeg_path=_path(env, "SPYTIFY_FFMPEG", Path("/usr/local/bin/ffmpeg")),
         spytify_config=_path(env, "SPYTIFY_CONFIG", config_dir / "spytify" / "config.toml"),
         vnc_host=vnc_host,

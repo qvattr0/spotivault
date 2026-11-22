@@ -1,0 +1,75 @@
+/* A section of the page: the heading (22/700, t6RqK), then its rows. Rows are separated by a rule,
+   and a row's control sits at the right, centred on its title and description. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.heading {
+  margin: 0;
+  font: var(--type-heading);
+  font-size: 22px;
+  color: var(--text);
+}
+
+.note {
+  margin: 0;
+  font: var(--type-small);
+  color: var(--text-muted);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--s-4);
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--border);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  font: var(--type-row-title);
+  color: var(--text);
+}
+
+.description {
+  font: var(--type-small);
+  color: var(--text-sub);
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.below {
+  margin-top: var(--s-2);
+}

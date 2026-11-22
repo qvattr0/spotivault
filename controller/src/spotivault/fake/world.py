@@ -12,6 +12,7 @@
 | The client as a program | `FakeClientControl` (client.py) | `ports.ClientControl` |
 | spytifyd | `SimRecorder` (recorder.py) | `ports.Recorder` |
 | The Web API | `FakeWebApi` (webapi.py) | `ports.WebApi` |
+| Spotify's image CDN | `FakeImageCdn` (cdn.py) | `ports.ImageCdn` |
 | Volumes | `FakeStorageProbe` (system.py) | `ports.StorageProbe` |
 | Screen, sound, VNC | `FakeDesktop` + `FakeScreen` (system.py, vnc.py) | `ports.Desktop` |
 
@@ -34,6 +35,7 @@ from typing import Literal
 
 from spotivault.config import Config
 from spotivault.fake.catalog import Catalog
+from spotivault.fake.cdn import FakeImageCdn
 from spotivault.fake.client import FakeClientControl
 from spotivault.fake.mpris import SimMpris
 from spotivault.fake.player import SimPlayer
@@ -80,14 +82,16 @@ class FakeWorld:
             music_dir=config.music_dir,
             storage=self.storage,
             mpris_name=config.mpris_name,
+            process_name=config.spytify_target_process,
         )
         self.webapi = FakeWebApi(clock, self.catalog, self.player)
+        self.cdn = FakeImageCdn()
         self.screen = FakeScreen(self.player, self.client)
         self.desktop = FakeDesktop(self.screen)
         self.desktop.vnc = scenario != "fresh"  # tests turn it on when they want a screen
         self.storage.sources[config.music_dir] = MUSIC_SOURCE
         self.storage.sources[config.config_dir] = CONFIG_SOURCE
-        for port in (self.mpris, self.client, self.recorder, self.webapi, self.storage):
+        for port in (self.mpris, self.client, self.recorder, self.webapi, self.storage, self.cdn):
             port.world = self
         self.desktop.world = self
         if scenario == "demo":
@@ -113,6 +117,7 @@ class FakeWorld:
             webapi=self.webapi,
             storage=self.storage,
             desktop=self.desktop,
+            cdn=self.cdn,
         )
 
 

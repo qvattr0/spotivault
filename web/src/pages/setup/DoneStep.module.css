@@ -1,0 +1,74 @@
+/* Step 9 (BAzX6): a 72 px green disc with a tick over the centred title; the summary in a
+   bg-elevated box, radius 8, padding 4 20, rows 41 tall (14/400 text-sub label, 14/500 value)
+   split by a 1 px border; Back up now at the
+   left and Open Library at the right. */
+
+.top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-6);
+  text-align: center;
+}
+
+.top h1 {
+  text-align: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 20px;
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  /* 41 tall with its rule. */
+  padding: 12px 0 11px;
+  border-bottom: 1px solid var(--border);
+  font: var(--type-body);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row dt {
+  color: var(--text-sub);
+  font-weight: 400;
+}
+
+.row dd {
+  color: var(--text);
+  font-weight: 500;
+  text-align: right;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.link {
+  color: var(--text);
+  text-decoration: underline;
+}

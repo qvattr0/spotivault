@@ -1,0 +1,86 @@
+/* The Runs table (History · Runs, o5vCh7). The header and the rows share one grid, so the columns
+   line up. Measured from the drawing: 44 px rows 2 apart (the rows with no run too), a 28 px
+   header in 12/500 with its rule 18 above the first row, 16 px between columns, the date 14/600. */
+
+.columns {
+  display: grid;
+  grid-template-columns: 283px 120px 100px minmax(160px, 1fr) 60px 72px 48px 90px;
+  column-gap: var(--s-4);
+  align-items: center;
+  padding: 0 var(--s-4);
+}
+
+.header {
+  height: 28px;
+  color: var(--text-sub);
+  font: var(--type-caption);
+}
+
+.row {
+  position: relative;
+  height: 44px;
+  border-radius: 6px;
+}
+
+.row:hover,
+.row:focus-within,
+.row[data-state='hover'] {
+  background: var(--bg-highlight);
+}
+
+/* The date is the row's link, and it covers the whole row (a "stretched" link), so a click
+   anywhere on the row opens the run. */
+.link {
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+}
+
+.text {
+  overflow: hidden;
+  color: var(--text-sub);
+  font: var(--type-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.num {
+  color: var(--text-sub);
+  font: var(--type-body);
+  text-align: right;
+}
+
+.recorded {
+  color: var(--accent);
+}
+
+.failed {
+  color: var(--danger);
+}
+
+/* The rows with no run: greyed, one line (web-ui.md § Runs tab). */
+.noRun {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  column-gap: var(--s-4);
+  align-items: center;
+  height: 44px;
+  padding: 0 var(--s-4);
+  color: var(--text-muted);
+  font: var(--type-small);
+}
+
+.noRunText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}

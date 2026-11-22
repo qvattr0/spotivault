@@ -1,5 +1,5 @@
-"""The setup wizard's state: GET /api/setup, POST /api/setup/tos and /restart, and the service's
-hooks for other modules (owner: settings-storage-setup)."""
+"""The setup wizard's state: GET /api/setup, POST /api/setup/tos, /albums/later and /restart, and
+the service's hooks for other modules (owner: settings-storage-setup)."""
 
 import asyncio
 import logging
@@ -10,13 +10,16 @@ from typing import Any
 
 import httpx
 import pytest
+from fastapi import FastAPI
 
 from contract import assert_response, assert_schema, openapi
 from spotivault.api.models import Checklist, ClientStatus, Setup
+from spotivault.app import create_app
+from spotivault.config import Config
 from spotivault.errors import ApiError
 from spotivault.fake.clock import FakeClock
 from spotivault.ports import VolumeInfo
-from spotivault.services import Services
+from spotivault.services import Services, build_services
 
 GB = 1_000_000_000
 EXAMPLES = openapi()["components"]["examples"]
@@ -125,6 +128,20 @@ def published(services: Services, monkeypatch: pytest.MonkeyPatch) -> Published:
 
     monkeypatch.setattr(services.bus, "publish", record)
     return events
+
+
+@pytest.fixture
+def restarted_app(config: Config, fake_clock: FakeClock) -> FastAPI:
+    """A second controller on the same /config: the first one restarted. Built outside the event
+    loop, like `app`."""
+    return create_app(build_services(config, clock=fake_clock))
+
+
+def in_process(app: FastAPI) -> httpx.AsyncClient:
+    """Calls a started `app` in-process, as the `client` fixture does."""
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://spotivault.test"
+    )
 
 
 def states(setup: dict[str, Any] | Setup) -> dict[str, str]:
@@ -248,6 +265,54 @@ async def test_step_7_is_the_saved_choice(
     await client.put("/api/settings", json={"auto_track_owned": False})
     assert states(published[-1])["playlists"] == "done"
     assert states(await get_setup(client))["playlists"] == "done"
+
+
+async def test_step_8_i_will_choose_in_albums(
+    world: World,
+    client: httpx.AsyncClient,
+    services: Services,
+    published: Published,
+    fake_clock: FakeClock,
+) -> None:
+    """POST /api/setup/albums/later answers step 8: the step is done, step 9 is next, and nothing
+    is queued. The wizard's stepper and a reload read it from GET /api/setup."""
+    fake_clock.set_now(datetime(2026, 11, 15, 9, 12, 44, tzinfo=UTC))
+    world.all_good()
+    await client.post("/api/setup/tos", json={"understood": True})
+    await services.setup.mark_done("webapi")
+    await client.put("/api/settings", json={"auto_track_owned": True})
+    assert (await get_setup(client))["first_unfinished"] == "albums"
+
+    response = await client.post("/api/setup/albums/later")
+    assert response.status_code == 200
+    assert_response(response, "/api/setup/albums/later")
+    body = response.json()
+    assert published[-1] == body
+    for step in body["steps"]:
+        assert step.pop("message") is None
+    assert body == EXAMPLES["SetupAlbumsAnswered"]["value"]
+    assert (await get_setup(client)) == published[-1]
+    queued = await services.store.fetchone("SELECT count(*) AS n FROM items WHERE kind = 'album'")
+    assert queued is not None and queued["n"] == 0
+
+    # Again: nothing changes, and no event goes out.
+    events = len(published)
+    again = await client.post("/api/setup/albums/later")
+    assert again.status_code == 200
+    assert again.json() == published[-1]
+    assert len(published) == events
+
+    finished = await client.post("/api/setup/complete")
+    assert finished.json()["completed"] is True
+
+
+async def test_step_8_answered_survives_a_restart(app: FastAPI, restarted_app: FastAPI) -> None:
+    """The answer is stored: a controller restart (a reload, the next start) resumes after it."""
+    async with app.router.lifespan_context(app), in_process(app) as http:
+        assert states((await http.post("/api/setup/albums/later")).json())["albums"] == "done"
+    again = restarted_app
+    async with again.router.lifespan_context(again), in_process(again) as http:
+        assert states(await get_setup(http))["albums"] == "done"
 
 
 # --- Step 1 --------------------------------------------------------------------------------------
@@ -389,13 +454,17 @@ async def test_run_setup_again(
         "albums": "todo",
         "done": "todo",
     }
-    assert published[-1] == body
     assert await services.setup.is_complete() is False
-    # The live checks turn the checked steps done again; the others wait for their actions.
-    again = await get_setup(client)
+    # The reset goes out first; the live checks then run at once, with their own event, and turn
+    # the checked steps done again, so the wizard can walk on from step 2 without any other read.
+    # The others wait for their actions.
+    assert published[-2] == body
+    again = published[-1]
     assert again["first_unfinished"] == "webapi"
+    assert again["completed"] is False
     done = [step for step, state in states(again).items() if state == "done"]
     assert done == ["tos", "client", "login", "client_settings", "output"]
+    assert await get_setup(client) == again
     # Nothing else was deleted.
     assert (await client.get("/api/settings")).status_code == 200
 
@@ -408,6 +477,22 @@ async def test_run_setup_again_is_refused_during_a_run(
     assert response.status_code == 409
     assert_response(response, "/api/setup/restart")
     assert response.json()["error"]["code"] == "run_active"
+
+
+async def test_run_setup_again_asks_step_8_again(
+    world: World, client: httpx.AsyncClient, services: Services, published: Published
+) -> None:
+    """Run setup again resets "I'll choose in Albums" like the other answers."""
+    answered = await client.post("/api/setup/albums/later")
+    assert states(answered.json())["albums"] == "done"
+    await finish_setup(world, client, services)
+    restarted = await client.post("/api/setup/restart")
+    assert states(restarted.json())["albums"] == "todo"
+    assert states(published[-1])["albums"] == "todo"  # the live checks don't answer it
+    assert states(await get_setup(client))["albums"] == "todo"
+    again = await client.post("/api/setup/albums/later")
+    assert states(again.json())["albums"] == "done"
+    assert states(published[-1])["albums"] == "done"
 
 
 # --- Events, the client's notifications and the hello -------------------------------------------

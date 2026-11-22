@@ -1,0 +1,23 @@
+/* The logo and wordmark (components.md § Brand): Logo/Mark 32, gap 10, then "spotivault" in
+   Figtree 800, lowercase, text: 19 px in the sidebar, 18 px in the wizard header
+   ("spotivault setup"). The shell adds the brand row's padding. */
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.sidebar {
+  font: var(--type-wordmark);
+}
+
+.wizard {
+  font: var(--type-wordmark-wizard);
+}
+
+.brand img {
+  flex: none;
+}

@@ -1,0 +1,59 @@
+/* Track states (components.md § Row/Track): icon 16 and text 13/500, gap 8. */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.md {
+  font: var(--type-small);
+  font-weight: 500;
+}
+
+/* The Dashboard's live table: 15 px icons and 12/500 text. */
+.sm {
+  font: var(--type-caption);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Recorded: a green icon, grey text. */
+.recorded {
+  color: var(--text-sub);
+}
+
+.recorded .icon {
+  color: var(--accent);
+}
+
+.skipped {
+  color: var(--text-sub);
+}
+
+.failed {
+  color: var(--danger);
+}
+
+.missing,
+.pending,
+.unplayable {
+  color: var(--text-muted);
+}
+
+.new {
+  color: var(--info);
+}
+
+.recording {
+  color: var(--accent);
+}

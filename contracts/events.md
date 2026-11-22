@@ -2,17 +2,17 @@
 
 One WebSocket carries every live update, for every page. This file is its contract. The REST side is [openapi.yaml](openapi.yaml), and schema names below (`RunSummary`, `QueueItem` and so on) point into its `components.schemas`.
 
-**Pending S0:** step S0 answered Q2, Q3, Q9, Q10 and Q13. The client payloads follow the answers. Where Q9 or Q10 would still change a payload, the event says "Pending S0" and takes the cautious answer until S5 builds the Library.
+**S0's answers:** step S0 answered Q2, Q3, Q9, Q10 and Q13, and every payload follows them (Q9 and Q10 settled in S5: see Library and Albums).
 
 ## Connection
 
 - **URL:** `ws://<host>:8080/api/events`. No subprotocol, no auth in M1 (plan D11).
 - **Origin:** a browser page from another site is refused before the handshake (HTTP 403). Allowed: no `Origin` header, the same host and port, or both on loopback (`localhost`, `127.0.0.1`, `[::1]`, any port), which covers a Vite dev server proxying to a local controller.
-- **Direction:** server to client only. Messages the client sends are ignored, except WebSocket pings.
+- **Direction:** server to client, except the Logs tab's two messages ([Logs](#logs)): `logs.follow` and `logs.unfollow`. Anything else the client sends is ignored, as are WebSocket pings.
 - **Frames:** one JSON text frame per event.
 - **Keep-alive:** the server sends a WebSocket ping every 20 s. A client that hears nothing for 45 s reconnects.
 - **Reconnecting:** with backoff, 1 s doubling to 15 s at most. Every new connection starts with a fresh `hello`, so there's no replay and no `since`.
-- **Slow clients:** the server keeps up to 256 unsent events per connection. If that fills, it closes the socket with code `1013` ("try again later"), and the client reconnects and gets a new `hello`. The one exception is `level`, which is dropped instead (see [Level throttling](#level-throttling)).
+- **Slow clients:** the server keeps up to 256 unsent events per connection. If that fills, it closes the socket with code `1013` ("try again later"), and the client reconnects and gets a new `hello`. The two exceptions are `level` and `log.lines`, which are dropped or merged instead (see [Level throttling](#level-throttling) and [Logs](#logs)).
 - **Close codes:** `1013` for a slow client, `1011` when the `hello` snapshot fails or a ping goes unanswered, and `1012` when the controller is stopping. The client reconnects on all three. (`WS /vnc` closes with `1013` while there's no screen yet.)
 
 ## Envelope
@@ -23,14 +23,14 @@ One WebSocket carries every live update, for every page. This file is its contra
 
 | Field | Type | Meaning |
 |---|---|---|
-| `seq` | integer or null | Counts up by 1 for each event the controller publishes, from 1 at controller start. Null only for `level`. |
+| `seq` | integer or null | Counts up by 1 for each event the controller publishes, from 1 at controller start. Null only for `level` and `log.lines`. |
 | `type` | string | The event type, from the tables below. |
 | `at` | string | When the event happened, RFC 3339 in UTC with milliseconds. |
 | `data` | object | The payload. Its shape depends on `type`. |
 
 **Rules for `seq`:**
 - **Per controller process.** It restarts at 1 when the controller restarts. `hello.boot_id` tells the client that happened.
-- **No gaps on one connection.** Every event goes to every client, so after `hello` the client sees `hello.seq + 1`, `+ 2` and so on. A gap means a bug: the client reloads its state through REST and logs it.
+- **No gaps on one connection.** Every event goes to every client (`log.lines` only to the ones that follow the logs, and with no `seq`), so after `hello` the client sees `hello.seq + 1`, `+ 2` and so on. A gap means a bug: the client reloads its state through REST and logs it.
 - **Ordering against REST:** events are published after the state they describe is committed. So a REST read made after an event already shows that event's change.
 
 **Unknown types** are ignored by the client. New types and new fields are additions; a field is never renamed or removed without a contract change.
@@ -74,7 +74,7 @@ The first event on every connection. It holds everything the shell needs to draw
 
 | Type | `data` | When |
 |---|---|---|
-| `run.state` | `RunSummary`, plus `previous_state` | The run's state changes, a stop is asked for, the run pauses or resumes, or its counters change. Counter changes are batched: at most one `run.state` per second for counters alone. |
+| `run.state` | `RunSummary`, plus `previous_state` | The run's state changes, a stop is asked for, the run pauses or resumes, the window's end moves, or its counters or its time left change. While an item records, those two are batched: at most one `run.state` per second for counters and time left alone. A new time left while no item records (paused, or between items) goes out at once. The time left goes out when it moved by 5 s or more from what the last one shows (its count-down; paused, the figure itself), or its `unknown_items` changed (`RunTimeLeft`), so not every second. |
 | `run.queue` | `{run_id, queue: [QueueItem]}` | The queue's order or membership changes: items added by Back up now, removed, re-queued after an interruption, or carried over. Always the whole queue. |
 | `item.state` | `{run_id, item: QueueItem, previous_state}` | An item moves to another state, including the phases of the current item (`planning` … `finishing`). |
 | `run.finished` | `{run: HistoryRow}` | A run ends, or a missed, skipped or held row is written. History refreshes its list. |
@@ -86,8 +86,11 @@ The first event on every connection. It holds everything the shell needs to draw
   "id": 42, "trigger": "scheduled", "state": "paused", "previous_state": "running",
   "started_at": "2026-11-15T00:00:00Z", "window_end": "2026-11-15T07:00:00+01:00",
   "paused_reason": "device_moved", "stop_mode": null,
-  "counters": {"recorded": 12, "skipped_duplicate": 230, "skipped_other": 0, "failed": 1, "bytes_added": 41943040}}}
+  "counters": {"recorded": 12, "skipped_duplicate": 230, "skipped_other": 0, "failed": 1, "bytes_added": 41943040},
+  "time_left": {"seconds": 1874, "unknown_items": 1, "as_of": "2026-11-15T01:00:00.020Z"}}}
 ```
+
+**Time left** (`time_left`): this run's own, not the backlog's. Null while the run starts and in the last `run.state`. While the run records, the UI counts it down from `as_of`; while it's paused, as here, it stands still at what the run records once resumed. A scheduled run's is never more than what's left of its window.
 
 ```json
 {"seq": 1836, "type": "item.state", "at": "2026-11-15T01:00:00.031Z", "data": {
@@ -166,6 +169,47 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 | `run_id`, `item_id` | integer, string or null | Set during a run. |
 | `facts` | object or null | Spytify's facts (no names or paths), or the controller's. For the log. |
 
+### Logs
+
+History's Logs tab follows the logs live. A connection gets `log.lines` only after it asks for them, so the logs aren't read while no Logs tab is open.
+
+**The client's messages** (text frames, JSON):
+
+```json
+{"type": "logs.follow", "follow_id": 3, "filter": {"source": ["controller", "spytify"], "level": ["warning", "error"], "run": 42, "q": "timeout"}}
+{"type": "logs.unfollow"}
+```
+
+| Message | Meaning |
+|---|---|
+| `logs.follow` | Start following, or change the filter. `filter`'s fields are `GET /api/logs`'s parameters, and each may be left out or null: `source` and `level` are lists (left out: every source, and every level but `debug`), `run` a run id, `q` a search. `follow_id` (an integer, or a string of up to 64 characters; optional) comes back in each `log.lines`, so the client can drop a batch that was on its way under the filter before. A message that doesn't fit this is ignored. |
+| `logs.unfollow` | Stop. Closing the socket stops it too. |
+
+The follow lasts as long as the connection: after a reconnect, send `logs.follow` again, after the `hello`.
+
+**The event:**
+
+| Type | `data` | When |
+|---|---|---|
+| `log.lines` | `{lines: [LogLine], dropped, follow_id}` | New lines that match the connection's filter, oldest first, at most twice a second. `dropped` counts the matching lines left out of this batch (see below). `follow_id` is the one `logs.follow` gave, or null. |
+
+```json
+{"seq": null, "type": "log.lines", "at": "2026-11-15T01:05:02.400Z", "data": {
+  "lines": [{"id": "1794704702310000000-0-controller", "at": "2026-11-15T01:05:02.310Z", "source": "controller",
+             "service": "controller", "level": "warning", "message": "runs: playback moved to Pixel 9", "run_id": null}],
+  "dropped": 0, "follow_id": 3}}
+```
+
+**Rules:**
+1. **Batched:** the controller looks for new lines every 0.5 s, and sends each following connection one `log.lines` with the ones its filter matches. Nothing is sent when nothing matched.
+2. **The first batch** comes at once after `logs.follow`: the matching lines of the last 10 s. A page read through `GET /api/logs` and the follow can cross, so a line can come both ways: the client drops it by `id`.
+3. **Capped:** at most 200 lines per event, the newest. Older ones in the batch are counted in `dropped`. So are lines the controller skipped because a log grew too fast to read in one go (an estimate, from their size), so a batch can hold no lines and only a `dropped` count. They're still in the files: `GET /api/logs` reads them.
+4. **Volatile:** `seq` is null. It isn't stored, isn't in `hello`, and isn't counted in the 256-event buffer.
+5. **Merged per connection:** if a client hasn't been sent the previous `log.lines` yet, the new lines join it, under the same 200-line cap. A slow client gets a `dropped` count, never a closed socket. A batch for an earlier `follow_id` that hasn't gone out is dropped.
+6. **Masked:** as in `GET /api/logs`.
+7. **Debug lines** go out only to a filter whose `level` asks for `debug`.
+8. **A run's filter:** the controller's, the client's and the system's lines pass while that run goes on (and 5 s after it ends); Spytify's lines pass when they're from one of the run's item logs.
+
 ### Library and Albums
 
 | Type | `data` | When |
@@ -173,7 +217,46 @@ Spytify sends `level` at most every 100 ms, and only while its session is `recor
 | `library.item` | `LibraryItem` | Its status, counts or `progress` change, or a catalog refresh changes it. During a run, at most one per item per second. |
 | `album.item` | `Album` | The same, for an album. |
 
-Pending S0 (Q9): if Liked Songs can't be played as a context, its `library.item` carries `playback_note: "liked_not_playable"`. Pending S0 (Q10): a linked playlist's `name` and `cover` may be null.
+**Settled in S5:** Q9, Liked Songs plays as a context, so `LibraryItem` has no playback note. Q10, a linked playlist's name, owner and cover come from `GET /playlists/{id}`, so its `name` is always known; its `cover` is null only while no thumbnail is cached, like any other item's.
+
+### Catalog refresh
+
+| Type | `data` | When |
+|---|---|---|
+| `catalog.refresh` | `{refresh_id, trigger, state, outcome, items_changed, items_added, suggestions_added, reason}` | A catalog refresh starts or ends. The Library's Refresh button (`POST /api/library/refresh`) waits for its `ended`. |
+
+**`catalog.refresh` fields:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `refresh_id` | integer or null | The refresh. Null for one that was asked for but didn't run. |
+| `trigger` | string | Why it ran: `run` (a run's start), `page_open` (the Dashboard, at most once every 15 minutes), `setup`, `item_added` (an item was tracked or added), or `manual` (the Refresh button). |
+| `state` | `started` or `ended` | |
+| `outcome` | string or null | Null while `started`. Then `ok`; `partial` when some track lists couldn't be read; `failed` when the playlist listing couldn't be read; `skipped` when it didn't run, because a run was going when its turn came or the Web API wasn't connected. |
+| `items_changed` | integer or null | Library items it changed, new ones included. Null while `started`. |
+| `items_added` | integer or null | New Library items: playlists you created since the last refresh. Null while `started`. |
+| `suggestions_added` | integer or null | Playlists you follow that the last listing didn't have, and that aren't in the Library: new suggestions in the + modal. Null while `started`. |
+| `reason` | string or null | Why it was `failed` or `skipped`, as an `ErrorCode` (openapi.yaml); null otherwise. See below. |
+
+**`reason` values:**
+
+| Value | Outcome | When |
+|---|---|---|
+| `run_active` | `skipped` | A run was going when its turn came. |
+| `not_connected` | `skipped` or `failed` | No Client ID or no token. |
+| `connection_expired` | `skipped` or `failed` | Spotify answered `invalid_grant`, before or during this refresh. Reconnect; waiting won't help. |
+| `rate_limited` | `failed` | Spotify kept asking to wait while the playlist listing was read. |
+| `spotify_unavailable` | `failed` | Spotify didn't answer the listing after the retries, or answered with another error. |
+| `internal` | `failed` | An error in the controller. |
+
+- **Order:** `started` comes once the refresh begins. `ended` comes after the `library.item` events of the items it changed, and after its `backlog` event. An item sent less than a second earlier gets its `library.item` after `ended`, merged by the once-a-second limit.
+- **A refresh that doesn't run** sends only `ended`, with `refresh_id` null and outcome `skipped`. A page open's refresh that the 15-minute limit drops sends nothing.
+
+```json
+{"seq": 2210, "type": "catalog.refresh", "at": "2026-11-15T09:30:02.418Z", "data": {
+  "refresh_id": 57, "trigger": "manual", "state": "ended", "outcome": "ok",
+  "items_changed": 2, "items_added": 1, "suggestions_added": 0, "reason": null}}
+```
 
 ### Setup, client and connection
 
@@ -204,10 +287,10 @@ Pending S0 (Q9): if Liked Songs can't be played as a context, its `library.item`
 | Shell (sidebar, bottom bar, banner) | `hello`, `run.state`, `item.state`, `track.started`, `session.state`, `connection`, `setup.state` |
 | Setup wizard | `setup.state`, `client.install`, `client.status`, `connection`, `backlog` |
 | Dashboard | `run.state`, `run.queue`, `item.state`, `run.finished`, `backlog`, `track.*`, `level`, `session.state`, `device.moved`, `error` |
-| Library | `library.item`, `run.state` |
+| Library | `library.item`, `run.state`, `catalog.refresh` |
 | Albums | `album.item`, `run.state` |
-| History | `run.finished` |
+| History | `run.finished`; the Logs tab, `log.lines` |
 | Player | `run.state` (view-only), `client.status` |
 | Settings | `client.status`, `connection` |
 
-Every client gets every event; this table is only a guide.
+Every client gets every event, except `log.lines`; this table is only a guide.

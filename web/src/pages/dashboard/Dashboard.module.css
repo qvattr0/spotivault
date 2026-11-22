@@ -1,0 +1,510 @@
+/* The Dashboard, measured from fzNDm (idle), t4YEY (running) and hJlHj (paused). Raw sizes off
+   the spacing scale (gaps of 6, 10, 14, 20, 28) are as drawn. */
+
+/* --- Shared ------------------------------------------------------------------------------- */
+
+/* "NEXT BACKUP", "LAST RUN", "QUEUE", "UP NEXT": 12/700 capitals, spaced, text-sub. */
+.label {
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.sub {
+  color: var(--text-sub);
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+/* --- Idle: the cards ---------------------------------------------------------------------- */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px;
+  border-radius: var(--r-lg);
+  background: var(--bg-elevated);
+}
+
+/* Next backup: the text and buttons at the left, the week strip at the right, centred. */
+.nextCard {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Held (web-ui.md § Idle › Variants): the card turns red. */
+.held {
+  border: 1px solid var(--danger);
+  background: linear-gradient(var(--danger-tint), var(--danger-tint)), var(--bg-elevated);
+}
+
+.heldIcon {
+  flex: none;
+  color: var(--danger);
+}
+
+.nextMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.nextText {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* "Tonight 01:00–07:00 · in 9 h": 30/800 (fzNDm). */
+.nextTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font: var(--type-page-title);
+  font-size: 30px;
+}
+
+.nextSub {
+  color: var(--text-sub);
+  font: var(--type-body);
+  font-size: 15px;
+}
+
+.nextActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  margin-top: var(--s-3);
+}
+
+/* The week strip: a row per day (Monday first), a cell per hour. */
+.week {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.weekRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 9px;
+}
+
+.weekDay {
+  width: 14px;
+  color: var(--text-sub);
+  font: var(--type-label);
+  text-align: center;
+}
+
+.weekCell {
+  width: 8px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--bg-highlight);
+}
+
+.weekOn {
+  background: var(--accent);
+}
+
+/* Last run */
+.lastHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.lastTitles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* 18/700, off the type scale (components.md § Differences, row 9). */
+.lastTitle {
+  font: var(--type-heading);
+  font-size: 18px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--bg-base);
+}
+
+.statLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+/* 26/800 (fzNDm). */
+.statValue {
+  font: var(--type-title);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.issueList {
+  display: flex;
+  flex-direction: column;
+}
+
+.issue {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 25px;
+  font: var(--type-body);
+}
+
+.issueIcon {
+  flex: none;
+  color: var(--warn);
+}
+
+/* --- Running: the run header -------------------------------------------------------------- */
+
+.runHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+}
+
+.runTitles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.runTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.runTitle {
+  font: var(--type-page-title);
+}
+
+/* The run's facts (14 text-sub) and its counters (14/500, a 14 px icon, gap 6), as in t4YEY. */
+.runMeta {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+/* The dots between the run line's parts: more room than a plain " · ". */
+.metaDot {
+  margin: 0 var(--s-1);
+}
+
+.counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: var(--s-1);
+  font: var(--type-body);
+  font-weight: 500;
+}
+
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- Running: warnings -------------------------------------------------------------------- */
+
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.pausedAlert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/* Resume and Stop sit under the alert's text (hJlHj): its padding, icon and gap, 16 + 20 + 14. */
+.alertActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding-left: 50px;
+}
+
+/* --- Running: the queue ------------------------------------------------------------------- */
+
+.queueSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.queueList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* A collapsed row (t4YEY): outlined, 38 tall. */
+.queueRow {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 38px;
+  padding: 7px var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.finishingRow {
+  padding-bottom: var(--s-3);
+}
+
+.queueRowLine {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.queueRowLine > svg {
+  flex: none;
+}
+
+.queueRowText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--type-body);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The current item, expanded (t4YEY): a green outline while recording, yellow once interrupted. */
+.current {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.currentGreen {
+  border-color: var(--accent);
+}
+
+.currentYellow {
+  border-color: var(--warn);
+}
+
+.currentHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.currentTitles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.currentName {
+  overflow: hidden;
+  font: var(--type-subhead);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currentProgress {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.currentCount {
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.itemBar {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--bg-press);
+}
+
+.itemBarFill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+}
+
+.itemBarWarn {
+  background: var(--warn);
+}
+
+/* The live track table: about five rows tall; it scrolls to the playing track. */
+.tracks {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 152px;
+  overflow-y: auto;
+}
+
+.trackRow {
+  display: grid;
+  flex: none;
+  /* Fractions, not `auto`: every row is its own grid, and the columns must line up. */
+  grid-template-columns: 24px 15px minmax(0, 6fr) minmax(0, 2.6fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: var(--s-3);
+  height: 30px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  color: var(--text-sub);
+  font: var(--type-caption);
+}
+
+.trackActive {
+  background: var(--bg-highlight);
+}
+
+.trackNo {
+  color: var(--text-muted);
+  font: var(--type-caption);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.trackTitle,
+.trackArtist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 13/500 titles, 13 artists and 12/500 states (t4YEY; components.md § Row/Track). */
+.trackTitle {
+  color: var(--text);
+  font: var(--type-small);
+  font-weight: 500;
+}
+
+.trackArtist {
+  font: var(--type-small);
+}
+
+.trackState {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.trackRecorded .trackIcon {
+  color: var(--accent);
+}
+
+.trackFailed .trackIcon,
+.trackFailed .trackState {
+  color: var(--danger);
+}
+
+.trackRecording .trackIcon,
+.trackRecording .trackTitle,
+.trackRecording .trackState {
+  color: var(--accent);
+}
+
+.trackPending .trackIcon,
+.trackPending .trackState {
+  color: var(--text-muted);
+}
+
+.trackDiscarded .trackIcon,
+.trackDiscarded .trackTitle,
+.trackDiscarded .trackState {
+  color: var(--warn);
+}
+
+/* Up next (t4YEY): rows 54 apart, a 36 px cover, the expectation and the ⋯ menu at the right.
+   Two classes, so they win over ItemRow's own padding. */
+.upNextList {
+  display: flex;
+  flex-direction: column;
+}
+
+.upNextList .upNextRow {
+  min-height: 54px;
+  padding: 9px 14px;
+}
+
+.expect {
+  color: var(--text-sub);
+  font: var(--type-small);
+  white-space: nowrap;
+}

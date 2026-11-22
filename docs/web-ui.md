@@ -25,6 +25,71 @@ The endpoint tables below summarize the API. The full request, response and even
   - navigation: sidebar nav, stepper;
   - lists and cards: list row (playlist, album or track), card with corner badge, modal;
   - feedback: progress bar, level meter, status pill, toast, inline alert.
+- **In code** (`web/src/components/`), the set also has parts the drawings use without naming them: the view switch, the expiry banner, the now-playing strip, tertiary, danger and play buttons, the drop-down menu, a select, the cover tile, an item row (the + modals and Up next), the empty state, a tooltip, a confirm dialog and the modal. `/gallery` shows every one in every state.
+
+### What the drawings leave out
+
+The `.pen` file draws most components in their default state only. The UI fills the gaps as below. These are cautious choices that haven't been reviewed yet: to change one, change it here first.
+
+**States**
+
+| State | Built as |
+|---|---|
+| Hover | Green and outlined buttons grow 4 %. Text buttons and nav items turn white. A menu item turns white at 10 % (`--menu-item-hover`). |
+| Pressed | `accent-press` on green buttons. |
+| Keyboard focus | A white 2 px ring. Text fields get the white outline drawn in Edit layout. The search box gets a 1 px ring inside it. A week cell looks hovered, since a ring would cover the next cell. |
+| Disabled | 40 % opacity, measured from the dimmed Continue on Setup 4 and 5. A button that explains itself in a tooltip, such as Player › Restart during a run, stays focusable. |
+| Busy | A spinner in the button. |
+
+**Components**
+
+| Component | Built as |
+|---|---|
+| Select (Library sort, Logs run filter) | The browser's own list, in dark colours. Only the closed box is drawn. |
+| Menu | Arrow keys, Home, End and Escape work. It closes on Tab or a click outside. In the bottom bar it opens upwards. |
+| Library ⋯ "Automatically track playlists I create" | A menu item with a small toggle at its end. |
+| Library row and detail header: tracking | The grid card's round check, not the drawn Toggle, so it can't be taken for "Back up now". Tracked: a filled green check. Not tracked: a hollow grey circle that turns white on hover. In the detail header, the word beside it is part of the same control: a click on the word toggles too. The `.pen` still draws a Toggle in both places. Settings' toggles stay toggles. |
+| Library tooltips | The check says "Tracked: included in scheduled backups" or "Not tracked: left out of scheduled backups", on a row, a card and the detail header. "Back up now" says "Back up now: record it once, right away". On a card both wrap to two lines, so a card in the first column keeps them inside the page. |
+| Library Refresh | A secondary button with `refresh-cw`, at the right of the filter chips. Greyed out during a backup, but still focusable for its tooltip. Not drawn. |
+| Search box | A clear button; Escape clears it too. |
+| Logs filter chips | 24 tall, as measured in xRi3r. Several can be on at once. |
+| Settings › "Disconnect" | A tertiary button in `danger`, as drawn in t6RqK. |
+| Info alert | The warn alert's pattern in the info colours. |
+| Modal | Escape and × close it. A click on the scrim doesn't, because some modals hold unsaved edits. Focus stays inside, and goes back to the opener. |
+| Toast | Bottom centre of the page panel, for 5 s, at most 3 at once. Screen readers announce each one. While a modal is open, a toast shows above its scrim, so a failed or skipped add in a + modal can be read. |
+| Level meter | 24 segments, 2 dB each from −48 dBFS, read from `peak_dbfs`. Yellow from −18 dBFS, which gives the drawing's 15 green and 2 yellow. It falls silent 0.6 s after the last reading. |
+| A list row's Back up now | Over the cover, on hover or keyboard focus (components.md § Differences, row 6). |
+| A failed wizard step | Drawn in the stepper as the active step, as Setup 2 · Failed shows it. |
+| A done step on screen | Drawn Done, like the steps before it, with the bar to the next step green. Nothing else marks it as the step you're on; screen readers hear it as the current step. |
+| Stepper motion | A step that turns done without being active (a live check ahead of the step on screen) fills green from its empty ring. A step's label turns white when its dot starts to move. The stepper shows a change 80 ms after it stops changing, so Continue's two updates (the setup state and the page) play as one. A change that comes while a flow is still playing joins it: the parts already playing carry on untouched, and a new part starts in its turn, or at once if its turn has passed. A move back ends the flow at once. |
+| Narrow windows | Under 800 px the sidebar keeps its icons and hides its status card. The bottom bar drops "Item n of m" under 1000 px and the track names under 700 px. History › Logs puts a line's time and badge above its message when its box is under 560 px wide. |
+| Small grey text on cards and modals | `text-muted` on `bg-elevated` is 4.2:1, and on the modal surface 3.7:1, both under WCAG AA's 4.5:1. Where the drawings put it there, the UI uses `text-sub`: the status card's connection line, the docked strip's track times, the noVNC panel's connection state (steps 3 and 4), step 4's "Auto" labels, the run page's track numbers and file paths, the + modals' list headings, and Edit layout's rule hint and "Insert:" label. The grey dot and the bottom bar's times (on `bg-app`) stay as drawn. |
+
+**Pages (S8)**
+
+Where web-ui.md gave no words or rule, S8 built the more cautious answer below. None has been reviewed.
+
+| Page | Built as |
+|---|---|
+| Setup gate | While the setup state is unknown, nothing redirects: the gate shows "Connecting". A step after the first unfinished one can't be opened. Done steps can. Steps 7 to 9 all open once steps 1 to 6 are done, since 7 and 8 are choices with defaults, which `POST /api/setup/complete` accepts unanswered. After setup, `/setup/<step>` stays open, so step 9 isn't taken away when setup completes. |
+| Step 2 | A client that isn't installed and has no install going shows a short note with a button to start it, in place of starting an install by itself. The controller starts the install at start-up, so this shows only for a moment, or in the mock. The same goes for a client that went missing from `/config` after its install: the note says so, with Install. Right after an install ends well, the step shows Installed at once, before the client's own status catches up. |
+| Step 3 | Continue stays a button, enabled once you're logged in. The drawing's hint reads "Continues by itself once you're logged in", but nothing leaves the page by itself. |
+| Steps 3 and 4: Expand | Not drawn: the button (Lucide `maximize-2`, then `minimize-2` as Collapse), the dialog and its motion are ours (§ 3). The button has a tooltip, "Expand" or "Collapse", as the Player's Fullscreen does. Unlike the other modals, a click on the dimmed page closes it, since it holds no unsaved edits. The page behind is half black (`--scrim-expand`), not the 70 % `$scrim`, under which the blur hardly showed. The button's focus ring is drawn inside it, since it fills the bar's height. |
+| Step 4 | Crossfade and Gapless are Confirm rows (§ 4, open question 3). Each Auto row shows an "Auto" label before its pill. The client's screen takes two thirds of the width, not the drawn 520 px, which showed the client at 40 %. |
+| Step 5 | A stored Client ID shows masked, with a Change button, and Both checks must pass is the hint by Continue. Once connected, the paste field is hidden. In Reconnect, Done doesn't wait for the device check. |
+| Step 8 | "Back up all my saved albums" starts picked, as drawn. Its footer has Done only. Reopened once it's done, it shows the answer given, as step 7 does. Nothing stores that answer: saved albums still off the Albums page (`GET /api/albums/saved`) mean "I'll choose in Albums", since "all" adds every one. Until that list loads, or if it can't, the step shows "I'll choose", which adds nothing. |
+| Step 9 | "Schedule: None yet", with no "set it in Schedule" link, since there's no Schedule page in M1. The backup-length line isn't built (plan D8). |
+| Library | An item's "Show files path" gives `Music/Playlists/<name>.m3u` from its name. No endpoint gives the real path, so a name with odd characters can differ from the file. The row menu adds "Remove from Library" for added items and has no "Change cover…". Refresh joins a refresh already going, whatever started it, so one that read Spotify just before your change ends without it: press again. If its end never comes (the controller restarted, the socket lost events), the button stops saying "Refreshing…" with no toast. A refresh dropped because a backup started says so in its toast. |
+| Add playlists | Cancel and Done in the footer, as drawn. The made-by-Spotify refusal is a standing note over the list, not an inline error. |
+| Add albums | Done only in the footer. The empty state shows only when there's nothing to add. |
+| Albums detail | It reads the whole list of added albums, since the contract has no `GET /api/albums/{id}`. An album's tracks follow its state: recorded first, then Missing. It is never New. |
+| Dashboard | The run header's time left is the run's own (§ Run header), not the backlog's. Its words for items of unknown length are ours: "+ 2 playlists of unknown length". It counts down between the controller's updates and stands still while the run is paused, at what the run records once resumed. For a scheduled run it's capped at the window's end, so it never says more than "stops by" allows. The current item's pill says Stopping, not Waiting, while the last track records after Stop after this track. The Full backup card isn't built (plan D8). The Next backup card has no "Change schedule" in M1. |
+| Paused after a takeover | The paused item shows the track table as the controller sends it. In the controller it is empty; in the mock it keeps the discarded take as "Discarded · will redo". The contract doesn't say which is right. |
+| History › Logs | See § Logs tab, "As built". |
+| History | A run still going is listed first, as the controller lists it, with a Running pill that links to the Dashboard and no counts until it ends. Its run page says so too, and follows the run: "Building the queue…" until the queue is built after the pre-run check, then its items, and an open item's tracks as each take ends. An item's reason shows as a line under its name on the run page. An item stopped while paused after a takeover keeps the controller's "Interrupted, retried" badge. Each take is a row, so the controller's idle-exit take shows as an extra "Skipped (duplicate)" row with no position. |
+| Player | The client's screen is 16 : 10, as 1280 × 800 is, not the drawn 640 × 440 or 520 × 658. Take control asks first. |
+| Settings | "Save Spotify's covers" keeps web-ui.md's text, which mentions custom covers, with no link. The Unsaved changes bar sits at the foot of the panel. It never covers the focused control: a control that brings the bar up is scrolled clear of it. Notifications and Security aren't shown. |
+| Fake clock | At a fake speed above 1, the Dashboard's elapsed time and the strip's track clock stay at 0:00, since the fake clock runs ahead of the browser. This is fake mode only. |
 
 ## Navigation
 
@@ -43,6 +108,51 @@ The endpoint tables below summarize the API. The full request, response and even
 
 Schedule is its own page. Logs is a tab inside History.
 
+### Sidebar status card
+
+The card at the foot of the sidebar. Its first line is the status line, and the second is the Spotify connection.
+
+| State | First line |
+|---|---|
+| Idle, with a schedule | `moon` "Next backup · tonight 01:00" (drawn). "tonight" means today from 18:00, or before 06:00 seen from noon the day before. |
+| No schedule | "No backup scheduled". |
+| Inside a window, between runs | "Backup window open · until 07:00". |
+| Held | "Backups held · connection expired", in red. |
+| Starting | "Starting a backup…". |
+| Running | `audio-lines` "Backing up · item 3 of 7", in green (drawn). |
+| Paused | `circle-pause` "Paused · playback moved", in yellow (drawn). |
+| Stopping | "Stopping after this track…", or "Stopping…". |
+
+- **Connection line:** a green dot and "Connected as Lorne", also while the connection is expiring (as drawn; the banner gives the date). Once expired, a red dot and "Spotify connection expired". Otherwise a grey dot and "Not connected to Spotify".
+- **Controller out of reach:** an extra line, "Reconnecting to spotivault…", above the last known state.
+- **Times** are in the browser's time zone.
+
+### Routes
+
+Settled with the UI stack in M1. The code is `web/src/routes.tsx`.
+
+| Route | Page |
+|---|---|
+| `/` | Goes to `/dashboard`. |
+| `/dashboard` | Dashboard |
+| `/library`, `/library/:id` | Library, and a playlist's detail view. `:id` is the item's id in `/api/library/{id}`. |
+| `/albums`, `/albums/:id` | Albums, and an album's detail view. |
+| `/history` | Goes to `/history/runs`. |
+| `/history/runs`, `/history/runs/:id` | History › Runs, and a run page. |
+| `/history/tracks`, `/history/logs` | History › Tracks and Logs. |
+| `/schedule`, `/settings`, `/player` | Schedule, Settings and Player. |
+| `/setup` | Goes to the first unfinished step. |
+| `/setup/welcome`, `/setup/client`, `/setup/login`, `/setup/client-settings`, `/setup/web-api`, `/setup/output`, `/setup/playlists`, `/setup/albums`, `/setup/done` | Wizard steps 1 to 9. |
+| `/reconnect` | Step 5 on its own: the Reconnect flow, from Settings or the expiry banner. The wizard's frame with the logo, without the stepper. |
+| `/gallery` | A developer page: every component in every state, and the shell live against the mock. Outside the setup gate. |
+
+- **Not routes:** modals, menus, hover states, and the List / Grid choice, which each browser remembers.
+- **Before setup is complete:** every route except `/gallery` goes to the first unfinished step. Later steps can't be opened yet; finished ones can.
+- **After setup:** `/setup` goes to the Dashboard. `/setup/<step>` stays open, so step 9 isn't taken away the moment setup completes.
+- **Setup stays complete** once it's done, until "Run setup again". An expired connection shows the red banner and holds runs; it doesn't send you back to the wizard. `GET /api/setup`'s `completed` has to work this way.
+- **Before the first `hello`:** a "Connecting to spotivault…" screen. While the socket reconnects: "Can't reach spotivault. Trying again…".
+- **No sign-in route** in M1: the UI password comes later.
+
 ---
 
 ## Setup wizard
@@ -51,6 +161,14 @@ A linear stepper, styled like the client's onboarding: dark background, a centre
 
 - **Progress:** each step's state is stored in `/config`. Reloading the page, or restarting the container, resumes at the first unfinished step.
 - **Navigation:** completed steps can be reopened from the stepper.
+- **The step on screen** is drawn as the active step until it's done. Then it shows its tick like the steps before it, and the bar to the next step turns green. A done step you reopen keeps its tick.
+- **Stepper motion:** the stepper animates progress as you make it.
+  - **A step reached:** its green centre grows out from the middle of the white dot.
+  - **A step done:** its green centre grows to fill the whole dot, then the tick pops in, then the bar to the next step fills from left to right. A live check plays it the moment it ticks the step.
+  - **Continue:** when Continue itself finishes the step (Welcome, Playlists, Albums), the step fills and ticks, the bar fills, and the next step's centre grows as the bar arrives: one flow of about 1 s. When a live check or Connect finished the step earlier, that part played then, and Continue plays only the next step's centre.
+  - **A change while a flow plays** joins it: what's playing carries on, and the new parts follow in order. So a slow answer to Continue still plays as one flow.
+  - **Nothing plays** on a page load or reload, on a move back to an earlier step, or when the system asks for reduced motion. A move back while a flow plays ends it at once.
+  - The timings and rules are in [components.md § Stepper](../web/src/design/components.md#stepper-stepperdone-ksmqr-active-v0fexw-todo-ugoku).
 - **Re-running:** Settings → About → "Run setup again" reopens the wizard. The Terms notice does not show again.
 
 ### 1. Welcome and Terms notice
@@ -82,10 +200,21 @@ The prototype found that the Linux client (1.3.4) logs in by QR code. Its login 
   - The controller polls for login, and the step turns green by itself. There is no "I'm logged in" button.
   - **Logged in** means the client's `Users/*-user/` folder exists **and** its window has a title other than plain "Spotify" ("Spotify Premium" when idle, "Artist - Title" while playing). The client publishes MPRIS even when logged out, so MPRIS alone isn't a signal ([open question 2](#open-questions)).
 - **Code expired, or the client showing something else:** a "Reset login screen" button restarts the client. The controller quits it over MPRIS, kills it after 15 s if it's still there, and s6 starts it again, which takes a few seconds.
-- **Larger view:** the same view is available full size on the Player page.
+- **Larger view:** Expand, below, shows the view up to full size over the page. The Player page shows it full size too.
+- **Expand** (steps 3 and 4): an icon button at the end of the view's bar.
+  - **What it does:** the view grows out of the page into a dialog in the middle of the window. It's as large as the window allows, 24 px clear all round, but never over 100 % (1280 × 800, and the bar). In a 1440 × 900 window that's 100 %.
+  - **Motion:** about 300 ms, easing out. The view moves and grows from where it sat, while the page behind fades to dimmed and blurred (12 px). Collapse plays it back. A click while it moves turns it round. If the window changes size on the way, it lands in the new place. With reduced motion, it opens and closes at once.
+  - **Closing:** the same button (Collapse), Escape, or a click anywhere on the dimmed page. Escape pressed in the client's screen goes to the client, as every key does there, unless the view is view-only during a run.
+  - **A double click** on the button opens or closes it once. Its second press goes nowhere: not to the client's screen, which may now be under the pointer, nor to the page.
+  - **The same connection:** the view isn't reconnected. View-only during a run, and the Connecting and Reconnecting states, show in the dialog as on the page.
+  - **A modal dialog:** focus moves into it and stays there, and goes back to Expand when it closes. If the focused part goes away (the screen when the line drops, or Retry), Escape still closes it and Tab brings focus back in, as in the other modals. The page behind doesn't scroll. Leaving the step closes it.
 
 ### 4. Spotify client settings
 Spytify records whatever the player outputs, so anything Spotify does to the sound ends up in the files. You change these once, in the client's Settings, using the noVNC view embedded on the left of this step. The checklist sits on the right.
+
+- **The client's screen:** two thirds of the step's width, so its Settings are big enough to click: about 790 px wide in a 1440 px window, 62 % of the client's 1280. It stays in view while the checklist scrolls. Under 900 px the checklist goes under it.
+- **Short windows:** in a window less than about 840 px tall, the screen's bottom starts below the window. Scroll once with the pointer over the checklist (over the screen, the wheel goes to the client), and the screen holds at the top, all in view.
+- **Expand:** as in step 3, for the client at up to 100 %.
 
 Rows are grouped as they are in the client's Settings. Each row shows the required value, a one-line reason, and a pill for how it is checked:
 - **Auto:** the controller reads it.
@@ -94,13 +223,13 @@ Rows are grouped as they are in the client's Settings. Each row shows the requir
 
 | Section | Setting | Required | Why | Check |
 |---|---|---|---|---|
+| Playback | Autoplay | Off | Stops similar songs from playing after the playlist. It may be hidden for some accounts. **Not a blocker:** the controller also stops when the playing context changes. | Confirm |
 | Playback | Crossfade | Off | Overlapping tracks can't be split. | Confirm |
 | Playback | Gapless playback | Off | A short gap gives clean cuts. Spytify trims the silence. | Confirm |
 | Playback | Automix | Off | Blends and alters transitions. | Auto (prefs `audio.automix`) |
-| Playback | Autoplay | Off | Stops similar songs from playing after the playlist. It may be hidden for some accounts. **Not a blocker:** the controller also stops when the playing context changes. | Confirm |
 | Playback | Volume normalization | Off | Alters levels, and "Loud" compresses. Use ReplayGain at playback instead. | Auto (prefs `audio.normalize_v2`) |
-| Playback | Equalizer | Off | Colours the recording. | Auto (prefs `audio.equalizer_v2`) |
 | Playback | Mono audio | Off | Would record mono. | Auto (prefs `audio.downmixer_v2`) |
+| Playback | Equalizer | Off | Colours the recording. | Auto (prefs `audio.equalizer_v2`) |
 | Audio quality | Streaming quality | Very high (the highest offered) | It is the quality that gets recorded. | Auto (prefs `audio.play_bitrate_enumeration` = 4) |
 | Audio quality | Auto adjust quality | Off | Spotify buffers instead of silently lowering quality. | Auto (prefs `audio.allow_downgrade`) |
 | Player | Volume | 100% | Spytify marks takes below full volume as "(low volume)" and doesn't count them. | Set for you: `player.control full_volume` before every run |
@@ -124,6 +253,8 @@ spotivault uses the Web API to list your playlists and albums and to start playb
    - Opens Spotify's consent page in a new tab.
    - After you approve, the browser goes to `http://127.0.0.1:8888/callback?...` and shows an error page. That's expected.
    - You copy that whole URL from the address bar and paste it into the field this step then shows. Then Connect.
+   - A pasted address works once. If the exchange then fails, press Authorize again for a new one.
+   - If you declined on Spotify's page, the error says so.
 4. **Checks:** both must pass for the step to turn green.
    - The token works. Shows "Connected as <display name>".
    - The container's client is listed as a playback device. If not: "Make sure the client in step 3 is open and logged in", with Retry.
@@ -136,6 +267,7 @@ Scopes requested:
 **Token storage and expiry:**
 - The token is kept in `/config` and refreshed by the controller. The Client ID is permanent unless the app is deleted.
 - **Six-month expiry:** since mid-2026, a Spotify refresh token expires 6 months after you authorize, and refreshing does not extend it. An expired token gets `400 invalid_grant`. So the controller stores the authorization date, and the UI shows when the connection expires.
+- **When it counts as expired:** from the expiry date, the connection shows as expired and scheduled runs are held. A request is refused only after Spotify answers `invalid_grant`, so Spotify has the final say.
 - **Connection summary:** the step's success state shows "Connected as <name> · expires <date>".
 
 **Reconnect:**
@@ -179,6 +311,8 @@ Followed and other people's playlists are never tracked automatically. They are 
   - It shows how many there are now ("You have 42 saved albums").
 - **"I'll choose in Albums":** nothing is queued yet. You add albums afterwards with the **+** button on the Albums page.
 
+**Either answer marks the step done:** "Back up all my saved albums" through `POST /api/albums`, and "I'll choose in Albums" through `POST /api/setup/albums/later`, which queues nothing. So the stepper ticks Albums, and a reload resumes at step 9. If the call fails, a toast says why and the step stays.
+
 A note under the cards: albums you downloaded in a Spotify app count as saved albums. Albums you save later aren't added on their own; add them from the Albums page.
 
 This is a one-off action, not a setting. Choosing "all" again after "Run setup again" adds the saved albums that aren't on the page yet.
@@ -193,7 +327,7 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 - **Backup length:** how long the first full backup takes, since recording is real time: "About 298 h of music to record". While the track lists load, it shows "Measuring…". Followed playlists add "+ 2 followed playlists (unknown length)". The figure comes from the [backlog estimate](design.md#backlog-estimate).
 - **Primary:** "Open Library".
 - **Secondary:** "Back up now". It starts a first run of everything tracked and opens the Dashboard.
-- **Both buttons finish setup** (`POST /api/setup/complete`), which needs steps 1 to 6 done. Steps 7 and 8 keep their defaults if you skipped them, so "I'll choose in Albums" needs nothing else.
+- **Both buttons finish setup** (`POST /api/setup/complete`), which needs steps 1 to 6 done. Steps 7 and 8 keep their defaults if you skipped them.
 
 ### Setup endpoints
 
@@ -201,6 +335,7 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 |---|---|---|---|
 | GET | `/api/setup` | all steps | Each step's state (`todo`, `active`, `done`, `failed`), plus the first unfinished step. |
 | POST | `/api/setup/tos` | 1 | Stores the acknowledgement and its timestamp. |
+| POST | `/api/setup/albums/later` | 8 | "I'll choose in Albums": marks step 8 done, and queues nothing. "Back up all my saved albums" is `POST /api/albums` with `{all: true}`. |
 | POST | `/api/setup/complete` | 9 | Finishes setup: steps 7 to 9 done, and `completed` true. Refused with `409 setup_incomplete`, listing the steps, while a step from 1 to 6 isn't done. |
 | GET | `/api/client/status` | 2, 3 | Client installed, its version, install progress and whether it's logged in. |
 | POST | `/api/client/install` | 2 | Retries the install. |
@@ -211,12 +346,12 @@ This is a one-off action, not a setting. Choosing "all" again after "Run setup a
 | POST | `/api/spotify/app` | 5 | Stores the Client ID. |
 | POST | `/api/spotify/auth/start` | 5 | Returns the authorize URL. The PKCE verifier stays on the server. |
 | POST | `/api/spotify/auth/finish` | 5 | Body: `{redirect_url}`. Exchanges the code and returns the user's display name. |
-| GET | `/api/spotify/devices` | 5 | Whether the container's client is a device. |
-| GET | `/api/spotify/connection` | 5, banner, Settings | Display name, `authorized_at`, `expires_at` and state (`ok`, `expiring`, `expired`). |
+| GET | `/api/spotify/devices` | 5 | Whether the container's client is a device. Step 5's rule: Retry runs it again. Without a connection: `409 not_connected`. |
+| GET | `/api/spotify/connection` | 5, banner, Settings | Display name, `authorized_at`, `expires_at` and state: `not_configured` (no Client ID), `disconnected` (no token), `ok`, `expiring` (within 4 weeks of expiry) or `expired`. |
 | GET | `/api/storage` | 6 | Whether `/music` is mounted and writable, plus free bytes. |
 | GET/PUT | `/api/settings` | 6, 7, Settings | Format, bitrate, file layout and `auto_track_owned`. |
 | GET | `/api/library/summary` | 7, 9 | Count of owned playlists, and whether Liked Songs is tracked. |
-| PATCH | `/api/library/liked` | 7 | `{tracked}`: "Include Liked Songs". `liked` is Liked Songs' id in every Library endpoint. |
+| PATCH | `/api/library/liked` | 7 | `{tracked}`: "Include Liked Songs". `liked` is Liked Songs' id in every Library endpoint. Liked Songs exists once step 5 is done, before the first catalog refresh ends; it starts tracked only while "Automatically track playlists I create" is on. |
 | GET | `/api/albums/saved` | 8 | The saved-album count. Shared with the Albums + modal. |
 | POST | `/api/albums` | 8 | `{all: true}` adds every saved album as Queued. Shared with the Albums page. |
 | GET | `/api/backlog` | 9 | The backup length. Shared with the Dashboard. |
@@ -239,13 +374,19 @@ The Library is where you choose what gets backed up. It follows the client's own
 
 ### Header
 - **Title:** "Library", with a one-line summary: "18 of 23 tracked · last backup 03:12 today".
-- **Filter chips** (like the client's): All · Tracked · Not tracked · Created by you · Added.
+- **Filter chips** (like the client's): All · Tracked · Not tracked · Created by you · Added. "Created by you" includes Liked Songs.
 - **Search:** a box that filters by name.
 - **Sort:** Recently backed up · Name · Recently added · Track count.
 - **View switch:** List / Grid, like the client's Library view options. The choice is remembered per browser.
 - **+ button:** adds playlists (see "Add playlists" below).
+- **Refresh:** reads the Library from Spotify now, so a playlist you just made or followed in Spotify shows without waiting. Otherwise the Library is read at the start of each run, when an item is tracked or added, and when the Dashboard or Schedule page opens (at most once every 15 minutes).
+  - **While it runs:** the button says "Refreshing…" with a spinner. A second press, here or in another tab, joins the refresh already going.
+  - **When it ends:** a toast says what it found: "Library refreshed", plus "1 new playlist" for one you made, or "1 followed playlist to add with +" for one you followed, which waits in the + modal's suggestions. New playlists come in tracked while "Automatically track playlists I create" is on.
+  - **When it fails:** the toast says why. Spotify ended the connection: "The Spotify connection expired. Reconnect to refresh the Library." Spotify asked to wait, or didn't answer: "The Library couldn't be refreshed", with the reason and "Try again later". A backup that started first: "The Library wasn't refreshed: a backup started, and each backup refreshes it first."
+  - **During a backup:** the button is greyed out, and its tooltip says "Not available while a backup is recording. Each backup refreshes the Library first." A backup that starts after the press gets the same words in a toast.
+  - **Refused:** without a Web API connection, with the usual connection words.
 - **Options menu (⋯):**
-  - "Automatically track playlists I create", a toggle;
+  - "Automatically track playlists I create", a toggle. Turning it off before setup is complete (step 7's "I'll choose in the Library") also untracks Liked Songs and the playlists it had tracked on its own. Later, it only stops new playlists being tracked.
   - "Back up all tracked now".
 
 ### Item states
@@ -253,7 +394,7 @@ Every row and card shows one status pill:
 
 | Pill | Meaning |
 |---|---|
-| Not tracked | The toggle is off. Its files, if any, are kept. |
+| Not tracked | The check is off. Its files, if any, are kept. |
 | Never backed up | Tracked, but no run has reached it yet. |
 | Up to date | Every known track is recorded. |
 | n new | Tracks added since the last backup. The next run records them. |
@@ -266,14 +407,14 @@ A Spotify-style table, one row per item:
 
 | Column | Content |
 |---|---|
-| Toggle | Track / don't track (switch). |
+| Check | Track / don't track: the grid card's round check. Clicking it toggles tracking. Its tooltip says what tracking means: the item is included in, or left out of, scheduled backups. |
 | Cover + name | Cover thumbnail, name, and the owner below it ("by you", "by Lorde", "added by link"). |
 | Tracks | "84 / 120 recorded". Followed playlists have a total in `/me/playlists` but no track list, so they show "32 / 35 recorded" with an info tooltip. Linked playlists have neither, so they show "32 recorded". |
 | Last backup | Relative time ("2 days ago"), or "Never". |
 | Status | The pill. |
 | ⋯ | Row menu: Back up now · Change cover… (not for Liked Songs) · Open in Spotify · Show files path · Remove from Library (added items only). |
 
-Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button.
+Hovering a row shows a play-style round green button, "Back up now", in the position of the client's play button. In list rows it's 32 px, so it fits over the 44 px cover; cards and the detail header keep the larger ones. It records the item once, right away, and its tooltip says so. Tracking is for scheduled backups; Back up now doesn't change it.
 
 Albums are not in the Library. They have their own page (see [Albums](#albums)), because they work differently.
 
@@ -282,12 +423,13 @@ Albums are not in the Library. They have their own page (see [Albums](#albums)),
 - **Corner badge:**
   - Tracked: a filled green check.
   - Not tracked: a hollow circle. Clicking the badge toggles tracking.
+  - **Tooltip:** the same words as a row's check.
 - **Progress ring:** while an item is recording, a thin ring around the badge shows its progress.
 - **Hover:** shows the same round "Back up now" button.
 
 ### Detail view
 Clicking an item opens it in place, like a playlist page in the client.
-- **Header:** a large cover, the name, the owner, the track count and the total duration, then the tracking toggle and a large "Back up now" button.
+- **Header:** a large cover, the name, the owner, the track count and the total duration, then a large "Back up now" button and the tracking check (as on a row), with "Tracked" or "Not tracked" beside it.
 - **Cover:** you can replace it with your own, sharper image. Spotify keeps playlist covers at 640 px at most, so this is the only way to get a high-resolution one. Rules are in [design.md § Playlist covers](design.md#playlist-covers).
   - **Hover:** the cover dims and shows a pencil icon with "Change cover", like the client's own playlist editor. Clicking opens a file picker, and you can also drop an image onto the cover.
   - **With a custom cover set,** clicking opens a menu instead: Change cover · Use Spotify's cover · Show file path.
@@ -315,6 +457,7 @@ A modal in the client's dialog style.
 - **Pasting a link:**
   - The link resolves into a preview row (cover, name, owner) with an **Add** button.
   - If it can't be used, an inline error explains why: not found, private, or made by Spotify and not supported.
+  - A link to one of your own playlists that the list hasn't loaded yet previews as a linked playlist, with no total. Once added, it's stored as your own.
 - **Suggestions:** the playlists you follow that aren't in the Library yet. Each row shows a cover, the name, the owner and an **Add** button.
   - The list shows a "Nothing to suggest" empty state.
 - **Added items:** they come in tracked. The modal stays open so you can add several, and Done closes it.
@@ -325,17 +468,18 @@ A modal in the client's dialog style.
 |---|---|---|
 | GET | `/api/library` | Items with these fields:<br>• `id`, `kind` (`owned`, `liked`, `followed` or `linked`)<br>• `name`, `owner`, `cover` (a thumbnail URL, null for Liked Songs, which shows its tile), `cover_source` (`custom`, `spotify` or `none`)<br>• `tracked`, `total` (null when unknown), `recorded`, `new`<br>• `last_backup_at`, `status`<br><br>It filters, searches and sorts on the server. |
 | PATCH | `/api/library/{id}` | `{tracked}`. Liked Songs' id is `liked`. |
-| POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. |
+| POST | `/api/library/refresh` | Refresh: a catalog refresh now, not held back by the 15 minutes. It answers `202` at once with `{state, refresh_id}`: `started`, or `running` when a refresh was already going (this press joins it). `409` during a run (`run_active`) and without a connection (`not_connected` or `connection_expired`). |
+| POST | `/api/library` | `{url}` adds a followed or linked playlist. It returns the item, or an error code: `not_found`, `private` or `spotify_owned`. Without a connection: `409` (`not_connected` or `connection_expired`). |
 | DELETE | `/api/library/{id}` | Removes an added item. The files are kept. |
 | GET | `/api/library/suggestions?q=` | Followed playlists not yet in the Library. |
-| POST | `/api/library/resolve` | `{url}` returns a preview without adding the playlist. |
+| POST | `/api/library/resolve` | `{url}` returns a preview without adding the playlist. Same errors as `POST`, and `503` (`spotify_unavailable` or `rate_limited`) when Spotify is down or rate-limiting. |
 | GET | `/api/library/{id}/tracks` | The track list with per-track state. |
 | GET | `/api/library/{id}/cover?size=thumb` | The cover image: `thumb` (300 px, the default) or `full`. |
 | PUT | `/api/library/{id}/cover` | Multipart image upload. Returns the item, plus `width`, `height` and any `warnings` (`not_square`, `small`). It's refused with `unsupported_type` or `too_large`, and with `not_supported` for Liked Songs. |
 | DELETE | `/api/library/{id}/cover` | Removes the custom cover. The playlist goes back to Spotify's cover. |
 | POST | `/api/runs` | `{items: [id…]}` "Back up now". Queues the items in a forced run. Shared with the Dashboard. |
 | PUT | `/api/settings` | `auto_track_owned` |
-| WS | `/api/events` | `library.item` updates: status, counts and progress while recording. |
+| WS | `/api/events` | `library.item` updates: status, counts and progress while recording, and items a refresh found or changed. `catalog.refresh`: a refresh started or ended, with its outcome and what it found. |
 
 ---
 
@@ -356,7 +500,7 @@ A separate sidebar page, because albums almost never change once they're out.
 
 ### Header
 - **Title:** "Albums", with a one-line summary: "42 albums · 39 recorded · 3 queued".
-- **Filter chips:** All · Recorded · Queued · Partial.
+- **Filter chips:** All · Recorded · Queued · Partial. Partial also lists unavailable albums that have recorded tracks.
 - **Search:** a box that filters by album or artist.
 - **Sort:** Recently added · Album · Artist · Year.
 - **View switch:** List / Grid, remembered separately from the Library's.
@@ -371,6 +515,8 @@ A separate sidebar page, because albums almost never change once they're out.
 | Recorded | Every track is recorded. Scheduled runs skip it from now on. |
 | Partial | Some tracks failed. The next run retries only the missing tracks; the recorded ones are skipped as duplicates in under a second. |
 | Unavailable | Spotify no longer offers the album. Its files are kept. |
+
+Unavailable is checked before Recorded, so an album Spotify has dropped shows Unavailable, even when every track is recorded.
 
 ### Grid view
 - **Card:** a square cover, the album name, and the artist and year below it.
@@ -410,8 +556,8 @@ A modal in the same style as the Library's + modal.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/albums` | The added albums, with these fields:<br>• `id`, `name`, `artist`, `year`, `cover`<br>• `total`, `recorded`, `status`, `completed_at`<br><br>It filters, searches and sorts on the server. |
-| GET | `/api/albums/saved` | Saved albums not yet added, for the modal. The UI does the filtering. |
-| POST | `/api/albums` | `{ids: [...]}` adds albums, or `{all: true}` (wizard step 8) adds every saved album not yet added. They start Queued. |
+| GET | `/api/albums/saved` | Saved albums not yet added, for the modal. The UI does the filtering. Without a connection: `409 not_connected`. |
+| POST | `/api/albums` | `{ids: [...]}` adds albums, or `{all: true}` (wizard step 8) adds every saved album not yet added. They start Queued. Without a connection: `409 not_connected`. |
 | DELETE | `/api/albums/{id}` | Removes an album from the page. The files are kept. |
 | GET | `/api/albums/{id}/tracks` | The track list with per-track state. |
 | GET | `/api/albums/{id}/cover?size=thumb` | The cover image: `thumb` (300 px, the default) or `full` (640 px, as the Web API gives it). |
@@ -435,7 +581,7 @@ Three cards, stacked.
 - **Variants:**
   - **No schedule (manual only):** "No backup scheduled", with Run now.
   - **Held:** if the Web API connection has expired, or the client is logged out, the card turns red and says why. Its main button becomes Reconnect, or "Log in again" (wizard step 3), in place of Run now.
-- **What Run now runs:** every tracked playlist, plus Queued and Partial albums.
+- **What Run now runs:** every tracked playlist, plus Queued and Partial albums. A playlist or album that has become unavailable is left out until a refresh finds it again.
 
 **2. Full backup**
 How far the backup of everything tracked has got, and how long the rest takes. The figures come from the [backlog estimate](design.md#backlog-estimate).
@@ -461,19 +607,26 @@ The item queue is the main element. A compact now-playing strip sits above it.
 
 **Run header**
 - "Backing up · started 01:00 · 0:42 elapsed · Scheduled · stops by 07:00". The last part only appears for scheduled runs.
-- Live counters: Recorded n · Skipped n · Failed n.
-- Time left for the whole backlog, from the Full backup card: "about 26 h left".
+- Live counters: Recorded n · Skipped n · Failed n. **Skipped** counts only tracks the run skipped without recording them (an episode jumped over, a take Spytify refused, the track Stop now cut short). Tracks already saved are skipped on every run, so they aren't counted; a hint on the counter says so. History still lists them as Skipped (duplicate).
+  - **Failed** counts only real failures. The track that Stop now, or the container stopping, cuts short isn't one: it counts as Skipped, and the next run records it.
+- This run's own time left: "about 9 min left in this run". The controller works it out from what it has stored, with no Web API request (`time_left` in the run's summary):
+  - **What counts:** the rest of the track recording now, the current item's planned tracks still to play, and each waiting item's missing tracks (Up next, and interrupted items that will retry), plus about 35 s for each waiting item with something to record, as the [backlog estimate](design.md#backlog-estimate) counts. A track two items share counts once, and a track this run already recorded doesn't count again. Removed items don't count.
+  - **Unknown length:** followed and linked playlists play whole, so their length isn't known, unless they're Up to date: "about 9 min left in this run + 2 playlists of unknown length", or "2 playlists of unknown length left in this run".
+  - **Scheduled runs:** the run stops at its window's end, so the time left is at most what's left of the window: "stops by 07:00 · about 6 h left in this run". Then nothing of unknown length is said, since it wouldn't run. Once a stop is asked for, it's the rest of the track playing, even past the window's end.
+  - **While it changes:** it counts down while the run records. While it's paused, it stands still at what the run records once resumed (the paused item runs again), and changes only when you remove an item or add one with Back up now. After Stop after this track, it's just the rest of that track. While the run starts, it isn't shown.
+  - The whole backlog's time left is the Full backup card's, not the header's.
 - **Stop, a split button:**
   - **Stop after this track** (the main action): nothing is lost. The header says "Stopping after this track…" until it ends.
-  - **Stop now** (from the arrow): first a confirm, "The current track will be discarded and recorded next time."
-  - Either way, the run ends as **Stopped**. Items left in the queue aren't recorded this time. Tracked playlists are picked up by the next run, and albums stay Queued.
+  - **Stop now** (from the arrow): first a confirm, "The current track will be discarded and recorded next time." That track counts as Skipped, not Failed.
+  - Either way, the run ends as **Stopped**. Items left in the queue aren't recorded this time, and their rows in History carry the **Stopped** badge. Tracked playlists are picked up by the next run, and albums stay Queued.
+  - After **Stop after this track**, the main action is disabled, but **Stop now** stays in the arrow: it upgrades the stop (openapi.yaml). This also holds when the end of a window asked for the stop. Once Stop now is asked for, both are disabled.
 
 **Now-playing strip**
 Styled like the client's now-playing bar, docked under the header:
 - a small cover, title and artist;
 - a track progress bar (from `track.started`'s length);
 - a level meter (Spytify's `level` peaks, 10 times a second);
-- a session-state pill: Waiting, Recording, Paused or Stopping.
+- a session-state pill: Waiting, Recording, Paused or Stopping. Spytify's `idle` and `ad` states show Waiting.
 
 On other pages, the same strip is the global bottom bar. It's hidden on the Dashboard, where the strip sits at the top.
 
@@ -499,7 +652,7 @@ One row per item, in run order. Row states:
   - ✕ failed, with the reason.
 - For followed or linked playlists, whose track list the API won't give, the table grows as tracks start, and the header shows "n recorded" with no total.
 
-**"Back up now" from the Library or Albums during a run:** the item goes into the queue right after the current item, with a toast: "Added to the current run".
+**"Back up now" from the Library or Albums during a run:** the item goes into the queue right after the current item, with a toast: "Added to the current run". The current item, or one that already ended in this run, isn't added again, so the toast must say so when nothing was added.
 
 ### Warnings during a run
 Inline alerts sit between the strip and the queue.
@@ -507,16 +660,22 @@ Inline alerts sit between the strip and the queue.
 - **Playback moved to another device** (you started Spotify on your phone, for example):
   - The current track is discarded. The current item is marked **Interrupted**, and the run **pauses**. It never takes playback back on its own.
   - The alert reads "Playback moved to <device>. The backup is paused so it won't interrupt you." with **Resume** and **Stop**.
-  - **Resume** takes playback back on the container's device and restarts the current item. Tracks already recorded are skipped as duplicates within seconds, so it carries on where it stopped.
+  - **Resume** takes playback back on the container's device and restarts the current item. Tracks already recorded are skipped as duplicates within seconds, so it carries on where it stopped. It first pauses the other device.
   - **Scheduled runs while paused:** a paused run stays paused until you resume or stop it. The next scheduled run doesn't start while one is paused, and History notes it as skipped.
 - **Spytify error:** an `error` event shows as a red alert with the message. If the current item can't continue, it is marked Partial and the run moves to the next item.
+- **Web API error during an item:** a failed jump shows as a warning. The player is paused, and the item ends Partial. A lost or expired connection ends the run instead.
+- **Autoplay moved on:** Spotify started another context after the item's own ended. The controller stops the recorder at once. A whole item ends Partial, so it isn't up to date. A missing-tracks item just pauses when its plan is done.
+- **A second interruption of the same item:** a second takeover or stall ends that item Partial. Resume first pauses the other device, so the container can take playback back.
 - **Track failed** (for example, a low-volume take): no alert. It shows in the track table and the counters.
+- **Client not running:** a run that finds the client not running (but still logged in) restarts it once, then waits up to 60 s for the container's device to show up. If it doesn't, the run fails.
+  - The restart shows as a red alert, the controller's `error` event (`client_restarted`): "The device spotivault wasn't listed, so the Spotify client was restarted."
+  - The failed run's reason is `device_missing`. The Last run card and History word it "the container's client isn't listed as a playback device", as step 5's check does.
 
 ### Dashboard endpoints
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/status` | `state` (`idle`, `running`, `paused`, `stopping` or `finishing`), the current run, item and track, and the counters. Read on first load; after that the WS keeps it current. |
+| GET | `/api/status` | `state` (`idle`, `running`, `paused`, `stopping` or `finishing`), the current run, item and track, the counters, and the run's own time left. Read on first load; after that the WS keeps it current. |
 | GET | `/api/schedule/next` | `{at, playlists_to_check, albums_queued, held_reason}` |
 | GET | `/api/runs/last` | The last run's summary and its top issues. |
 | GET | `/api/backlog` | `{tracks_total, tracks_recorded, seconds_total, seconds_left, unknown_items, finish_at, as_of}`. `finish_at` is null with Manual only. Shared with wizard step 9 and the Schedule preview. |
@@ -574,11 +733,14 @@ A large modal in the client's dialog style. Its main element is a grid of square
 - **Start:** a scheduled run starts at the first hour of each window, if there's anything to do.
 - **End of a window:** the run **stops after the current track**, so nothing is half-recorded.
   - The cut-off item keeps what it recorded. It's marked **Carried over** and runs in the next window at its place in the run order (first by default), where its recorded tracks are skipped as duplicates within seconds.
-  - The rest of the queue waits for the next window.
+  - The rest of the queue isn't carried over. Its items end **Stopped** in this run's History. The next window picks up tracked playlists and Queued albums again, as usual (Q18).
   - The run ends as **Window ended** in History, with its counts.
-- **Start-up (missed runs):** if the container starts during an active hour, for example after the NAS was off, the run starts straight away and stops at the window's end as usual. A window that passed while the container was off is recorded in History as "Missed: spotivault was not running".
-- **Run now ignores the grid.** A forced run goes until it's done or you stop it. If a window opens while one is running, no second run starts; the forced run already covers it.
-- **Editing during a run:** if you turn off the current hour, the run stops after the current track.
+- **Start-up (missed runs):** if the container starts during an active hour, for example after the NAS was off, the run starts straight away and stops at the window's end as usual. A window that passed while the container was off is recorded in History as "Missed: spotivault was not running", for the last 21 days at most.
+  - **A restart during a window:** the run that was going ends **Failed**, with the reason "container restarted". The window starts again at start-up. A window you stopped by hand isn't started again.
+- **Run now ignores the grid.** A forced run goes until it's done or you stop it. If a window opens while one is running, no second run starts; the forced run already covers it. It doesn't cover the window if it was already stopping when the window opened, or if it failed: the window then gets its own run once it has ended.
+- **Nothing to back up:** a window with no tracked items starts no run and writes no History row.
+- **Editing during a run:** if you turn off the current hour, the run stops after the current track. Changing the other hours of the window in progress moves where the run stops: a shorter window stops it at the new end, and a longer one lets it go on. If you turn on an hour of a window that's already in progress, and no run is going, a run starts for that window at the next scheduler check (Q21).
+- **The client starting up:** a client that isn't running yet, as after a reboot, doesn't hold the window: the run starts, and its pre-run check waits up to 60 s for the device. Only a client that's logged out, or not installed, holds it.
 
 ### Run order
 A section on the page, titled "Run order", that sets which kind of item each run does first. It's a list of four groups, each with a drag handle. The default order:
@@ -639,7 +801,7 @@ A table, newest first, loading more as you scroll.
   - "Missed: spotivault was not running";
   - "Skipped: the previous run was paused";
   - "Held: Spotify connection expired".
-- **Filter chips:** All · With issues · Scheduled · Run now.
+- **Filter chips:** All · With issues · Scheduled · Run now. **Scheduled** includes the Start-up runs.
 - **Opening a run:** clicking a row opens the run page.
 
 Duplicate skips are cheap. In the prototype, a re-run of an already-recorded album skipped every track in under a second. So a large ↷ count with a small ✓ count is the normal look of a nightly run, and it isn't treated as a problem.
@@ -648,7 +810,7 @@ Duplicate skips are cheap. In the prototype, a re-run of an already-recorded alb
 - **Header:**
   - Date, trigger, start–end time and duration.
   - The window it ran in, for scheduled runs.
-  - The outcome pill, the ✓ / ↷ / ✕ counts and the size added.
+  - The outcome pill, the ✓ / ↷ / ✕ counts and the size added. A run that a restart or a crash of the container ended shows **Failed**, with the reason "container restarted".
   - A link, "Logs for this run", which opens the Logs tab filtered to this run.
 - **Items:** in the order they ran, each one a collapsible row:
   - The cover, name, and ✓ / ↷ / ✕ counts.
@@ -664,7 +826,8 @@ Duplicate skips are cheap. In the prototype, a re-run of an already-recorded alb
     - **Recorded:** the size, and the file path with a copy button.
     - **Skipped (duplicate).**
     - **Skipped (ad):** Spytify's other skip reasons are shown the same way.
-    - **Failed:** the reason, such as "low volume", "recorder error", "track unavailable", "interrupted" or "discarded by Stop now".
+    - **Skipped (backup stopped mid-track):** the track that was recording when you pressed Stop now, or when the container stopped. It isn't a failure: the next run records it.
+    - **Failed:** the reason, such as "low volume", "recorder error", "track unavailable", "interrupted" or "partial take". Older runs, from before the track Stop now cut short counted as Skipped, show that track here as "discarded by Stop now".
 - **Actions:**
   - **Retry failed** on an item with failures: adds that item to a forced run. Only the missing tracks get recorded; the rest are skipped as duplicates.
   - **Retry all failed** in the header: does the same for every such item.
@@ -699,6 +862,24 @@ The raw output, for debugging.
 - **Download:** saves the last 7 days of logs as a `.zip`, for bug reports.
 - **Retention:** logs rotate after 14 days or 50 MB, whichever comes first. The tab says so in its footer.
 
+**As built (M1).** Where the spec says no more, these are the cautious answers. None has been reviewed yet.
+
+| Topic | Built as |
+|---|---|
+| Sources | Controller is the controller's log. Spytify is each item's own log (`spytify/<run>-<item>.log`); its raw events files aren't shown. Spotify client is the client's output. System is dbus, pulseaudio, vnc, wm, xserver, and the start-up checks (`init`, which now writes its own lines in s6-log's format). s6-overlay's own messages only go to docker's output. |
+| Line | The time in the browser's time zone (the full date and milliseconds on hover), a badge ("Client" for the Spotify client, as drawn), and the message. A row marks each new day, and the first day if it isn't today. The controller's lines drop the logger's name; the zip keeps it. A line is cut at 4000 characters. A System line's service (xserver, pulseaudio, …) and a Spytify line's item log are on hover, and screen readers hear them after the badge. In a box under 560 px wide, the time and badge sit above the message. |
+| Levels | The controller's are Python's; Spytify's its own. The client and the system print none, so only clear markers count: PulseAudio's `E:`/`W:`, X's `(EE)`/`(WW)`, Chromium's `:ERROR:`, GLib's `-WARNING **`, a leading `Error:` or `Warning:`. Anything else is Info. A traceback's lines take their line's level. The level shows as colour and, for screen readers, as a word, unless the message already starts with it ("Warning: …"). |
+| Debug lines | Hidden. The Level chips are the three drawn; no chip asks for debug. The API can (`level=debug`), and the zip has them. |
+| Chips | Several can be on at once, in each group. None on means all; for Level, every level but debug. |
+| Run filter | The run's controller, client and system lines are the ones from 5 s before it started to 5 s after it ended (to now while it goes on); its Spytify lines are its items' logs. The list holds History's newest 50 runs; a run from the address that isn't among them gets its own entry. A run that doesn't exist says so, with "Show all runs". |
+| Search | Case-insensitive, in the masked text, 250 ms after the last key. A page reads about 8 MB of logs, so a rare match (or a Level chip on a noisy log) can take a few pages. When a page finds nothing, the tab reads up to three more pages by itself, on the first read and on each "Load older lines". If those find nothing either, it says "No lines match … in the newest logs." and offers "Load older lines". |
+| Live tail | Only while the tab is open: the controller reads the files only while someone follows. New lines come at most twice a second, 200 at most each time. When more came, or the controller skipped lines because a log grew too fast, the tab says "n lines came too fast to show live", with "Show them", which reads the page again. After a reconnect, the newest page is read again. If more lines were written while the socket was down than that page holds, the tab starts from that page, and scrolling up reads the ones before it, in order. |
+| Paused | Scrolling up pauses the follow. New lines wait, and "Jump to latest" adds them (screen readers hear how many wait); the keyboard's focus then stays in the log. The page holds 2000 lines at most: older ones load as you scroll up, and when that pushes lines off the bottom, Jump to latest reads the newest page again. |
+| Load older lines | Not drawn. A small pill at the top of the box, outside the scrolling lines: it shows when the lines are scrolled to the top, when there are none, or when it has the keyboard's focus. Focusing it never moves the lines or pauses the follow. It stays focusable while it loads. |
+| Masking | Every line, from every source, on the screen and in the zip: Spotify tokens, `Authorization` values, `code=` and `access_token=` in addresses, refresh tokens, PKCE verifiers and the UI password show as `[redacted]`, also inside URL-encoded text. The search looks at the masked text. |
+| Download | "Download last 7 days (.zip)": every log file written to in the last 7 days, whole, masked, without Spytify's events files. The zip is built when asked for, one at a time; the button shows a spinner meanwhile, and a failure is a toast. |
+| Retention | 14 days or 50 MB for all of `/config/logs`, whichever comes first, checked at start-up and every hour: files last written over 14 days ago go, then, while the files it may delete pass 50 MB together, the oldest go, Spytify's events files first. Never deleted, and not counted in the 50 MB: s6-log's live files, the files of a run still going, and the rotated s6-log files written since that run started (its controller, client and system lines). So one long run's events file can't take every other log with it. The 14 days are real time, never fake mode's faster clock. s6-log also keeps each service to 10 files of 1 MB. |
+
 ### History endpoints
 
 | Method | Path | Notes |
@@ -709,9 +890,9 @@ The raw output, for debugging.
 | POST | `/api/runs` | `{items: [...]}`. Retry failed or retry all failed. Shared with the Dashboard. |
 | GET | `/api/tracks` | Takes `?q=&result=&cursor=`. |
 | GET | `/api/tracks/{id}` | The track's file and its attempts. |
-| GET | `/api/logs` | Takes `?source=&level=&run=&q=&before=`. Returns a page of older lines. |
-| WS | `/api/events` | `log.line` for the live tail, and `run.finished` to refresh the list. |
-| GET | `/api/logs/download?days=7` | The `.zip`. |
+| GET | `/api/logs` | Takes `?source=&level=&run=&q=&before=&limit=` (`source` and `level` can repeat). Returns a page of older lines and a `next_before` cursor. |
+| WS | `/api/events` | `log.lines` for the live tail, after the tab sends `logs.follow` with its filters; and `run.finished` to refresh the list. |
+| GET | `/api/logs/download?days=7` | The `.zip`. `days` is 1 to 14. |
 
 ---
 
@@ -753,7 +934,7 @@ One scrolling page, like the client's Settings: section headings, with rows of l
   - **Warning:** "Renaming files yourself makes them record again. Changing the layout here never re-records anything. But if you rename or move files outside spotivault, it can't find them, so those tracks are recorded again on the next run."
   - **Cancel** and **Apply.** Apply only changes the layout in the unsaved settings; the page's Save bar saves it.
 - **Playlist files:** a toggle, "Write .m3u playlists", on by default.
-  - Each tracked playlist, and Liked Songs, gets `Music/Playlists/<name>.m3u`, in Spotify's order, with paths relative to the music folder.
+  - Each tracked playlist, and Liked Songs, gets `Music/Playlists/<name>.m3u`, in Spotify's order, with paths relative to the `.m3u` (`../Radiohead/OK Computer/01 - Airbag.m4a`), so the folder can move.
   - Plex, Jellyfin and Navidrome read these.
 - **Playlist covers:** a toggle, "Save Spotify's covers", on by default.
   - Each playlist's cover is saved next to its `.m3u` as `Music/Playlists/<name>.jpg`, at the largest size Spotify has (640 px, or 1280 px for a grid of album covers).
@@ -891,8 +1072,9 @@ View-only is set on the noVNC client, which is a guard against mistakes, not a s
 2. **Picking playlists:**
    1. In the Library, turn tracking on or off per row, or by the grid badge.
    2. Press **+**, then add followed playlists from the suggestions, or paste a link.
-   3. Tracked items are picked up by the next scheduled run, or right away with "Back up now" on a row, in the detail view, or in the options menu.
-   4. **Albums:** open Albums and press **+**. Filter by name, then Add. Added albums are queued for the next run. After a complete recording, they're done.
+   3. A playlist you just made or followed in Spotify: press **Refresh** in the Library's header. One you made joins the list; one you followed then waits in **+**'s suggestions.
+   4. Tracked items are picked up by the next scheduled run, or right away with "Back up now" on a row, in the detail view, or in the options menu.
+   5. **Albums:** open Albums and press **+**. Filter by name, then Add. Added albums are queued for the next run. After a complete recording, they're done.
 3. **Scheduled run:**
    1. At the first hour of a window in the schedule grid (or on start-up during an active hour), the Dashboard switches from idle to running.
    2. Items run in the fixed order, each followed by its Finishing state.
@@ -911,6 +1093,7 @@ View-only is set on the noVNC client, which is a guard against mistakes, not a s
    - Playback moved to another device: the item is Interrupted, and the run pauses until you press Resume or Stop.
    - Playback paused for more than 20 s for another reason: the item is Interrupted and retried once at the end of the queue. If it's interrupted again, it ends as Partial.
    - A Spytify error: the item is marked Partial, and the run goes on to the next item.
+   - Spotify asks for a wait over 2 minutes (a long `Retry-After`): the controller doesn't sit it out. Until that hold passes, every Web API call, playback included, fails at once with `rate_limited`. A catalog refresh stops there, and the next one tries again.
 
 ## Open questions
 
@@ -932,3 +1115,10 @@ The feasibility prototype (`prototype/`) and step S0 of the M1 plan settle these
 14. **Covers in media servers:** do Plex, Jellyfin and Navidrome show `<name>.jpg` as the cover of `<name>.m3u` when they import it? If one of them doesn't, is there a name it does read, such as `<name>.m3u.jpg`?
 15. **Cover changes:** when you change a playlist's cover in Spotify, does the image ID in the `images` URL change? The controller relies on that to know when to download it again. **Partly tested** (S0): `images` does come back on `/me/playlists`, from `image-cdn-ak.spotifycdn.com`. Whether the ID changes with the cover is still untested.
 16. ~~**File layout in Spytify:**~~ **Resolved:** Spytify names files itself. The layout maps to `output.group_by` (none, `artist`, `artist/album`), `output.template` (the six placeholders), `output.prefix` (`none`, `counter`, `album_track`), `output.underscores` and `output.ascii_filenames`, passed with `--set` for each item. The controller never moves files, and the per-track records keep `track.finished`'s path. One catch: Spytify adds " (YYYY)" to the album folder whenever the client sends a year, and the Linux client hasn't so far.
+17. **Container stopped during a run:** a `docker stop`, a restart or a crash ends the run **Failed**, with reason "container restarted", and the window starts again after the restart. The other option is **Stopped** with that reason. That changes the contract, since `reason` is documented for failed runs only, and the scheduler's query. Built: Failed.
+18. **Items that never started:** when a run stops, at a window's end or by hand, the items it never reached end **Stopped**. The other option is a badge such as "waiting for the next window", a contract change. Built: Stopped. A forced item that isn't tracked doesn't run in the next window.
+19. **A run of tracks listed twice in one playlist:** a track listed twice is fine: Spytify skips the second as a duplicate and the playlist plays on. But two or more tracks listed again in the same order look just like Spytify's replay at the end of a playlist (bug #1), so the loop guard pauses there. The item ends Partial and is never a clean full pass, so the tracks after that run aren't recorded while the playlist stays that way. Should the guard instead wait for a third repeat, or only fire after Spotify's end of the playlist? Built: Partial.
+20. **A whole item's time limit:** at the limit, the take playing is finished, as design.md § Run flow says: the controller stops the recorder after this track, and sends SIGTERM only if it still runs 30 s after that track's end. So the item can run up to one track past its limit. The other option is to cut the take. Built: finished.
+21. **Turning on an hour in a window in progress:** if no run is going, one starts for that window at the next scheduler check. Should the window wait for the next one instead? Built: the run starts.
+22. **Episodes between tracks:** when the plan jumps over an episode, Spytify records it as incomplete, and it's counted as "Skipped (other)". Should it show in the counts at all? Built: counted.
+23. ~~**Spytify's own logs:**~~ **Resolved** (2026-11-22): they follow the Logs tab's retention line. The 14 days or 50 MB covers all of `/config/logs`, Spytify's item logs and events files included. Over 50 MB, the events files go first (a 24-hour item's can reach about 150 MB, and the tab doesn't show them). The files of a run still going are never deleted. See § Logs tab.

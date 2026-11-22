@@ -26,13 +26,13 @@ info:
     - **Live updates:** `WS /api/events`, described in `events.md` next to this file. The noVNC
       bridge is `WS /vnc`. Both are listed under `x-websockets`, since OpenAPI has no WebSocket operations.
 
-    **Pending S0:** step S0 answered open questions Q2, Q3, Q9, Q10 and Q13 (web-ui.md § Open
-    questions). The shapes for Q2, Q3 and Q13 follow the answers. Where Q9 or Q10 would still change a
-    shape, the schema says "Pending S0" and carries `x-pending-s0`, with the cautious answer, until S5
-    builds the Library.
+    **S0's answers:** step S0 answered open questions Q2, Q3, Q9, Q10 and Q13 (web-ui.md § Open
+    questions), and every shape follows them. Q2, Q3 and Q13 were settled in S4, Q9 and Q10 in S5:
+    Liked Songs plays as a context, so `LibraryItem` has no playback note; a linked playlist's name,
+    owner and cover come from `GET /playlists/{id}`, so they're always known.
 
     **Left out (deferred UI features):** the Schedule page's preview, notifications, the UI password,
-    custom cover uploads, History's Tracks and Logs tabs, and the logs zip.
+    custom cover uploads, and History's Tracks tab.
   contact:
     name: spotivault
     url: https://github.com/qvattr0/spotivault
@@ -162,6 +162,27 @@ paths:
         '409':
           $ref: '#/components/responses/RunActive'
 
+  /api/setup/albums/later:
+    post:
+      tags: [setup]
+      operationId: chooseAlbumsLater
+      summary: Answer step 8 with "I'll choose in Albums"
+      description: >-
+        Marks step 8 done and queues nothing: albums are added later with the Albums page's +.
+        The step's other answer, "Back up all my saved albums", is `POST /api/albums` with
+        `{all: true}`, which marks the step done too. Done is sticky: calling it again changes
+        nothing, and only "Run setup again" sets the step back to `todo`. A `setup.state` event
+        follows when the step changes.
+      responses:
+        '200':
+          description: The setup state, with step 8 done.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Setup' }
+              examples:
+                albumsAnswered:
+                  $ref: '#/components/examples/SetupAlbumsAnswered'
+
   /api/setup/complete:
     post:
       tags: [setup]
@@ -169,7 +190,7 @@ paths:
       summary: Finish the wizard (step 9's Open Library and Back up now)
       description: >-
         Marks steps 7 to 9 done and `completed` true. Steps 7 and 8 are choices with defaults, so
-        they're accepted as they are; step 8's "I'll choose in Albums" needs no call of its own.
+        they're accepted as they are, even if they weren't answered.
         Refused with 409 `setup_incomplete`, listing the steps in `details.steps`, while a step from
         1 to 6 isn't done. Calling it again once setup is complete changes nothing.
       responses:
@@ -216,7 +237,7 @@ paths:
                   propertyNames: { $ref: '#/components/schemas/ChecklistRowId' }
                   additionalProperties: { type: boolean }
             example:
-              rows: { crossfade: true, gapless: true, autoplay: false }
+              rows: { autoplay: false, crossfade: true, gapless: true }
       responses:
         '200':
           description: The checklist after the change.
@@ -610,12 +631,16 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LibraryItem' }
         '409':
-          description: Already in the Library (`already_added`).
+          description: >-
+            Already in the Library (`already_added`), checked before asking Spotify. Or the Web API
+            isn't connected (`not_connected`), or the connection expired (`connection_expired`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '422':
           $ref: '#/components/responses/LinkRefused'
+        '503':
+          $ref: '#/components/responses/SpotifyUnavailable'
 
   /api/library/suggestions:
     get:
@@ -647,8 +672,11 @@ paths:
       tags: [library]
       operationId: resolveLibraryLink
       summary: Preview a pasted link without adding it (+ modal)
-      description: Resolves the link into a preview row with an Add button, or a reason it can't be used.
-      x-pending-s0: [Q10]
+      description: >-
+        Resolves the link into a preview row with an Add button, or a reason it can't be used. One
+        `GET /playlists/{id}`, which answers with the name, owner, cover and `snapshot_id` even for
+        a playlist you don't follow (S0, Q10). A Spotify-made id (`37i9dQZF1…`) is refused without
+        asking Spotify, which answers 404 for those.
       requestBody:
         required: true
         content:
@@ -661,8 +689,51 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PlaylistPreview' }
+        '409':
+          $ref: '#/components/responses/NotConnected'
         '422':
           $ref: '#/components/responses/LinkRefused'
+        '503':
+          $ref: '#/components/responses/SpotifyUnavailable'
+
+  /api/library/refresh:
+    post:
+      tags: [library]
+      operationId: refreshLibrary
+      summary: Refresh the Library from Spotify now (the Refresh button)
+      description: >-
+        Asks for a catalog refresh and answers at once, before it runs. Unlike a page open's, it
+        isn't held back by the 15-minute limit. A press while a refresh is going, or already asked
+        for, joins that one instead of starting another. The `catalog.refresh` events (events.md)
+        say when it starts and ends, and what it found; `library.item` events carry the items it
+        changed. Never during a run: each run refreshes the Library at its start. A connection past
+        its expiry date still refreshes, as every refresh does; only Spotify's `invalid_grant`
+        refuses it.
+      responses:
+        '202':
+          description: A refresh was asked for, or one was already going.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryRefresh' }
+              examples:
+                started:
+                  value: { state: started, refresh_id: null }
+                running:
+                  value: { state: running, refresh_id: 57 }
+        '409':
+          description: >-
+            A backup is recording (`run_active`), the Web API isn't connected (`not_connected`), or
+            Spotify ended the connection (`connection_expired`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                runActive:
+                  value:
+                    error: { code: run_active, message: Not available while a backup is recording., details: null }
+                notConnected:
+                  value:
+                    error: { code: not_connected, message: Connect the Spotify Web API first., details: null }
 
   /api/library/{id}:
     parameters:
@@ -1208,6 +1279,112 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/logs:
+    get:
+      tags: [history]
+      operationId: listLogs
+      summary: History › Logs, a page of log lines
+      description: |
+        The newest lines that match the filters, older than `before` when it's given, oldest first in
+        the page. Pass `next_before` back as `before` for the page before it. The lines come from every
+        log in `/config/logs`: the controller's, the Spotify client's and the system services' (s6-log,
+        rotated files included), and Spytify's own log for each item. Spytify's raw events files aren't
+        read. Every message is masked: tokens, auth codes, `Authorization` values and the UI password
+        show as `[redacted]`. New lines come live on `WS /api/events` (`log.lines`, events.md).
+
+        A page reads about 8 MB of log text (the last file it opens is read whole). When a search
+        or a filter finds few lines, the page can hold fewer than `limit` lines, even none, and still
+        have a `next_before`: there's more to read.
+      parameters:
+        - name: source
+          in: query
+          description: >-
+            The Source chips. Lines from any of these; all four when left out. `client` is the Spotify
+            client; `system` is the s6 services (dbus, pulseaudio, vnc, wm, xserver) and the start-up
+            checks (`init`).
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/LogSource' }
+            maxItems: 4
+        - name: level
+          in: query
+          description: >-
+            The Level chips. Lines at any of these levels. Left out, every level but `debug`: debug lines
+            show only when asked for.
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/LogLevel' }
+            maxItems: 4
+        - name: run
+          in: query
+          description: >-
+            One run's lines: the controller's, the client's and the system's from the run's start to its
+            end (5 s either side; to now for a run still going), and the Spytify logs of the run's items.
+            A run id from History; a row that isn't a run (missed, skipped, held) is `not_found`.
+          schema: { type: integer, minimum: 1 }
+        - name: q
+          in: query
+          description: Text search, case-insensitive, in the masked message.
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: before
+          in: query
+          description: A line's `id`, or a page's `next_before`. Opaque.
+          schema: { type: string, maxLength: 200 }
+        - name: limit
+          in: query
+          description: Lines per page, at most.
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: A page of lines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LogPage' }
+              examples:
+                page:
+                  $ref: '#/components/examples/LogPageRun'
+        '404':
+          description: No run with this id (`not_found`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error: { code: not_found, message: No run with this id., details: null }
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /api/logs/download:
+    get:
+      tags: [history]
+      operationId: downloadLogs
+      summary: The logs as a .zip, for bug reports
+      description: >-
+        Every log file with lines from the last `days` days: the controller's, the Spotify client's,
+        the system services' and Spytify's item logs, in one folder per service (`controller/current`,
+        `spytify/42-liked.log`). Spytify's events files are left out. Each file is whole, and every line
+        is masked as in `listLogs`. Built once the request comes, then streamed.
+      parameters:
+        - name: days
+          in: query
+          description: How many days back. Logs are kept 14 days at most.
+          schema: { type: integer, minimum: 1, maximum: 14, default: 7 }
+      responses:
+        '200':
+          description: The zip.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: '`attachment; filename="spotivault-logs-20261115-0142.zip"`'
+          content:
+            application/zip:
+              schema: { type: string, contentMediaType: application/zip }
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
   /api/schedule:
     get:
       tags: [schedule]
@@ -1284,6 +1461,8 @@ paths:
               examples:
                 week:
                   $ref: '#/components/examples/WebApiUsageWeek'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 
 components:
   parameters:
@@ -1416,6 +1595,21 @@ components:
         first_unfinished: client_settings
         completed: false
         tos_acknowledged_at: '2026-11-15T09:12:44Z'
+    SetupAlbumsAnswered:
+      value:
+        steps:
+          - { id: tos, state: done }
+          - { id: client, state: done }
+          - { id: login, state: done }
+          - { id: client_settings, state: done }
+          - { id: webapi, state: done }
+          - { id: output, state: done }
+          - { id: playlists, state: done }
+          - { id: albums, state: done }
+          - { id: done, state: active }
+        first_unfinished: done
+        completed: false
+        tos_acknowledged_at: '2026-11-15T09:12:44Z'
     ClientLoggedIn:
       value:
         installed: true
@@ -1442,13 +1636,13 @@ components:
         checked_at: '2026-11-15T09:20:00Z'
         ready: false
         rows:
+          - { id: autoplay, section: playback, required: 'Off', check: confirm, state: null, confirmed: false, blocker: false }
           - { id: crossfade, section: playback, required: 'Off', check: confirm, state: null, confirmed: true, blocker: true }
           - { id: gapless, section: playback, required: 'Off', check: confirm, state: null, confirmed: true, blocker: true }
           - { id: automix, section: playback, required: 'Off', check: auto, state: ok, confirmed: null, blocker: true }
-          - { id: autoplay, section: playback, required: 'Off', check: confirm, state: null, confirmed: false, blocker: false }
           - { id: normalization, section: playback, required: 'Off', check: auto, state: needs_change, confirmed: null, blocker: true }
-          - { id: equalizer, section: playback, required: 'Off', check: auto, state: ok, confirmed: null, blocker: true }
           - { id: mono, section: playback, required: 'Off', check: auto, state: ok, confirmed: null, blocker: true }
+          - { id: equalizer, section: playback, required: 'Off', check: auto, state: ok, confirmed: null, blocker: true }
           - { id: streaming_quality, section: audio_quality, required: Very high, check: auto, state: ok, confirmed: null, blocker: true }
           - { id: auto_adjust_quality, section: audio_quality, required: 'Off', check: auto, state: unknown, confirmed: null, blocker: true }
           - { id: volume, section: player, required: 100%, check: set_for_you, state: null, confirmed: null, blocker: false }
@@ -1488,7 +1682,6 @@ components:
             last_backup_at: '2026-11-15T03:12:00Z'
             status: new
             removable: false
-            playback_note: null
             progress: null
           - id: 37i9dQZF1DXcBWIGoYBM5M
             kind: followed
@@ -1499,13 +1692,12 @@ components:
             cover_source: spotify
             tracked: true
             item_access: false
-            total: null
+            total: 35
             recorded: 32
             new: null
             last_backup_at: '2026-11-14T02:40:00Z'
             status: up_to_date
             removable: true
-            playback_note: null
             progress: null
     StatusRunning:
       value:
@@ -1519,6 +1711,7 @@ components:
           paused_reason: null
           stop_mode: null
           counters: { recorded: 12, skipped_duplicate: 230, skipped_other: 0, failed: 1, bytes_added: 41943040 }
+          time_left: { seconds: 1946, unknown_items: 1, as_of: '2026-11-15T00:42:10Z' }
         item:
           item_id: 4glBZ0bZMgkmFyi6TD4h69
           kind: album
@@ -1582,6 +1775,40 @@ components:
             p95_ms: 410
         rate_limits: []
         warnings: []
+
+    LogPageRun:
+      summary: A run's lines, every source
+      value:
+        lines:
+          - id: 1794704640002000000-0-controller
+            at: '2026-11-15T01:04:00.002Z'
+            source: controller
+            service: controller
+            level: info
+            message: 'runs: run 42 started (Scheduled), 3 items'
+            run_id: null
+          - id: 1794704644104000000-0-42-4glBZ0bZMgkmFyi6TD4h69
+            at: '2026-11-15T01:04:04.104Z'
+            source: spytify
+            service: 42-4glBZ0bZMgkmFyi6TD4h69
+            level: info
+            message: session 20261115-010404 started
+            run_id: 42
+          - id: 1794704701870000000-0-spotify
+            at: '2026-11-15T01:05:01.870Z'
+            source: client
+            service: spotify
+            level: warning
+            message: 'Warning: network stall, retrying'
+            run_id: null
+          - id: 1794704702310000000-0-controller
+            at: '2026-11-15T01:05:02.310Z'
+            source: controller
+            service: controller
+            level: error
+            message: 'webapi: GET /me/player failed: Authorization: Bearer [redacted] was refused'
+            run_id: null
+        next_before: 1794704640002000000-0-controller
 
   schemas:
     Error:
@@ -2083,7 +2310,7 @@ components:
 
     LibraryItem:
       type: object
-      required: [id, kind, uri, name, owner, cover, cover_source, tracked, item_access, total, recorded, new, last_backup_at, status, removable, playback_note, progress]
+      required: [id, kind, uri, name, owner, cover, cover_source, tracked, item_access, total, recorded, new, last_backup_at, status, removable, progress]
       additionalProperties: false
       properties:
         id: { $ref: '#/components/schemas/LibraryItemId' }
@@ -2092,12 +2319,11 @@ components:
         name:
           type: string
           description: >-
-            Pending S0 (Q10): a linked playlist whose metadata can't be read shows its id as the name
-            until a refresh can read it.
-          x-pending-s0: [Q10]
+            The playlist's name, or "Liked Songs". Always known: a linked playlist's comes from
+            `GET /playlists/{id}` (S0, Q10).
         owner:
           type: string
-          description: The owner's display name, or `you`.
+          description: The owner's display name (their id when Spotify gives none), or `you`.
         cover:
           type: [string, 'null']
           description: A thumbnail URL under `/api/library/{id}/cover`. Null for Liked Songs, which shows its tile.
@@ -2108,11 +2334,16 @@ components:
         tracked: { type: boolean }
         item_access:
           type: boolean
-          description: False for followed and linked playlists you don't collaborate on. Their track list and total are unknown.
+          description: >-
+            False for followed and linked playlists you don't collaborate on. Their track list is
+            unknown.
         total:
           type: [integer, 'null']
           minimum: 0
-          description: Playable tracks. Null when unknown (no item access).
+          description: >-
+            The playable tracks of its stored track list. Without one, a followed playlist's
+            `items.total` from `GET /me/playlists` (every entry, playable or not: web-ui.md's
+            "32 / 35 recorded"). Null for a linked playlist, whose total is unknown.
         recorded: { type: integer, minimum: 0 }
         new:
           type: [integer, 'null']
@@ -2123,17 +2354,31 @@ components:
         removable:
           type: boolean
           description: True for followed and linked items only.
-        playback_note:
-          type: [string, 'null']
-          description: >-
-            Pending S0 (Q9). If Liked Songs can't be played as a context on this client, Liked Songs
-            carries `liked_not_playable` here, shows "can't be played on this client yet", and runs skip it.
-          enum: [liked_not_playable, null]
-          x-pending-s0: [Q9]
         progress:
           oneOf:
             - $ref: '#/components/schemas/ItemProgress'
             - type: 'null'
+
+    LibraryRefresh:
+      type: object
+      description: >-
+        The answer to the Library's Refresh button. The refresh runs after it; its
+        `catalog.refresh` events (events.md) tell how it went.
+      required: [state, refresh_id]
+      additionalProperties: false
+      properties:
+        state:
+          type: string
+          enum: [started, running]
+          description: >-
+            `started`: this press asked for a refresh, and it starts at once. `running`: a refresh
+            was already going or asked for, and this press joins it.
+        refresh_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: >-
+            The refresh that's going, once it has started; its `catalog.refresh` events carry the
+            same id. Null while it waits for its turn: then its events carry the trigger `manual`.
 
     UrlBody:
       type: object
@@ -2147,25 +2392,34 @@ components:
     PlaylistPreview:
       type: object
       description: >-
-        A playlist that can be added. For a linked playlist the name, owner and cover come from
-        `GET /playlists/{id}`. Pending S0 (Q10): whether that answers when `/items` returns 403, so
-        `name`, `owner` and `cover` may be null for a linked playlist; the UI then shows the id.
-      x-pending-s0: [Q10]
+        A playlist that can be added. A followed one comes from the last catalog refresh's
+        `GET /me/playlists`, with its total. A linked one comes from `GET /playlists/{id}`, which
+        answers with its name, owner, cover and `snapshot_id` but no `items`, so its total is null,
+        and its `/items` answers 403 (S0, Q10).
       required: [id, uri, name, owner, cover, kind, item_access, total, already_added]
       additionalProperties: false
       properties:
         id: { $ref: '#/components/schemas/SpotifyId' }
         uri: { type: string }
-        name: { type: [string, 'null'] }
-        owner: { type: [string, 'null'] }
+        name: { type: string }
+        owner:
+          type: string
+          description: The owner's display name, or their id when Spotify gives none.
         cover:
           type: [string, 'null']
-          description: A Spotify CDN URL, used straight away and never stored.
+          description: >-
+            A Spotify CDN URL, used straight away and never stored. Null when the playlist has no
+            image, or (a suggestion) when no refresh since the controller started has seen one.
         kind:
           type: string
           enum: [followed, linked]
-        item_access: { type: boolean }
-        total: { type: [integer, 'null'], minimum: 0 }
+        item_access:
+          type: boolean
+          description: False for a linked playlist, and for a followed one you don't collaborate on.
+        total:
+          type: [integer, 'null']
+          minimum: 0
+          description: '`items.total` for a followed playlist; null for a linked one (unknown).'
         already_added: { type: boolean }
 
     TrackState:
@@ -2325,13 +2579,15 @@ components:
         skipped_other:
           type: integer
           minimum: 0
-          description: Ads and Spytify's other skip reasons.
+          description: >-
+            Ads, Spytify's other skip reasons, and a take dropped because the backup was stopped
+            mid-track (Stop now, or the container stopping): not failures.
         failed: { type: integer, minimum: 0 }
         bytes_added: { type: integer, minimum: 0 }
 
     RunSummary:
       type: object
-      required: [id, trigger, state, started_at, window_end, paused_reason, stop_mode, counters]
+      required: [id, trigger, state, started_at, window_end, paused_reason, stop_mode, counters, time_left]
       additionalProperties: false
       properties:
         id: { type: integer, minimum: 1 }
@@ -2351,6 +2607,58 @@ components:
           enum: [after_track, now, null]
           description: Set once a stop is asked for, including the end of a window (`after_track`).
         counters: { $ref: '#/components/schemas/Counters' }
+        time_left:
+          description: >-
+            This run's own time left, for the run header ("about 9 min left in this run"). Null while
+            the run starts (its queue isn't built yet), and in the last `run.state`, once it has ended.
+          oneOf:
+            - $ref: '#/components/schemas/RunTimeLeft'
+            - type: 'null'
+
+    RunTimeLeft:
+      type: object
+      description: >-
+        How long this run still records, worked out by the controller from what it has stored, with no
+        Web API request. Only this run's items count: the whole backlog's time left is
+        `Backlog.seconds_left`, the Full backup card's.
+      required: [seconds, unknown_items, as_of]
+      additionalProperties: false
+      properties:
+        seconds:
+          type: integer
+          minimum: 0
+          description: >-
+            Recording time left at `as_of`, of the items whose length is known. It adds up the rest of
+            the take recording now (its length less the time it has recorded), the current item's
+            planned tracks that haven't started, and each waiting item's missing tracks (Up next, and
+            interrupted items that will retry), from their stored durations, plus 35 s for each waiting
+            item with a track to record, as the backlog estimate counts. A track two items share counts
+            once, as Spytify records it once, and a track this run already recorded doesn't count again.
+            Removed items don't count. A scheduled or start-up run stops at its window's end, so until a
+            stop is asked for, it's at most the time from `as_of` to `window_end`. After Stop after this
+            track, it's just the rest of that track, even past the window's end; after Stop now, 0.
+            While the run is paused, it's what the run records once resumed: the paused item counts as
+            waiting, as it runs again.
+        unknown_items:
+          type: integer
+          minimum: 0
+          description: >-
+            Items still to run whose length isn't known, so they're left out of `seconds`: playlists
+            played whole (followed and linked ones that aren't Up to date by D13, and any whose track
+            list this run can't trust). The current item counts here while it plays whole. 0 once a
+            stop is asked for, and when the window's end caps `seconds`, since nothing runs past it.
+        as_of:
+          type: string
+          format: date-time
+          description: >-
+            When `seconds` was worked out. While the run is running, finishing or stopping, the time
+            since then counts down: show `seconds` less it, never under 0, and, until a stop is asked
+            for, never more than the time left to `window_end` (then without `unknown_items`). While
+            it's paused, the figure stands still, still capped at `window_end`. The controller works it
+            out again at each planned track's start and end, each phase of the current item, each change
+            to the queue, each change of the run's state and each move of `window_end`, and sends a
+            `run.state` when it moved by 5 s or more from what the last one shows (its count-down;
+            paused, the figure itself), or `unknown_items` changed.
 
     ItemState:
       type: string
@@ -2529,6 +2837,11 @@ components:
         added:
           type: array
           items: { $ref: '#/components/schemas/ItemId' }
+          description: >-
+            A new run: the `items` given, or empty for Run now. Joining a run: the items that now
+            wait right after the current item, in the given order, both new ones and ones already
+            waiting that moved there. The current item, and items that already ended or were
+            removed in this run, are left out: a run has one row per item.
 
     Outcome:
       type: string
@@ -2643,9 +2956,11 @@ components:
           type: [string, 'null']
           description: |
             - `skipped`: Spytify's skip reason: `duplicate`, `ad`, `too_short`, `incomplete`, `seeked`,
-              `low_quality` or `silent`.
-            - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`
-              (Stop now).
+              `low_quality` or `silent`; or `discarded`: the backup was stopped mid-track (Stop now,
+              or the container stopping), so the take was dropped. It's recorded next time.
+            - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`:
+              a partial take, which has a file; with no file, a take Stop now cut in an older run,
+              from before such a take was skipped.
         size_bytes: { type: [integer, 'null'], minimum: 0 }
         path:
           type: [string, 'null']
@@ -2816,7 +3131,9 @@ components:
               retry_after_s: { type: [integer, 'null'], minimum: 0 }
               scope:
                 type: string
-                description: '`run:<id>`, `refresh:<id>` or `other`.'
+                description: >-
+                  `run:<id>`, `refresh:<id>`, `setup` (the code exchange in wizard step 5) or
+                  `other`.
         warnings:
           type: array
           description: The usage-log warnings raised in the period (also in the controller log).
@@ -2834,3 +3151,65 @@ components:
                   a row from one endpoint. `above_median`: a refresh or run with more than twice its 7-day
                   median of requests.
               message: { type: string }
+
+    LogSource:
+      type: string
+      enum: [controller, spytify, client, system]
+      description: >-
+        Where a line comes from: the controller; Spytify (one log per item); the Spotify client;
+        the system (the s6 services dbus, pulseaudio, vnc, wm and xserver, and the start-up checks).
+
+    LogLevel:
+      type: string
+      enum: [debug, info, warning, error]
+      description: >-
+        The line's level, as its writer gave it: Python's levels for the controller (CRITICAL is
+        `error`), Spytify's own, and for the client and the system the markers their programs print
+        (`E:` and `W:` from PulseAudio, `(EE)` and `(WW)` from X, Chromium's `:ERROR:`, a leading
+        `Error:` or `Warning:`). A line with no marker is `info`. A traceback's lines take the level
+        of the line they belong to.
+
+    LogLine:
+      type: object
+      required: [id, at, source, service, level, message, run_id]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          maxLength: 200
+          description: Unique, and the line's place in the order. Pass it as `before` for the lines before it. Opaque.
+        at:
+          type: string
+          format: date-time
+          description: When it was written, UTC with milliseconds.
+        source: { $ref: '#/components/schemas/LogSource' }
+        service:
+          type: string
+          description: >-
+            The log it's from: `controller`, `spotify` (the client), `dbus`, `pulseaudio`, `vnc`, `wm`,
+            `xserver` or `init`; for Spytify, the item's log name, `<run>-<item>`, with `-2` for a
+            second attempt.
+        level: { $ref: '#/components/schemas/LogLevel' }
+        message:
+          type: string
+          maxLength: 4000
+          description: >-
+            The line without its time and level (and, for the controller, without the logger's name),
+            masked. Cut at 4000 characters.
+        run_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Spytify's lines, the run the item's log belongs to. Null for the other sources.
+
+    LogPage:
+      type: object
+      required: [lines, next_before]
+      additionalProperties: false
+      properties:
+        lines:
+          type: array
+          description: Oldest first.
+          items: { $ref: '#/components/schemas/LogLine' }
+        next_before:
+          type: [string, 'null']
+          description: Pass it as `before` for the page before this one. Null when nothing older matches.

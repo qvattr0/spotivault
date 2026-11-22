@@ -1,0 +1,73 @@
+/* The stepper row in the Wizard top: steps 88 wide and 116 apart, with 90 × 3 bars behind the
+   dots (components.md § Stepper). */
+
+.stepper {
+  display: flex;
+  gap: 28px;
+}
+
+.item {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* The bar into a step, from 1 px under the previous dot to 1 px under this one, at the dots'
+   middle. The step (z-index 1) sits on top of it. */
+.bar {
+  position: absolute;
+  top: 12.5px;
+  left: -59px;
+  width: 90px;
+  height: 3px;
+  background: var(--border-strong);
+}
+
+.barDone {
+  background: var(--accent);
+}
+
+/* A bar that turned green fills from left to right toward its step (components.md § Stepper,
+   Motion): a green strip grows over the grey bar, then the bar is drawn green as it now is. */
+.barDone[data-anim='fill'] {
+  animation: bar-hold-grey var(--stepper-bar) linear var(--anim-delay) backwards;
+}
+
+.barDone[data-anim='fill']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left;
+  opacity: 0;
+  animation: bar-fill var(--stepper-bar) ease-in-out var(--anim-delay) backwards;
+}
+
+@keyframes bar-hold-grey {
+  from,
+  to {
+    background-color: var(--border-strong);
+  }
+}
+
+@keyframes bar-fill {
+  from {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barDone[data-anim='fill'],
+  .barDone[data-anim='fill']::after {
+    animation: none;
+  }
+}
+
+.link {
+  display: block;
+  border-radius: var(--r-sm);
+}

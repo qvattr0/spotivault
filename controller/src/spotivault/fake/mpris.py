@@ -11,18 +11,30 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from spotivault.fake.clock import schedule
 from spotivault.fake.player import PlayerEvent, SimPlayer
 from spotivault.ports import MprisChange, MprisNoClient, PlaybackStatus, TrackMetadata
 
 
 class SimMpris:
-    """`ports.Mpris` for fake mode."""
+    """`ports.Mpris` for fake mode.
+
+    `metadata_lag_s` (a knob, 0 by default): the client's PropertiesChanged for a new track comes
+    this long after the change, so for that long `metadata()` still names the track before and
+    subscribers get the change late. probe.py's `loaded_positions` waits for MPRIS's title to
+    agree with Spytify's track.started for this reason (FINDINGS § Playing only the missing
+    tracks); the engine must too.
+    """
 
     def __init__(self, player: SimPlayer) -> None:
         self.player = player
         self.calls: list[str] = []  # player methods called, for tests: ["Pause", "Play", ...]
         self.world: object | None = None  # the FakeWorld it belongs to
+        self.metadata_lag_s = 0.0
         self._subscribers: set[asyncio.Queue[MprisChange]] = set()
+        self._shown: TrackMetadata | None = None  # the metadata MPRIS shows while it lags
+        self._lag_until = 0.0  # monotonic time the lag ends
+        self._previous: TrackMetadata | None = player.metadata()  # the last track MPRIS was told
         player.listeners.append(self._on_player)
 
     # --- Older names, kept for tests written against the S4 foundation's FakePlayer ------------
@@ -47,7 +59,11 @@ class SimMpris:
         return self.player.status if self.player.on_bus else None
 
     async def metadata(self) -> TrackMetadata | None:
-        return self.player.metadata() if self.player.on_bus else None
+        if not self.player.on_bus:
+            return None
+        if self.player.clock.monotonic() < self._lag_until:
+            return self._shown
+        return self.player.metadata()
 
     async def position_ms(self) -> int | None:
         return self.player.position_ms() if self.player.on_bus else None
@@ -104,6 +120,19 @@ class SimMpris:
         change = _change_for(event)
         if change is None:
             return
+        if event.kind == "track" and self.metadata_lag_s > 0:
+            clock = self.player.clock
+            if clock.monotonic() >= self._lag_until:
+                self._shown = self._previous
+            self._lag_until = clock.monotonic() + self.metadata_lag_s
+            self._previous = event.metadata
+            schedule(clock, self.metadata_lag_s, lambda: self._deliver(change))
+            return
+        if event.kind == "track":
+            self._previous = event.metadata
+        self._deliver(change)
+
+    def _deliver(self, change: MprisChange) -> None:
         for queue in self._subscribers:
             queue.put_nowait(change)
 

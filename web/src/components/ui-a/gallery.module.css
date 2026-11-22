@@ -1,0 +1,112 @@
+/* Layout for ui-a's gallery entries, measured from the component sheet (E3ZmN.png):
+   items sit 40 apart in rows 24 apart, bottom-aligned, each under an 11/500 text-muted spec
+   label 8 above it. In BRAND the label (12, text-sub) sits under the logo instead. */
+
+.sheet {
+  display: grid;
+  gap: 24px;
+  justify-items: start;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 24px 40px;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.below {
+  flex-direction: column-reverse;
+}
+
+.spec {
+  font: var(--type-label);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.brandLabel {
+  font: var(--type-caption);
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+.note {
+  max-width: 900px;
+  font: var(--type-caption);
+  color: var(--text-muted);
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cells {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input {
+  width: 320px;
+}
+
+.search {
+  width: 260px;
+}
+
+/* The Edit layout modal's field: the modal is 560 wide with padding 24. */
+.wideInput {
+  width: 512px;
+}
+
+/* The Edit layout field's "Valid" mark (w1uXEY): a check and a 14/700 label in accent. */
+.valid {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font: var(--type-button-sm);
+}
+
+/* Room under an open menu, which hangs below its button. */
+.menuRoom {
+  padding-bottom: 200px;
+}
+
+/* A stand-in for the card's art (components.md § Card): 176 square, radius 6, the badge 8 from
+   its top right. */
+.art {
+  position: relative;
+  width: 176px;
+  height: 176px;
+  border-radius: 6px;
+  background: var(--liked-gradient);
+}
+
+.artBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.artPill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.card {
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}

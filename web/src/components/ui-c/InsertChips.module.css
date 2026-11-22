@@ -1,0 +1,34 @@
+/* "Insert:" and its chips (Edit layout, w1uXEY): the label 12 text-muted, then chips 24 tall,
+   bg-highlight, radius 4, padding 0 8, mono 11 text-sub, gap 8. Hover turns the text white;
+   focus is the white ring. */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.label {
+  margin-right: 2px;
+  /* text-sub, not the drawn text-muted: 3.7:1 on the modal surface is under AA (web-ui.md § What the drawings leave out). */
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-highlight);
+  color: var(--text-sub);
+  font: var(--type-mono);
+  font-size: 11px;
+}
+
+.chip:hover {
+  color: var(--text);
+}

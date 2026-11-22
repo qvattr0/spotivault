@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from spotivault import logs
 from spotivault.app import create_app
 from spotivault.config import ConfigError, load_config
+from spotivault.logview.lines import datetime_ns
 from spotivault.services import build_services
 
 log = logging.getLogger("spotivault")
@@ -95,6 +96,10 @@ def main(argv: list[str] | None = None) -> int:
             config.fake_speed,
         )
     services = build_services(config)
+    if config.fake:
+        # The fake controller log's times follow the world's clock (logs.S6StyleFile).
+        clock = services.clock
+        logs.use_clock(lambda: datetime_ns(clock.now()))
     app = create_app(services)
     server = uvicorn.Server(uvicorn_config(app, host=host, port=port))
 

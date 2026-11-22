@@ -1,0 +1,150 @@
+/* Button/Primary, /Secondary, /Tertiary and /Danger (components.md § Buttons): pills sized by their
+   content, label and icons centred.
+
+   Hover, pressed and disabled aren't drawn (components.md § Differences, row 5). Ours:
+   - hover: filled and outlined buttons grow 4 %, like the client's; text buttons turn white;
+   - pressed: back to full size; Primary darkens to accent-press;
+   - disabled: 40 % opacity, as Continue is drawn on Setup 4 and 5 (wNpTP, j8m6AR).
+   Focus is the white ring from base.css.
+   `data-state="hover" | "active" | "focus"` draws a state for the gallery's screenshots. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--r-pill);
+  font: var(--type-button-sm);
+  white-space: nowrap;
+  transition:
+    transform 100ms ease,
+    background-color 100ms ease,
+    border-color 100ms ease,
+    color 100ms ease;
+}
+
+.button svg {
+  flex: none;
+}
+
+/* --- Variants ---------------------------------------------------------------------------------- */
+
+.primary {
+  padding: 14px 32px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: var(--type-button);
+}
+
+/* In a modal footer ("Done"). */
+.primary.sm {
+  padding: 10px 24px;
+  font: var(--type-button-sm);
+}
+
+/* The drawing's 1 px stroke sits inside its box, so its padding of 9 20 is 8 19 here plus the border. */
+.secondary {
+  padding: 8px 19px;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+
+.tertiary,
+.tertiaryDanger {
+  padding: 9px 4px;
+  gap: 6px;
+  color: var(--text-sub);
+}
+
+.tertiaryDanger {
+  color: var(--danger);
+}
+
+.danger {
+  padding: 9px 20px;
+  background: var(--danger-strong);
+  color: var(--text);
+}
+
+/* --- Hover ------------------------------------------------------------------------------------- */
+
+.primary:not(:disabled, [aria-disabled='true']):hover,
+.primary[data-state='hover'],
+.danger:not(:disabled, [aria-disabled='true']):hover,
+.danger[data-state='hover'] {
+  transform: scale(1.04);
+}
+
+.secondary:not(:disabled, [aria-disabled='true']):hover,
+.secondary[data-state='hover'] {
+  transform: scale(1.04);
+  border-color: var(--text);
+}
+
+.tertiary:not(:disabled, [aria-disabled='true']):hover,
+.tertiary[data-state='hover'] {
+  color: var(--text);
+}
+
+.tertiaryDanger:not(:disabled, [aria-disabled='true']):hover,
+.tertiaryDanger[data-state='hover'] {
+  text-decoration: underline;
+}
+
+/* --- Pressed ----------------------------------------------------------------------------------- */
+
+.button:not(:disabled, [aria-disabled='true']):active,
+.button[data-state='active'] {
+  transform: none;
+}
+
+.primary:not(:disabled, [aria-disabled='true']):active,
+.primary[data-state='active'] {
+  background: var(--accent-press);
+}
+
+.secondary:not(:disabled, [aria-disabled='true']):active,
+.secondary[data-state='active'] {
+  border-color: var(--text-sub);
+}
+
+.tertiary:not(:disabled, [aria-disabled='true']):active,
+.tertiary[data-state='active'] {
+  color: var(--text-sub);
+}
+
+/* --- Focus, disabled, busy --------------------------------------------------------------------- */
+
+.button[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.button:disabled,
+.button[aria-disabled='true']:not([aria-busy='true']) {
+  opacity: 0.4;
+}
+
+.button[aria-busy='true'] {
+  cursor: progress;
+}
+
+.spinner {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+
+  .spinner {
+    animation: none;
+  }
+}

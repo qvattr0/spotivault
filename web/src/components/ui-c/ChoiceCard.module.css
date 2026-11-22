@@ -1,0 +1,184 @@
+/* Choice cards, measured from Setup 7 (ZJSG0), Setup 8 (sUXcW) and Setup 6 (Mj5zE). Not a .pen
+   component; drawn the same way in all three.
+   Large: two in a row, gap 16; radius 12, padding 24, 2 px accent border and a faint accent fill
+   (--choice-checked-fill) when chosen, bg-elevated with a 1 px border otherwise. A 48 px icon tile
+   (accent when chosen, bg-highlight otherwise), a 22 px radio at the top right, the title 19/700,
+   the description 14 text-sub, the card's own controls and a 12 px note after a rule, 12 apart.
+   Compact: three in a row, gap 12; radius 8, padding 16, bg-elevated (with the 2 px accent border
+   when chosen); the radio at the left, the name 15/700 and a 12 text-sub line.
+   Hover (the border turns text-sub) and focus (the white ring) are ours. */
+
+.group {
+  display: grid;
+}
+
+.groupLarge {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s-4);
+}
+
+.groupCompact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s-3);
+}
+
+.card {
+  position: relative;
+  display: flex;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  cursor: pointer;
+}
+
+.large {
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 23px;
+  border-radius: var(--r-lg);
+}
+
+.compact {
+  align-items: center;
+  gap: 14px;
+  padding: 15px;
+  border-radius: var(--r-md);
+}
+
+.checked {
+  padding: 22px;
+  border: 2px solid var(--accent);
+  background: var(--choice-checked-fill);
+}
+
+.compact.checked {
+  padding: 14px;
+  background: var(--bg-elevated);
+}
+
+.card:not(.checked, .disabled):hover,
+.card[data-state='hover'] {
+  border-color: var(--text-sub);
+}
+
+/* The radio input covers nothing: it's there for the keyboard and screen readers. */
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card:has(.input:focus-visible),
+.card[data-state='focus'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+  background: var(--bg-highlight);
+  color: var(--text);
+}
+
+.checked .tile {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.radio {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--text-sub);
+  border-radius: var(--r-pill);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.radio {
+  flex: none;
+}
+
+.checked .radio {
+  border-color: var(--accent);
+  background: radial-gradient(var(--accent) 0 5px, transparent 5.5px);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.compact .text {
+  gap: 2px;
+}
+
+.title {
+  color: var(--text);
+  font: var(--type-heading);
+  font-size: 19px;
+  cursor: inherit;
+}
+
+.compact .title {
+  font: var(--type-button);
+}
+
+.description {
+  color: var(--text-sub);
+  font: var(--type-body);
+}
+
+.compact .description {
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+.own {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  cursor: default;
+}
+
+.note {
+  display: flex;
+  margin-top: auto;
+  align-items: center;
+  gap: 10px;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+.note svg {
+  flex: none;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--bg-highlight);
+  color: var(--text);
+  font: var(--type-pill);
+}
