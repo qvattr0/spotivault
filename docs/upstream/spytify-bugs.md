@@ -21,7 +21,8 @@ Each entry says:
 | 5 | Nothing cleans up leftover `.part` files after a crash | 2.0.1 (source) | Stale partial files next to recordings | The controller removes Spytify's stale `.part` files at start-up and after a recorder was killed | Not filed | None |
 | 6 | One take is 3.6 s shorter than its cut points | 2.0.1 | A track may lose a few seconds | None yet | Not investigated | None |
 | 7 | Tagged files ignore the umask | 2.0.2 (source) | Recorded AAC, MP3 and FLAC files are 0600: other NAS users and media servers can't read them | The controller sets the item's files to 0666 less UMASK | Not filed | None |
-| 8 | The `--events` file holds every `level` record | 2.0.2 (source) | A long item's events file grows with its length: about 150 MB for 24 hours | The real reader leaves `level` lines out unparsed (`recorder/events_file.py`); the item engine parses only `track.*` | Not filed | None |
+| 8 | The `--events` file holds every `level` record | 2.0.2 (source) | A long item's events file grows with its length: about 150 MB for 24 hours | The real reader leaves `level` lines out unparsed (`recorder/events_file.py`); the item engine parses only `track.*`; log retention deletes events files first | Not filed | None |
+| 9 | A take is thrown away as a jump near its end, on a client's first play | 2.0.2 | One track not recorded; the item ends Partial | None needed: the next run records the track | Not investigated | None |
 
 ## 1. Skip-forward restarts a paused player at the end of an album
 
@@ -91,6 +92,15 @@ Each entry says:
 - **Symptom:** spytifyd writes every event to `--events`, `level` included. Its level meter sends up to 10 a second while a track plays, so a long item's events file grows with the item's length.
 - **Repro:** read from the 2.0.2 source (`cmd/spytifyd/main.go`, `eventSink`, a `json.Encoder` of `proto.Event`). Not measured on a real item yet.
 - **Impact:** about 150 MB for 24 hours of recording, in `/config/logs/spytify/`, with no rotation (web-ui.md Q23). Parsing every record on the event loop at an item's end took about 100 ms for a 39-track item, before the fix. A 24-hour item's file would hold hundreds of thousands of records.
-- **Workaround:** the real reader (`recorder/events_file.py`) leaves `level` lines out before parsing them, and the item engine (`engine/item.py`) parses only the `track.*` records. Nothing removes the file yet.
+- **Workaround:** the real reader (`recorder/events_file.py`) leaves `level` lines out before parsing them, and the item engine (`engine/item.py`) parses only the `track.*` records. Log retention (`logview/retention.py`, web-ui.md Q23) deletes them after 14 days, and first when `/config/logs` passes 50 MB.
 - **Upstream:** not filed.
+- **Local patch:** none.
+
+## 9. A take is thrown away as a jump near its end, on a client's first play
+
+- **Symptom:** the first track of the first run on a fresh client recorded for 5 min 25 s. Then Spytify logged "the player jumped to 336117 ms" and "playback jumped to 336117 ms, this take is not saved". The position it read was about 11 s ahead of the 325 s the take had run, 3 s before the track's end. The next track's cut came 3 s later, at the right place.
+- **Repro:** not reproduced. Seen once, in the hands-on test of 2026-11-21 ([docs/testing/e2e.md](../testing/e2e.md), run 1). The same track recorded on the next run.
+- **Impact:** one track isn't recorded, and the item ends Partial. The next run plans it again, so nothing is lost for good.
+- **Workaround:** none needed so far. If it repeats, the item log in `/config/logs/spytify/` shows the jump line.
+- **Upstream:** not investigated. A guess to check: the client's reported position runs ahead while its first audio stream starts, so the take's own clock and the player's disagree.
 - **Local patch:** none.
