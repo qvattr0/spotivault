@@ -3,7 +3,8 @@
 //   marks it from the check alone), so Continue follows it.
 // - The format: a choice saved at once (PUT /api/settings), like a setting.
 // - The folder layout, as information, not a choice: "You can change the naming later in Settings".
-//   The drawing leaves out "and its cover" and the line about tags and covers; web-ui.md wins.
+//   The drawing leaves out the line about tags and covers; web-ui.md wins. Not in M1: a cover file
+//   per playlist (open questions 14 and 15), so the text doesn't promise one.
 
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -103,7 +104,7 @@ export function OutputStep() {
         </h2>
         <div className={parts.monoBox}>
           <p className={parts.body}>
-            Each track is saved once under Artist / Album, numbered by its track number. Each playlist gets an .m3u file and its cover in
+            Each track is saved once under Artist / Album, numbered by its track number. Each playlist gets an .m3u file in
             Music/Playlists/. Tracks are {formatLabel} with tags and a 640 px cover. You can change the naming later in Settings.
           </p>
           <p className={parts.monoText}>Music/Radiohead/OK Computer/01 - Airbag.{extension}</p>

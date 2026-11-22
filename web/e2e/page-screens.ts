@@ -107,8 +107,9 @@ export const PAGE_SCREENS: PageScreen[] = [
   {
     node: 'BAzX6', title: 'Setup 9 · Done', scenario: 'setup', step: 'done', path: '/setup/done',
     prepare: async (page) => {
-      // The summary's rows show "…" until their reads are back.
+      // The summary's rows show "…" until their reads are back. The Backup length row isn't drawn.
       await expect(page.getByText('…', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('About 298 h of music to record')).toBeVisible();
     },
   },
 
@@ -181,7 +182,11 @@ export const PAGE_SCREENS: PageScreen[] = [
   // --- Dashboard ---
   {
     node: 'fzNDm', title: 'Dashboard · Idle (with expiry banner)', scenario: 'expiring', path: '/dashboard',
-    prepare: (page) => waitForRun(page, 'idle'),
+    prepare: async (page) => {
+      await waitForRun(page, 'idle');
+      // The Full backup card isn't drawn: shown in progress, as web-ui.md's example.
+      await expect(page.getByText('About 27 h of recording left')).toBeVisible();
+    },
   },
   {
     // Drawn mid-run: done and up-to-date items above the current one. The mock's run records Liked

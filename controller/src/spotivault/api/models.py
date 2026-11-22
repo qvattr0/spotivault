@@ -557,6 +557,10 @@ class Backlog(BaseModel):
     """
     Tracked playlists without item access that will play whole (not Up to date by D13).
     """
+    items_measuring: Annotated[int, Field(ge=0)]
+    """
+    Counted items with item access whose track list hasn't been fetched yet, such as your own playlists on a fresh library or a playlist just tracked, until a catalog refresh reads them. They're in no other figure. The UI shows "Measuring" while nothing is measured yet.
+    """
     finish_at: AwareDatetime | None
     as_of: AwareDatetime
 

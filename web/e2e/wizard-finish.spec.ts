@@ -38,7 +38,10 @@ test.describe('step 6: Output', () => {
     await expect(formats).toContainText('Default · .m4a');
     await expect(page.getByText('Music/Radiohead/OK Computer/01 - Airbag.m4a')).toBeVisible();
     await expect(page.getByText('Music/Playlists/Late Night Drive.m3u')).toBeVisible();
-    await expect(page.getByText(/Each playlist gets an \.m3u file and its cover in Music\/Playlists\//)).toBeVisible();
+    // M1 writes no cover files (open questions 14 and 15), so the text promises none.
+    await expect(page.getByText(/Each playlist gets an \.m3u file in Music\/Playlists\//)).toBeVisible();
+    await expect(page.getByText(/and its cover/)).toHaveCount(0);
+    await expect(page.getByText(/with tags and a 640 px cover/)).toBeVisible();
 
     const saved = page.waitForResponse((r) => r.request().method() === 'PUT' && r.url().endsWith('/api/settings'));
     await formats.getByText('MP3 320', { exact: true }).click();
@@ -179,12 +182,26 @@ test.describe('step 9: Done', () => {
     await expect(summary).toContainText(/Tracking\s*\d+ playlists \+ Liked Songs · \d+ albums?/);
     // No Schedule page in M1, so no "set it in Schedule".
     await expect(summary).toContainText('ScheduleNone yet');
-    // Not yet (plan D8): the backup-length line.
-    await expect(page.getByText(/of music to record|Measuring…/)).toHaveCount(0);
+    // The backup length, last: nothing recorded yet, and the followed playlists of unknown length.
+    await expect(summary).toContainText('Backup lengthAbout 298 h of music to record+ 2 followed playlists (unknown length)');
+    await expect(page.getByRole('term').last()).toHaveText('Backup length');
 
     await page.getByRole('button', { name: 'Open Library' }).click();
     await expect(page).toHaveURL(/\/library$/);
     expect((await getJson<Setup>(request, '/api/setup')).completed).toBe(true);
+  });
+
+  test('the backup length says Measuring… while the track lists load, then the figure', async ({ page, request }) => {
+    await useScenario(request, 'setup', { step: 'done' });
+    const mock = mockControls(request);
+    await openPage(page, '/setup/done');
+    const summary = page.locator('dl');
+    await expect(summary).toContainText('Backup lengthAbout 298 h of music to record');
+    await mock.backlog('measuring');
+    await expect(summary).toContainText('Backup lengthMeasuring…');
+    await expect(page.getByText(/unknown length/)).toHaveCount(0);
+    await mock.backlog('fresh', { unknown_items: 1 });
+    await expect(summary).toContainText('Backup lengthAbout 298 h of music to record+ 1 followed playlist (unknown length)');
   });
 
   test('Back up now finishes setup, starts a first run and opens the Dashboard', async ({ page, request }) => {

@@ -118,33 +118,37 @@ test('a playlist file toggle saves, and Library’s auto-track toggle saves with
   expect(await savedSettings(request)).toMatchObject({ write_m3u: false, auto_track_owned: false });
 });
 
-test("Save Spotify's covers saves, and is on by default", async ({ page, request }) => {
+test("Save Spotify's covers isn't in M1: no row, and the setting is left as it is", async ({ page, request }) => {
   await useScenario(request, 'idle');
   await openPage(page, '/settings');
-  const covers = page.getByRole('switch', { name: "Save Spotify's covers" });
-  await expect(covers).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByText(/^Each playlist's cover is saved next to its \.m3u as Music\/Playlists\/<name>\.jpg/)).toBeVisible();
-  await covers.click();
-  const bar = page.getByRole('region', { name: 'Unsaved changes' });
-  await expect(bar).toBeVisible();
-  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  const files = page.getByRole('region', { name: 'Files' });
+  await expect(files.getByRole('switch', { name: 'Write .m3u playlists' })).toBeVisible();
+  // M1 writes no cover files (open questions 14 and 15), so the row is hidden, as Notifications is.
+  await expect(page.getByRole('switch', { name: "Save Spotify's covers" })).toHaveCount(0);
+  await expect(files.getByText(/cover/i)).toHaveCount(0);
+  // A save of another setting leaves it alone.
+  await files.getByRole('switch', { name: 'Write .m3u playlists' }).click();
+  await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Settings saved')).toBeVisible();
-  expect(await savedSettings(request)).toMatchObject({ save_spotify_covers: false });
-  await openPage(page, '/settings');
-  await expect(page.getByRole('switch', { name: "Save Spotify's covers" })).toHaveAttribute('aria-checked', 'false');
+  expect(await savedSettings(request)).toMatchObject({ write_m3u: false, save_spotify_covers: true });
 });
 
-test("Save Spotify's covers: Discard from the unsaved changes puts it back, and nothing is saved", async ({ page, request }) => {
+test('Container: a set UI_PASSWORD shows a warning, since M1 asks for no password', async ({ page, request }) => {
   await useScenario(request, 'idle');
   await openPage(page, '/settings');
-  const covers = page.getByRole('switch', { name: "Save Spotify's covers" });
-  await covers.click();
-  const bar = page.getByRole('region', { name: 'Unsaved changes' });
-  await expect(bar).toBeVisible();
-  await bar.getByRole('button', { name: 'Discard' }).click();
-  await expect(bar).toHaveCount(0);
-  await expect(covers).toHaveAttribute('aria-checked', 'true');
-  expect(await savedSettings(request)).toMatchObject({ save_spotify_covers: true });
+  const containerSection = page.getByRole('region', { name: 'Container' });
+  await expect(containerSection.getByText('Device name (DEVICE_NAME)')).toBeVisible();
+  await expect(containerSection.getByText(/UI_PASSWORD/)).toHaveCount(0);
+
+  // The mock's container has no UI_PASSWORD: the controller's answer is played here.
+  await page.route('**/api/container', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), ui_password_env_set: true } });
+  });
+  await openPage(page, '/settings');
+  const warning = containerSection.getByRole('status').filter({ hasText: 'UI_PASSWORD' });
+  await expect(warning).toContainText("UI_PASSWORD is set, but this version doesn't ask for a password yet.");
+  await expect(warning).toContainText('Anyone on your network can open this page, so keep spotivault off the internet.');
 });
 
 test('Edit layout opens the wizard\'s modal, and Cancel leaves the layout as it was', async ({ page, request }) => {

@@ -129,6 +129,7 @@ async def test_the_estimate_follows_the_library_and_the_index(
     assert body["seconds_left"] == 180 + 35  # the second track, and the item's overhead
     assert body["items_to_record"] == 1
     assert body["unknown_items"] == 0
+    assert body["items_measuring"] == 0
     # The tests' TZ is UTC: Sunday 01:00 is the window that starts 1 h after the fake clock's
     # start (00:00 UTC, 15 Nov), so the 215 s left finish 3 min 35 s into it.
     assert parse_instant(body["finish_at"]) == parse_instant("2026-11-15T01:03:35Z")
@@ -173,3 +174,28 @@ async def test_the_hello_and_the_answer_agree(
         hello = await ws.receive_json()
     answer = await client.get("/api/backlog")
     assert hello["data"]["backlog"] == answer.json()
+
+
+async def test_a_playlist_not_fetched_yet_is_measuring(
+    running_app: FastAPI, services: Services, client: httpx.AsyncClient, refreshes: list[str]
+) -> None:
+    """An owned playlist the catalog hasn't read yet (catalog_fetched_at NULL) is measuring, not
+    unknown: the Full backup card and step 9 show "Measuring" for it. Once it's fetched, it's
+    counted by its tracks."""
+    await services.store.transaction(seed_library)
+    await services.store.execute("UPDATE items SET catalog_fetched_at = NULL WHERE id = ?", (ITEM,))
+    await services.backlog.update()
+    response = await client.get("/api/backlog")
+    assert_response(response, "/api/backlog")
+    body = response.json()
+    assert body["items_measuring"] == 1
+    assert body["unknown_items"] == 0
+    assert (body["tracks_total"], body["seconds_left"], body["items_to_record"]) == (0, 0, 0)
+
+    await services.store.execute(
+        "UPDATE items SET catalog_fetched_at = ? WHERE id = ?", (NOW, ITEM)
+    )
+    await services.backlog.update()
+    body = (await client.get("/api/backlog")).json()
+    assert body["items_measuring"] == 0
+    assert body["tracks_total"] == 2

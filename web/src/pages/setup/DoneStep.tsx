@@ -4,8 +4,9 @@
 // - Back up now (secondary): starts a first run of everything tracked (POST /api/runs, Run now) and
 //   opens the Dashboard.
 //
-// Not yet (plan D8, waiting for the user's review): the backup-length line ("About 298 h of music to
-// record", "Measuring…"). It's left out until then.
+// The summary's last row is the backup length, from the backlog estimate ("About 298 h of music to
+// record", "Measuring…"): not drawn, built from web-ui.md (plan D8). Its words are in
+// lib/backlog-words.ts (backupLengthRow).
 
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -13,8 +14,10 @@ import { ArrowDownToLine, Check, CircleAlert } from 'lucide-react';
 import { api, callApi, useApi, type ApiError, type SetupStepId } from '@/api';
 import { Button } from '@/components/ui-a';
 import { Alert, useToast } from '@/components/ui-b';
+import { backupLengthRow } from '@/lib/backlog-words.ts';
 import { errorText } from '@/lib/errors.ts';
 import { runCreatedText } from '@/lib/run-words.ts';
+import { useBacklogEstimate } from '@/lib/use-backlog-estimate.ts';
 import { setupPath } from '@/shell';
 import { useSetup, useSpotifyConnection } from '@/state';
 import { accountLine, folderLine, formatLine, scheduleLine, trackingLine } from './done-summary.ts';
@@ -40,6 +43,7 @@ export function DoneStep() {
   const summary = useApi((signal) => api.GET('/api/library/summary', { signal }), []);
   const albums = useApi((signal) => api.GET('/api/albums', { signal }), []);
   const schedule = useApi((signal) => api.GET('/api/schedule', { signal }), []);
+  const length = backupLengthRow(useBacklogEstimate().backlog);
   const [busy, setBusy] = useState<'library' | 'backup' | null>(null);
   const [missing, setMissing] = useState<SetupStepId[] | null>(null);
   // Where to go once setup is complete. The setup gate reads the live store, and the answer to
@@ -101,6 +105,17 @@ export function DoneStep() {
             <dd>{value ?? '…'}</dd>
           </div>
         ))}
+        <div className={styles.row}>
+          <dt>Backup length</dt>
+          <dd>
+            {length.value}
+            {length.notes.map((note) => (
+              <span key={note} className={styles.note}>
+                {note}
+              </span>
+            ))}
+          </dd>
+        </div>
       </dl>
       {missing ? (
         <Alert tone="danger" title="Finish setup first">

@@ -48,22 +48,21 @@ test('a format saved on the controller is read back after a reload, and is put b
   }
 });
 
-test('the playlist-file and cover toggles save through the controller, and are put back', async ({ page, request }) => {
+test('the playlist-file toggle saves through the controller, and is put back; no covers toggle in M1', async ({ page, request }) => {
   const before = await getJson<Settings>(request, '/api/settings');
   try {
     await openPage(page, '/settings');
-    const covers = page.getByRole('switch', { name: "Save Spotify's covers" });
-    await expect(covers).toHaveAttribute('aria-checked', String(before.save_spotify_covers));
+    // M1 writes no cover files, so "Save Spotify's covers" isn't shown; the setting is left alone.
+    await expect(page.getByRole('switch', { name: "Save Spotify's covers" })).toHaveCount(0);
     await page.getByRole('switch', { name: 'Write .m3u playlists' }).click();
-    await covers.click();
     await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Settings saved')).toBeVisible();
     expect(await getJson<Settings>(request, '/api/settings')).toMatchObject({
       write_m3u: !before.write_m3u,
-      save_spotify_covers: !before.save_spotify_covers,
+      save_spotify_covers: before.save_spotify_covers,
     });
   } finally {
-    await request.put('/api/settings', { data: { write_m3u: before.write_m3u, save_spotify_covers: before.save_spotify_covers } });
+    await request.put('/api/settings', { data: { write_m3u: before.write_m3u } });
   }
 });
 

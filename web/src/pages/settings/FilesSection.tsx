@@ -1,6 +1,9 @@
-// Settings › Files (web-ui.md § Settings › Files): the layout (with Edit layout), the .m3u and cover
-// toggles, and the music folder's check. The Edit layout modal is the wizard's (EditLayoutModal);
-// Settings only opens it and keeps what it hands back in its unsaved changes.
+// Settings › Files (web-ui.md § Settings › Files): the layout (with Edit layout), the .m3u toggle,
+// and the music folder's check. The Edit layout modal is the wizard's (EditLayoutModal); Settings
+// only opens it and keeps what it hands back in its unsaved changes.
+//
+// Not in M1: "Save Spotify's covers". M1 writes no cover files (open questions 14 and 15), so the
+// row is hidden, as Notifications and Security are. The setting itself stays in the API.
 
 import { useState } from 'react';
 import { FolderCheck, Pencil } from 'lucide-react';
@@ -42,16 +45,6 @@ export function FilesSection({ draft, musicSource, storage, onEditLayout, onChan
         description="Each tracked playlist and Liked Songs gets Music/Playlists/<name>.m3u in Spotify's order. Plex, Jellyfin and Navidrome read these."
         checked={draft.write_m3u}
         onChange={(write_m3u) => onChange({ write_m3u })}
-      />
-      <SwitchRow
-        title="Save Spotify's covers"
-        description={
-          "Each playlist's cover is saved next to its .m3u as Music/Playlists/<name>.jpg, at the largest size Spotify has " +
-          "(640 px, or 1280 px for a grid of album covers). Custom covers you upload in the Library are always saved, and " +
-          "replace Spotify's. Turning this off doesn't delete covers already saved."
-        }
-        checked={draft.save_spotify_covers}
-        onChange={(save_spotify_covers) => onChange({ save_spotify_covers })}
       />
       <MusicFolderRow storage={storage} musicSource={musicSource} />
     </SettingsSection>

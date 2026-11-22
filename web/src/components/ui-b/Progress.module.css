@@ -16,7 +16,8 @@
   transition: width 0.2s linear;
 }
 
-/* Not drawn. Ours: a short segment sweeping across, for Finishing and Measuring. */
+/* Not drawn. Ours: a short segment sweeping across, for Finishing and an install with no progress
+   yet. (The Full backup card's Measuring is a skeleton, in Dashboard.module.css.) */
 .indeterminate {
   position: absolute;
   width: 30%;

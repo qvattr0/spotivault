@@ -1745,6 +1745,7 @@ components:
         seconds_left: 97305
         items_to_record: 9
         unknown_items: 2
+        items_measuring: 0
         finish_at: '2026-11-16T03:21:45+01:00'
         as_of: '2026-11-15T00:00:00Z'
     ScheduleNightly:
@@ -2532,7 +2533,7 @@ components:
         design.md § Backlog estimate, with D13. `seconds_*` are whole seconds (milliseconds summed,
         then rounded half up). `seconds_left` adds 35 s per item with something to record; the other
         `seconds_*` are music only. `finish_at` is null with Manual only, or when nothing is left.
-      required: [tracks_total, tracks_recorded, seconds_total, seconds_recorded, seconds_left, items_to_record, unknown_items, finish_at, as_of]
+      required: [tracks_total, tracks_recorded, seconds_total, seconds_recorded, seconds_left, items_to_record, unknown_items, items_measuring, finish_at, as_of]
       additionalProperties: false
       properties:
         tracks_total: { type: integer, minimum: 0 }
@@ -2545,6 +2546,14 @@ components:
           type: integer
           minimum: 0
           description: Tracked playlists without item access that will play whole (not Up to date by D13).
+        items_measuring:
+          type: integer
+          minimum: 0
+          description: >-
+            Counted items with item access whose track list hasn't been fetched yet, such as your
+            own playlists on a fresh library or a playlist just tracked, until a catalog refresh
+            reads them. They're in no other figure. The UI shows "Measuring" while nothing is
+            measured yet.
         finish_at:
           type: [string, 'null']
           format: date-time

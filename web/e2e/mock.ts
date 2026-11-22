@@ -11,7 +11,7 @@
 
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import type { Scenario } from '../mock/fixtures.ts';
-import type { Connection, SetupStepId } from '../src/api/types.ts';
+import type { Backlog, Connection, SetupStepId } from '../src/api/types.ts';
 
 /** Starts the mock over in a scenario (`step`: where the `setup` scenario starts). Pages reconnect and get the new hello. */
 export async function useScenario(request: APIRequestContext, scenario: Scenario, options: { step?: SetupStepId } = {}): Promise<void> {
@@ -93,6 +93,12 @@ export function mockControls(request: APIRequestContext) {
     history: (options: { empty: true } | { older: number }) => post('history', options),
     /** Marks the active wizard step done, whatever it is: a shortcut past a step's own write. */
     nextStep: () => post('setup/next'),
+    /**
+     * The backlog estimate changes (a `backlog` event): `measuring` (no track list read yet),
+     * `fresh` (nothing recorded), `in_progress` (27 h left) or `complete`. `patch` sets fields on top.
+     */
+    backlog: (state: 'measuring' | 'fresh' | 'in_progress' | 'complete', patch: Partial<Backlog> = {}) =>
+      post('backlog', { state, patch }),
     /**
      * A playlist made in Spotify (or, with `followed: true`, followed there): the Library's next
      * Refresh finds it, as a new item or a new suggestion in the + modal.

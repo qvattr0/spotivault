@@ -45,7 +45,7 @@ These aren't settled in the specs. Each is the cautious choice; veto any.
 | **DST** | Window starts and ends are wall-clock times. A time in the spring-forward gap moves forward by the gap; a repeated time takes its first occurrence. So the 02:00 cell covers both occurrences on fall-back night. |
 | **Full grid** | All 168 hours active is one window that never ends. |
 | **Next windows** | Include the window in progress. Starts and ends are exact: a window ending now is over. |
-| **Backlog** | Unplayable tracks are left out like local files. Milliseconds are summed, then rounded half up. `finish_at` is null when nothing is left. A playlist without item access is unknown unless D13 makes it Up to date. |
+| **Backlog** | Unplayable tracks are left out like local files. Milliseconds are summed, then rounded half up. `finish_at` is null when nothing is left. A playlist without item access is unknown unless D13 makes it Up to date. An item with item access whose track list isn't fetched yet is measuring (`items_measuring`, D8), in no other figure. |
 | **Events** | `seq` counts per controller process, with no replay: a reconnect gets a fresh `hello`. A slow client is disconnected (1013), except for `level`, which is volatile (`seq: null`) and dropped instead. |
 | **Logs** | History › Logs (moved into M1): `GET /api/logs` pages back by a line's `id`, and `GET /api/logs/download` is the zip. The live tail, `log.lines`, is volatile like `level`, and goes only to a connection that sent `logs.follow`: the socket's first client-to-server message. Its batches are capped at 200 lines, with a `dropped` count. |
 | **Errors** | One body shape, `{error: {code, message, details}}`. A link that can't be used is 422; a run that can't start is 409. |

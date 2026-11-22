@@ -540,3 +540,49 @@ describe('runs', () => {
     expect(second.next_cursor).toBeNull();
   });
 });
+
+describe('the backlog estimate (the Full backup card and step 9)', () => {
+  /** The `backlog` events the world publishes from now on. */
+  function recordBacklog(world: World): EventMap['backlog'][] {
+    const sent: EventMap['backlog'][] = [];
+    const publish = world.hub.publish.bind(world.hub);
+    world.hub.publish = (type, data) => {
+      if (type === 'backlog') sent.push(data as EventMap['backlog']);
+      publish(type, data);
+    };
+    return sent;
+  }
+
+  it('POST /__mock/backlog sets a state, sends it as an event, and GET answers it', () => {
+    const world = worldIn('idle');
+    const sent = recordBacklog(world);
+    expect(call(world, 'POST', '/__mock/backlog', { state: 'complete' }).status).toBe(200);
+    expect(sent.at(-1)).toMatchObject({ seconds_left: 0, unknown_items: 0, items_measuring: 0 });
+    expect(call(world, 'GET', '/api/backlog').body).toMatchObject({ seconds_left: 0 });
+    // The nightly schedule gives a finish date; `patch` sets fields on top.
+    call(world, 'POST', '/__mock/backlog', { state: 'in_progress', patch: { unknown_items: 0 } });
+    expect(sent.at(-1)).toMatchObject({ seconds_left: 97_305, unknown_items: 0 });
+    expect(sent.at(-1)?.finish_at).not.toBeNull();
+    expect(call(world, 'POST', '/__mock/backlog', { state: 'nope' }).status).toBe(422);
+  });
+
+  it('a library set up a moment ago has nothing recorded, and Manual only gives no finish date', () => {
+    const world = worldIn('new');
+    expect(call(world, 'GET', '/api/backlog').body).toMatchObject({ tracks_recorded: 0, finish_at: null });
+    call(world, 'POST', '/__mock/backlog', { state: 'in_progress' });
+    expect(call(world, 'GET', '/api/backlog').body).toMatchObject({ finish_at: null });
+  });
+
+  it('the first connection measures the library: Measuring, then the figures', async () => {
+    const world = worldIn('setup');
+    call(world, 'POST', '/__mock/scenario', { scenario: 'setup', step: 'webapi' });
+    expect(world.data.backlog).toBeNull();
+    const sent = recordBacklog(world);
+    call(world, 'POST', '/api/spotify/app', { client_id: '0123456789abcdef0123456789abcdef' });
+    call(world, 'POST', '/api/spotify/auth/start');
+    call(world, 'POST', '/api/spotify/auth/finish', { redirect_url: 'http://127.0.0.1:8888/callback?code=x&state=k7Qm2c' });
+    expect(sent[0]).toMatchObject({ tracks_total: 0, items_measuring: 24 });
+    await until(() => sent.length === 2);
+    expect(sent[1]).toMatchObject({ tracks_recorded: 0, items_measuring: 0, finish_at: null });
+  });
+});

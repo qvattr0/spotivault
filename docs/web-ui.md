@@ -8,10 +8,10 @@ The endpoint tables below summarize the API. The full request, response and even
 
 **Status:** M1's pages are built (S8), and run on Docker Desktop. The rest is specified for later milestones.
 - **Shaped with the user:** every page: Setup wizard, Library, Albums, Dashboard, Schedule, History, Settings and Player.
-- **Drawn:** every page, in `docs/ui-design/spotivault.pen`. Not drawn yet: the backup-length line on wizard step 9.
-- **Built in M1:** the Setup wizard, Library, Albums, Dashboard, History's Runs and Logs tabs, Settings and Player. Where this document gave no words or rule, § What the drawings leave out says what was built.
-- **Not in M1:** the Schedule page (the scheduler itself is built, and the grid is set with `PUT /api/schedule`, plan D5), History's Tracks tab, Settings' Notifications and Security, custom covers and cover files. `UI_PASSWORD` isn't enforced (plan D11).
-- **Not reviewed yet:** the Dashboard's Full backup card, the backup-length line in wizard step 9, and playlist covers (detail view and Settings › Files).
+- **Drawn:** every page, in `docs/ui-design/spotivault.pen`, except the Dashboard's Full backup card and the backup-length line on wizard step 9 (plan D8). Both were built from this document and a mockup the user approved on 2026-11-22.
+- **Built in M1:** the Setup wizard, Library, Albums, Dashboard (with the Full backup card), History's Runs and Logs tabs, Settings and Player. Where this document gave no words or rule, § What the drawings leave out says what was built.
+- **Not in M1:** the Schedule page (the scheduler itself is built, and the grid is set with `PUT /api/schedule`, plan D5), History's Tracks tab, Settings' Notifications and Security, custom covers and cover files (so step 6 and Settings › Files don't promise a cover file). `UI_PASSWORD` isn't enforced (plan D11): Settings › Container says so when it's set.
+- **Not reviewed yet:** playlist covers (detail view and Settings › Files).
 - **Built the cautious way, waiting on review:** the choices in § What the drawings leave out, and open questions 17 to 22.
 
 ## Design language
@@ -81,19 +81,20 @@ Where web-ui.md gave no words or rule, S8 built the more cautious answer below. 
 | Steps 3 and 4: Expand | Not drawn: the button (Lucide `maximize-2`, then `minimize-2` as Collapse), the dialog and its motion are ours (§ 3). The button has a tooltip, "Expand" or "Collapse", as the Player's Fullscreen does. Unlike the other modals, a click on the dimmed page closes it, since it holds no unsaved edits. The page behind is half black (`--scrim-expand`), not the 70 % `$scrim`, under which the blur hardly showed. The button's focus ring is drawn inside it, since it fills the bar's height. |
 | Step 4 | Crossfade and Gapless are Confirm rows (§ 4, open question 3). Each Auto row shows an "Auto" label before its pill. The client's screen takes two thirds of the width, not the drawn 520 px, which showed the client at 40 %. |
 | Step 5 | A stored Client ID shows masked, with a Change button, and Both checks must pass is the hint by Continue. Once connected, the paste field is hidden. In Reconnect, Done doesn't wait for the device check. |
+| Step 6 | The folder layout says each playlist gets an `.m3u` file in `Music/Playlists/`, without "and its cover": M1 writes no cover files (open questions 14 and 15). The line about tags and the 640 px cover embedded in each track stays: that's Spytify's, and true. |
 | Step 8 | "Back up all my saved albums" starts picked, as drawn. Its footer has Back and Continue, as step 7's. Reopened once it's done, it shows the answer given, as step 7 does. Nothing stores that answer: saved albums still off the Albums page (`GET /api/albums/saved`) mean "I'll choose in Albums", since "all" adds every one. Until that list loads, or if it can't, the step shows "I'll choose", which adds nothing. |
-| Step 9 | "Schedule: None yet", with no "set it in Schedule" link, since there's no Schedule page in M1. A grid set with `PUT /api/schedule` shows its size: "7 windows a week, 42 h". The backup-length line isn't built (plan D8). |
+| Step 9 | "Schedule: None yet", with no "set it in Schedule" link, since there's no Schedule page in M1. A grid set with `PUT /api/schedule` shows its size: "7 windows a week, 42 h". **Backup length** is the summary's last row (plan D8): "About 298 h of music to record" from `seconds_left`, with "+ 2 followed playlists (unknown length)" under it, or "Measuring…" while nothing is measured yet (no estimate, or `items_measuring` with no tracks known). Ours: "+ 1 playlist or album still being measured" under it while some lists are still being read; "Everything is backed up" when nothing is left, as after Run setup again; "Everything of known length is backed up" with the unknown line when only followed playlists are left; "2 followed playlists (unknown length)" when only those are tracked; and "Nothing to back up yet" when nothing is. It reads `GET /api/backlog` when the step opens, and the newer of that answer and the live `backlog`, by `as_of`, shows. |
 | Library | An item's "Show files path" gives `Music/Playlists/<name>.m3u` from its name. No endpoint gives the real path, so a name with odd characters, or one another playlist's `.m3u` already has, can differ from the file. The row menu adds "Remove from Library" for added items and has no "Change cover…". Refresh joins a refresh already going, whatever started it, so one that read Spotify just before your change ends without it: press again. If its end never comes (the controller restarted, the socket lost events), the button stops saying "Refreshing…" with no toast. A refresh dropped because a backup started says so in its toast. |
 | Add playlists | Cancel and Done in the footer, as drawn. The made-by-Spotify refusal is a standing note over the list, not an inline error. |
 | Add albums | Done only in the footer. The empty state shows only when there's nothing to add. |
 | Albums | "Show files path" gives, in a toast, the folder of the album's first recorded track, since no endpoint gives a path. With nothing recorded, the toast says so. |
 | Albums detail | It reads the whole list of added albums, since the contract has no `GET /api/albums/{id}`. An album's tracks follow its state: recorded first, then Missing. It is never New. |
-| Dashboard | The run header's time left is the run's own (§ Run header), not the backlog's. Its words for items of unknown length are ours: "+ 2 playlists of unknown length". It counts down between the controller's updates and stands still while the run is paused, at what the run records once resumed. For a run with a window (scheduled or start-up) it's capped at the window's end, so it never says more than "stops by" allows. The current item's pill says Stopping, not Waiting, while the last track records after Stop after this track. The Full backup card isn't built (plan D8). The Next backup card has no "Change schedule" in M1. Its Held sentences are ours, and "not connected to Spotify" holds it too, with Reconnect. It shows the drawn week strip, which this document doesn't mention: the schedule's hours in green, read from `GET /api/schedule`, linking nowhere. |
+| Dashboard | The run header's time left is the run's own (§ Run header), not the backlog's. Its words for items of unknown length are ours: "+ 2 playlists of unknown length". It counts down between the controller's updates and stands still while the run is paused, at what the run records once resumed. For a run with a window (scheduled or start-up) it's capped at the window's end, so it never says more than "stops by" allows. The current item's pill says Stopping, not Waiting, while the last track records after Stop after this track. **The Full backup card** (plan D8) reads `GET /api/backlog` when the Dashboard opens, and again when a catalog refresh ends, and shows the newer of that answer and the live `backlog`, by `as_of`. The second read keeps "Updated" current: the `backlog` event goes out only when a figure changed. The percent is of the music (recorded time), rounded down, and says 100 only once every track is recorded. The bar shows that same percent, so a screen reader hears what the line says. Its choices where § Idle gives none: everything of known length recorded but some followed playlists unknown shows "Everything of known length is backed up · 298 h of music" and the unknown line, with no bar, finish line or check; some lists still being read add "+ 1 playlist or album still being measured" under the figures; only followed playlists tracked shows "2 followed playlists (unknown length)"; nothing tracked shows "Nothing to back up yet", "Track playlists in the Library, or add albums on the Albums page.", with Open Library and Open Albums; "Updated" adds the day when it wasn't today ("Updated Tue 12 Nov 01:00"); and with no estimate and a failed read, it says why instead of Measuring. Dates and times are the browser's, as elsewhere on the Dashboard. The Next backup card has no "Change schedule" in M1. Its Held sentences are ours, and "not connected to Spotify" holds it too, with Reconnect. It shows the drawn week strip, which this document doesn't mention: the schedule's hours in green, read from `GET /api/schedule`, linking nowhere. |
 | Paused after a takeover | The paused item shows the track table as the controller sends it. In the controller it is empty; in the mock it keeps the discarded take as "Discarded · will redo". The contract doesn't say which is right. |
 | History › Logs | See § Logs tab, "As built". |
 | History | A run still going is listed first, as the controller lists it, with a Running pill that links to the Dashboard and no counts until it ends. Its run page says so too, and follows the run: "Building the queue…" until the queue is built after the pre-run check, then its items, and an open item's tracks as each take ends. An item's reason shows as a line under its name on the run page. An item stopped while paused after a takeover keeps the controller's "Interrupted, retried" badge. Each take is a row, so the controller's idle-exit take shows as an extra "Skipped (duplicate)" row with no position. |
 | Player | The client's screen is 16 : 10, as 1280 × 800 is, not the drawn 640 × 440 or 520 × 658. Take control asks first. |
-| Settings | "Save Spotify's covers" keeps web-ui.md's text, which mentions custom covers, with no link. The setting is saved, but M1 writes no cover files yet (plan D8; open questions 14 and 15), though that setting's text and step 6's folder layout say each playlist's cover is saved. The Unsaved changes bar sits at the foot of the panel. It never covers the focused control: a control that brings the bar up is scrolled clear of it. Notifications and Security aren't shown. |
+| Settings | Files has no "Save Spotify's covers" row: M1 writes no cover files (open questions 14 and 15), so it's hidden, as Notifications and Security are. The setting stays in the API, unchanged. Container shows a warning when `UI_PASSWORD` is set (plan D11): "UI_PASSWORD is set, but this version doesn't ask for a password yet." and "Anyone on your network can open this page, so keep spotivault off the internet.", never the password. The Unsaved changes bar sits at the foot of the panel. It never covers the focused control: a control that brings the bar up is scrolled clear of it. Notifications and Security aren't shown. |
 | Fake clock | At a fake speed above 1, the Dashboard's elapsed time and the strip's track clock stay at 0:00, since the fake clock runs ahead of the browser. This is fake mode only. |
 
 ## Navigation
@@ -294,6 +295,7 @@ Scopes requested:
     - MP3 320
   - **FLAC and WAV:** under a collapsed "More formats", each marked "No benefit: the source is lossy. Bigger files, same quality."
 - **Folder layout:** shown as information, not as a choice: each track is saved once under Artist / Album, numbered by its track number, and each playlist gets an `.m3u` file and its cover in `Music/Playlists/`. "You can change the naming later in Settings" (see [Files](#files)).
+  - **Not in M1:** the playlist's cover file (open questions 14 and 15). The step says only "an `.m3u` file" until it's built.
   - Example paths: `Music/Radiohead/OK Computer/01 - Airbag.m4a` and `Music/Playlists/Late Night Drive.m3u`.
   - `Music/.spytify/` holds Spytify's own duplicate index and working files.
   - Tracks are AAC with tags and a 640 px cover.
@@ -592,14 +594,14 @@ Three cards, stacked.
 
 **2. Full backup**
 How far the backup of everything tracked has got, and how long the rest takes. The figures come from the [backlog estimate](design.md#backlog-estimate).
-- **Progress bar:** recorded time out of total time, with "4,708 of 5,120 tracks · 87%" under it.
+- **Progress bar:** recorded time out of total time, with "4,708 of 5,120 tracks · 87% of the music" under it. The bar measures time and the line counts tracks, so the percent says it's of the music. It's rounded down, so it never says 100% until everything is recorded (settled with the user, 2026-11-22).
 - **Time left:** "About 27 h of recording left".
 - **Finish:** "Done around Sat 16 Nov at this schedule", from the schedule's active hours. With Manual only: "Run now to start; recording is real time".
 - **Unknown items:** "+ 2 followed playlists (unknown length)", when there are any.
 - **Freshness:** a quiet "Updated 01:00" line. The figures refresh when the page opens, at most once every 15 minutes, and after each item.
 - **Variants:**
   - **Complete:** a green check and "Everything is backed up · 298 h of music".
-  - **Measuring:** before the first track lists have loaded, a skeleton bar and "Measuring your library…".
+  - **Measuring:** before the first track lists have loaded, a skeleton bar and "Measuring your library…". That's no estimate yet, or items still being measured (`items_measuring`) with no tracks known yet.
 
 **3. Last run**
 - **When:** start time, duration and trigger (Scheduled or Run now).
@@ -688,7 +690,7 @@ Inline alerts sit between the strip and the queue.
 | GET | `/api/status` | `state` (`idle`, `starting`, `running`, `paused`, `stopping` or `finishing`), the current run, item and track, the counters, and the run's own time left (`time_left`). The run's `paused_reason` is `device_moved` or `device_busy` (plan D6). Read on first load; after that the WS keeps it current. |
 | GET | `/api/schedule/next` | `{at, window_end, in_progress, playlists_to_check, albums_queued, held_reason}`. `held_reason` is `connection_expired`, `not_connected`, `client_logged_out`, `run_paused` or `setup_incomplete`. |
 | GET | `/api/runs/last` | The last run's summary and its top issues. |
-| GET | `/api/backlog` | `{tracks_total, tracks_recorded, seconds_total, seconds_recorded, seconds_left, items_to_record, unknown_items, finish_at, as_of}`. `finish_at` is null with Manual only, or when nothing is left. Shared with wizard step 9 and the Schedule preview. |
+| GET | `/api/backlog` | `{tracks_total, tracks_recorded, seconds_total, seconds_recorded, seconds_left, items_to_record, unknown_items, items_measuring, finish_at, as_of}`. `finish_at` is null with Manual only, or when nothing is left. Shared with wizard step 9 and the Schedule preview. |
 | POST | `/api/runs` | Run now. Without `items` it runs everything due; with `{items: [...]}` it adds those items (from the Library or Albums). |
 | GET | `/api/runs/current` | The queue, with per-item state and the current item's track list. |
 | POST | `/api/runs/current/stop` | `{mode: "after_track" \| "now"}` |
@@ -948,7 +950,7 @@ One scrolling page, like the client's Settings: section headings, with rows of l
 - **Playlist files:** a toggle, "Write .m3u playlists", on by default.
   - Each tracked playlist, and Liked Songs, gets `Music/Playlists/<name>.m3u`, in Spotify's order, with paths relative to the `.m3u` (`../Radiohead/OK Computer/01 - Airbag.m4a`), so the folder can move.
   - Plex, Jellyfin and Navidrome read these.
-- **Playlist covers:** a toggle, "Save Spotify's covers", on by default.
+- **Playlist covers:** a toggle, "Save Spotify's covers", on by default. **Not in M1:** M1 writes no cover files (open questions 14 and 15), so the row is hidden. The setting is kept, and the API still takes it.
   - Each playlist's cover is saved next to its `.m3u` as `Music/Playlists/<name>.jpg`, at the largest size Spotify has (640 px, or 1280 px for a grid of album covers).
   - The description says: "Custom covers you upload in the Library are always saved, and replace Spotify's." Turning the toggle off doesn't delete covers already saved.
 - **Music folder:** read-only. It shows `/music → /Music`, the free space, and a "Check access" button that re-runs the wizard's step-6 check.
@@ -981,7 +983,7 @@ One scrolling page, like the client's Settings: section headings, with rows of l
 - **Uses:** Home Assistant, n8n, ntfy (which accepts a JSON POST) and the like.
 
 ### Security
-**Not in M1,** except the last part, Other sites' pages, which is built. M1 has no password: a set `UI_PASSWORD` isn't enforced (plan D11). The controller logs a warning. Plan D11 says Settings shows it too, but the page doesn't yet.
+**Not in M1,** except the last part, Other sites' pages, which is built. M1 has no password: a set `UI_PASSWORD` isn't enforced (plan D11). The controller logs a warning, and Settings › Container shows one (see [Container](#container)).
 - **Password for this web UI:** off by default, for LAN-only use.
   - **Set password** opens a dialog with new password and confirm. After that, the UI shows a simple sign-in screen, and the session lasts 30 days per browser.
   - **Change** and **Remove** need the current password.
@@ -1012,6 +1014,7 @@ Read-only, with the note "Change these in the UGOS Docker app":
 - **Music mapping:** `/music → /Music`, the shared folder's own path, as under Files › Music folder.
 - **`UMASK`.**
 - **Versions:** the image, Spytify and the Spotify client.
+- **`UI_PASSWORD` warning (M1, plan D11):** when `UI_PASSWORD` is set (`GET /api/container`'s `ui_password_env_set`), a yellow alert above the rows: "UI_PASSWORD is set, but this version doesn't ask for a password yet." and "Anyone on your network can open this page, so keep spotivault off the internet." It never shows the password.
 
 ### About
 - **Version** and a link to the project on GitHub.

@@ -65,6 +65,13 @@ export type SpotifyHealth = 'ok' | 'unavailable' | 'rate_limited';
  */
 export type ChecklistRowValue = 'ok' | 'needs_change' | 'unknown' | boolean;
 
+/**
+ * The backlog estimate as POST /__mock/backlog sets it: `measuring` (no track list read yet),
+ * `fresh` (nothing recorded), `in_progress` (the sample, 27 h left) or `complete`.
+ */
+export type BacklogPreset = 'measuring' | 'fresh' | 'in_progress' | 'complete';
+export const BACKLOG_PRESETS: readonly BacklogPreset[] = ['measuring', 'fresh', 'in_progress', 'complete'];
+
 export interface WorldData {
   scenario: f.Scenario;
   tosAt: string | null;
@@ -198,7 +205,8 @@ function atSetupStep(data: WorldData, step: SetupStepId) {
   // Step 6 is done as soon as /music is mounted and writable (controller setup.py), so being at
   // step 6 means it isn't: the red alert shows until POST /__mock/storage {"mounted": true}.
   data.storage = step === 'output' ? f.storageNotMounted : f.storageOk;
-  data.backlog = before('webapi') ? f.backlog : null;
+  // Nothing recorded yet, Manual only. Before step 5 nothing is measured; connecting measures it.
+  data.backlog = before('webapi') ? f.backlogFresh : null;
   data.albums = [];
   data.saved = structuredClone([...f.savedAlbums, ...f.albums.map(savedFromAlbum)]);
   data.history = [];
@@ -210,6 +218,7 @@ function atSetupStep(data: WorldData, step: SetupStepId) {
 function justSetUp(data: WorldData) {
   data.history = [];
   data.schedule = f.scheduleManual;
+  data.backlog = f.backlogFresh;
   data.albums = [];
   data.saved = structuredClone([...f.savedAlbums, ...f.albums.map(savedFromAlbum)]);
   data.library = data.library.map((item) => ({
@@ -1248,6 +1257,12 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
     },
     connect() {
       setConnection({ ...f.connectionOk, authorized_at: new Date().toISOString(), expires_at: new Date(Date.now() + 182 * 86_400_000).toISOString() });
+      // The first connection measures the library, as the controller's first catalog refresh does:
+      // Measuring until the track lists are read (2 s here), then a library with nothing recorded.
+      if (data.backlog === null) {
+        world.setBacklog('measuring');
+        later(2000, () => world.setBacklog('fresh'));
+      }
       return data.connection;
     },
     disconnect() {
@@ -1618,6 +1633,29 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
         .filter((item) => item.reason && (item.state === 'partial' || item.state === 'failed'))
         .slice(0, 3)
         .map((item) => ({ item_id: item.item_id, name: item.name, message: item.reason ?? '' }));
+    },
+    /**
+     * The backlog estimate (mock control; the controller's is worked out from the library): the
+     * Full backup card and step 9 in each state. Sent as a `backlog` event, with `as_of` now.
+     * `in_progress` is the sample (27 h left), with no finish date under Manual only.
+     */
+    setBacklog(state: BacklogPreset, patch: Partial<Backlog> = {}): Backlog {
+      const base = {
+        measuring: f.backlogMeasuring,
+        fresh: f.backlogFresh,
+        in_progress: f.backlog,
+        complete: f.backlogComplete,
+      }[state];
+      const manualOnly = data.schedule.hours_per_week === 0;
+      const backlog: Backlog = {
+        ...base,
+        finish_at: manualOnly || base.seconds_left === 0 ? null : (base.finish_at ?? f.backlog.finish_at),
+        as_of: new Date().toISOString(),
+        ...patch,
+      };
+      data.backlog = backlog;
+      hub.publish('backlog', backlog);
+      return backlog;
     },
     /** History (mock control): empty ("No backups yet"), or the samples plus `older` older runs. */
     setHistory(rows: 'empty' | number) {

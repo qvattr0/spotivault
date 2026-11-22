@@ -10,10 +10,11 @@
 
 import * as f from './fixtures.ts';
 import { LOG_LEVELS, LOG_SOURCES, sampleZip } from './logs.ts';
-import type { ChecklistRowValue, SpotifyHealth, World } from './world.ts';
+import { BACKLOG_PRESETS, type BacklogPreset, type ChecklistRowValue, type SpotifyHealth, type World } from './world.ts';
 import type { paths } from '../src/api/schema.ts';
 import type {
   Album,
+  Backlog,
   Connection,
   ErrorCode,
   LibraryItem,
@@ -408,7 +409,8 @@ const ROUTES: Record<string, Handler> = {
     w.data.albums.some((a) => a.id === req.params.id) ? cover(req.params.id ?? '') : notFound(),
 
   // Runs
-  'GET /api/backlog': (w) => ok(w.data.backlog ?? f.backlog),
+  // Before the first estimate the controller works one out: nothing measured yet, here.
+  'GET /api/backlog': (w) => ok(w.data.backlog ?? f.backlogMeasuring),
   'GET /api/status': (w) => ok(w.data.status),
   'GET /api/runs': (w, req) => {
     const limit = Number(req.query.get('limit') ?? 50);
@@ -608,6 +610,17 @@ const ROUTES: Record<string, Handler> = {
     return noContent;
   },
   'POST /__mock/setup/next': (w) => ok(w.nextStep()),
+  'POST /__mock/backlog': (w, req) => {
+    // {"state": "complete"}: the backlog estimate changes (a `backlog` event). `patch` sets fields on
+    // top: {"state": "in_progress", "patch": {"unknown_items": 0}}.
+    const state = req.body.state as BacklogPreset;
+    if (!BACKLOG_PRESETS.includes(state)) return fail(422, 'validation_failed', `state is one of ${BACKLOG_PRESETS.join(', ')}.`);
+    const patch = req.body.patch;
+    if (patch !== undefined && (typeof patch !== 'object' || patch === null || Array.isArray(patch))) {
+      return fail(422, 'validation_failed', 'patch is an object of Backlog fields.');
+    }
+    return ok(w.setBacklog(state, (patch ?? {}) as Partial<Backlog>));
+  },
   'POST /__mock/new-playlist': (w, req) => {
     // {"name": "Road Trip"}: a playlist you made in Spotify; {"followed": true}: one you followed.
     // The next catalog refresh (the Library's Refresh) finds it.

@@ -136,6 +136,83 @@
   background: var(--accent);
 }
 
+/* Full backup (web-ui.md § Idle, card 2). Not drawn: the bar and its line, the big time-left
+   line (18/700, as Last run's title), the smaller lines (14 text-sub), then a quiet "Updated". */
+.backup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.backupBar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.backupText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.backupTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: var(--type-heading);
+  font-size: 18px;
+}
+
+/* Complete's check keeps its size when the line wraps, at phone width. */
+.backupTitle > svg {
+  flex-shrink: 0;
+}
+
+.backupLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+/* "Updated 01:00": quiet, but text-sub, since text-muted on bg-elevated is under 4.5:1. */
+.quiet {
+  color: var(--text-sub);
+  font: var(--type-caption);
+  font-weight: 400;
+}
+
+/* Measuring: grey shapes where the bar and its line will be (the bar's own track colour), pulsing
+   gently. */
+.skeletonBar,
+.skeletonLine {
+  border-radius: var(--r-pill);
+  background: var(--bg-press);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.skeletonBar {
+  height: 4px;
+}
+
+.skeletonLine {
+  width: 40%;
+  height: 12px;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonBar,
+  .skeletonLine {
+    animation: none;
+  }
+}
+
 /* Last run */
 .lastHead {
   display: flex;

@@ -12,6 +12,7 @@
     "seconds_left = the unrecorded tracks' duration + 35 s for each known item with at least one unrecorded track (items_to_record).",
     "Seconds: milliseconds are summed first, then rounded half up to whole seconds.",
     "unknown_items: counted items without item access, except those Up to date by D13 (snapshot_id equals last_full_pass_snapshot and every observed track is still in Spytify's index). They're left out of every figure.",
+    "items_measuring: counted items with item access whose track list hasn't been fetched yet (tracks null). They're left out of every other figure.",
     "finish_at: walk the schedule's windows forward from now (a window in progress counts from now), using the real length of each window (schedule-windows.json's DST rule), until seconds_left is used up. Null with Manual only, or when seconds_left is 0. Continuous grid: now + seconds_left.",
     "as_of: when the estimate was made (here, now)."
   ],
@@ -42,6 +43,7 @@
         "seconds_left": 0,
         "items_to_record": 0,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -150,6 +152,7 @@
         "seconds_left": 755,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -284,6 +287,7 @@
         "seconds_left": 1590,
         "items_to_record": 2,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -357,6 +361,7 @@
         "seconds_left": 125,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -445,6 +450,7 @@
         "seconds_left": 135,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -544,6 +550,7 @@
         "seconds_left": 155,
         "items_to_record": 1,
         "unknown_items": 3,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -711,6 +718,7 @@
         "seconds_left": 0,
         "items_to_record": 0,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -766,6 +774,7 @@
         "seconds_left": 37,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": null,
         "as_of": "2026-11-15T10:00:00Z"
       }
@@ -910,6 +919,7 @@
         "seconds_left": 28835,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": "2026-11-13T03:00:35+01:00",
         "as_of": "2026-11-11T12:00:00Z"
       }
@@ -1012,6 +1022,7 @@
         "seconds_left": 3635,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": "2026-11-13T01:30:35+01:00",
         "as_of": "2026-11-12T05:30:00Z"
       }
@@ -1064,6 +1075,7 @@
         "seconds_left": 5435,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": "2026-11-10T00:30:35+01:00",
         "as_of": "2026-11-09T12:00:00Z"
       }
@@ -1115,6 +1127,7 @@
         "seconds_left": 12635,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": "2026-10-25T03:30:35+01:00",
         "as_of": "2026-10-23T12:00:00Z"
       }
@@ -1166,6 +1179,7 @@
         "seconds_left": 10800,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": "2026-04-05T02:00:00+02:00",
         "as_of": "2026-03-27T12:00:00Z"
       }
@@ -1442,8 +1456,268 @@
         "seconds_left": 1835,
         "items_to_record": 1,
         "unknown_items": 0,
+        "items_measuring": 0,
         "finish_at": "2026-11-15T11:50:35+01:00",
         "as_of": "2026-11-15T10:20:00Z"
+      }
+    },
+    {
+      "id": "owned-not-fetched-yet",
+      "note": "A fresh library before the first catalog refresh: your own playlist and Liked Songs have item access but no track list yet, so they're measuring, not unknown. The followed playlist is unknown. Nothing is known yet: all zeros, no finish date.",
+      "input": {
+        "items": [
+          {
+            "id": "plist00000000000000012",
+            "kind": "owned",
+            "tracked": true,
+            "item_access": true,
+            "unavailable": false,
+            "tracks": null,
+            "d13": null
+          },
+          {
+            "id": "liked",
+            "kind": "liked",
+            "tracked": true,
+            "item_access": true,
+            "unavailable": false,
+            "tracks": null,
+            "d13": null
+          },
+          {
+            "id": "follow0000000000000006",
+            "kind": "followed",
+            "tracked": true,
+            "item_access": false,
+            "unavailable": false,
+            "tracks": null,
+            "d13": null
+          }
+        ],
+        "recorded_track_ids": [],
+        "hours": {
+          "mon": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "tue": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "wed": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "thu": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "fri": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "sat": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "sun": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        "tz": "Europe/Berlin",
+        "now": "2026-11-15T10:00:00Z"
+      },
+      "expected": {
+        "tracks_total": 0,
+        "tracks_recorded": 0,
+        "seconds_total": 0,
+        "seconds_recorded": 0,
+        "seconds_left": 0,
+        "items_to_record": 0,
+        "unknown_items": 1,
+        "items_measuring": 2,
+        "finish_at": null,
+        "as_of": "2026-11-15T10:00:00Z"
+      }
+    },
+    {
+      "id": "measuring-mixed-with-fetched",
+      "note": "The album's list is fetched and counts as usual; a playlist and an album still being fetched are measuring, in no other figure. An untracked or unavailable item isn't counted at all.",
+      "input": {
+        "items": [
+          {
+            "id": "album00000000000000001",
+            "kind": "album",
+            "tracked": true,
+            "item_access": true,
+            "unavailable": false,
+            "tracks": [
+              {
+                "id": "track00000000000000001",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000002",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000003",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000004",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000005",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000006",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000007",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000008",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000009",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              },
+              {
+                "id": "track00000000000000010",
+                "duration_ms": 180000,
+                "playable": true,
+                "is_local": false
+              }
+            ],
+            "d13": null
+          },
+          {
+            "id": "plist00000000000000013",
+            "kind": "owned",
+            "tracked": true,
+            "item_access": true,
+            "unavailable": false,
+            "tracks": null,
+            "d13": null
+          },
+          {
+            "id": "album00000000000000002",
+            "kind": "album",
+            "tracked": true,
+            "item_access": true,
+            "unavailable": false,
+            "tracks": null,
+            "d13": null
+          },
+          {
+            "id": "plist00000000000000014",
+            "kind": "owned",
+            "tracked": false,
+            "item_access": true,
+            "unavailable": false,
+            "tracks": null,
+            "d13": null
+          },
+          {
+            "id": "plist00000000000000015",
+            "kind": "owned",
+            "tracked": true,
+            "item_access": true,
+            "unavailable": true,
+            "tracks": null,
+            "d13": null
+          }
+        ],
+        "recorded_track_ids": [
+          "track00000000000000001",
+          "track00000000000000002",
+          "track00000000000000003",
+          "track00000000000000004",
+          "track00000000000000005",
+          "track00000000000000006"
+        ],
+        "hours": {
+          "mon": [],
+          "tue": [],
+          "wed": [],
+          "thu": [],
+          "fri": [],
+          "sat": [],
+          "sun": []
+        },
+        "tz": "UTC",
+        "now": "2026-11-15T10:00:00Z"
+      },
+      "expected": {
+        "tracks_total": 10,
+        "tracks_recorded": 6,
+        "seconds_total": 1800,
+        "seconds_recorded": 1080,
+        "seconds_left": 755,
+        "items_to_record": 1,
+        "unknown_items": 0,
+        "items_measuring": 2,
+        "finish_at": null,
+        "as_of": "2026-11-15T10:00:00Z"
       }
     }
   ]
