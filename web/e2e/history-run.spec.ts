@@ -163,11 +163,13 @@ test('a stopped run shows Stopped, and the items it never reached', async ({ pag
   // Liked Songs was carried over into this run, and then stopped in it.
   await expect(page.locator('ol > li').first()).toContainText('Carried over from the previous run');
   await expect(page.locator('ol > li').first()).toContainText('Stopped');
-  // Its tracks: the duplicate it skipped, and the take Stop now cut short.
+  // Its tracks: the duplicate it skipped, and the take Stop now cut short: skipped, not failed.
   await itemToggle(page, 'Liked Songs').click();
   const tracks = page.getByRole('table', { name: 'Tracks of Liked Songs' });
   await expect(tracks.getByText('Skipped (duplicate)')).toBeVisible();
-  await expect(tracks.getByText('Failed · discarded by Stop now')).toBeVisible();
+  await expect(tracks.getByText('Skipped (backup stopped mid-track)')).toBeVisible();
+  const run = (await (await request.get(`/api/runs/${await newestRunId(request)}`)).json()) as { run: { counters: object } };
+  expect(run.run.counters).toMatchObject({ skipped_other: 1, failed: 0 });
 });
 
 test('a run whose window ends carries the cut item over, and ends Window ended', async ({ page, request }) => {

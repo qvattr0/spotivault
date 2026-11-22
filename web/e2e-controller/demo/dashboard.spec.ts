@@ -3,7 +3,7 @@
 // The demo controller is shared, in file order: each test stops any run it started.
 
 import { expect, test, type Page } from '@playwright/test';
-import type { ScheduleNext } from '../../src/api/types.ts';
+import type { LastRun, ScheduleNext } from '../../src/api/types.ts';
 import { demoReady, getJson, openPage, stopAnyRun, waitForRunState } from '../helpers.ts';
 
 test.beforeAll(async ({ request }) => {
@@ -70,4 +70,9 @@ test('Run now: the running Dashboard follows the run live; Remove from this run;
   await expect(lastCard(page).getByText('Stopped', { exact: true })).toBeVisible();
   await expect(lastCard(page).getByText(/ · Run now$/)).toBeVisible();
   await expect(lastCard(page).getByRole('link', { name: 'View in History' })).toHaveAttribute('href', /^\/history\/runs\/\d+$/);
+  // The take Stop now cut short isn't a failure: it's skipped (`discarded`), so the stopped run
+  // has no failed track and no issue to list.
+  const last = await getJson<LastRun>(request, '/api/runs/last');
+  expect(last.run?.counters?.failed).toBe(0);
+  expect(last.issues).toEqual([]);
 });

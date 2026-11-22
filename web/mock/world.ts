@@ -991,13 +991,27 @@ export function createWorld(hub: Hub, scenario: f.Scenario = 'idle', options: Wo
         publishQueue();
         return 'done';
       }
-      if (cut === 'stall' || cut === 'fatal' || stopping() === 'now') {
-        // A second stall, a fatal error, or Stop now: the take is lost and the item ends.
+      if (cut === 'stall' || cut === 'fatal') {
+        // A second stall or a fatal error: the take is lost, a failed track, and the item ends.
         track.state = 'failed';
-        track.reason = cut === 'stall' ? 'interrupted' : cut === 'fatal' ? 'recorder_error' : 'discarded';
+        track.reason = cut === 'stall' ? 'interrupted' : 'recorder_error';
         addTrackResult(run.id, id, resultOf(track, 'failed', null));
-        fatal = cut !== null;
-        if (fatal) bumpItemFailed(id);
+        fatal = true;
+        bumpItemFailed(id);
+        break;
+      }
+      if (stopping() === 'now') {
+        // Stop now: the take is dropped and the item ends. As in the controller, it's skipped
+        // `discarded`, not failed (the backup was stopped mid-track), and counted under Skipped.
+        track.state = 'skipped';
+        track.reason = 'discarded';
+        hub.publish('track.skipped', {
+          run_id: run.id, item_id: id, take_id: take, reason: 'incomplete', path: null, track_id: track.track_id,
+        });
+        addTrackResult(run.id, id, resultOf(track, 'skipped', null));
+        const counts = countsOf(id);
+        setItem(id, { counts: { ...counts, skipped: counts.skipped + 1 } });
+        bumpCounters({ skipped_other: 1 });
         break;
       }
 

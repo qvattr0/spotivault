@@ -192,6 +192,8 @@ describe('the track table', () => {
     expect(trackStateText(track('recorded'))).toBe('Recorded');
     expect(trackStateText(track('skipped_duplicate'))).toBe('Skipped (duplicate)');
     expect(trackStateText(track('skipped', { reason: 'ad' }))).toBe('Skipped (ad)');
+    expect(trackStateText(track('skipped', { reason: 'discarded' }))).toBe('Skipped (backup stopped mid-track)');
+    expect(trackStateText(track('failed', { reason: 'discarded' }))).toBe('Failed · partial take');
     expect(trackStateText(track('failed', { reason: 'low_volume' }))).toBe('Failed · low volume');
     expect(trackStateText(track('failed'))).toBe('Failed');
     expect(trackStateText(track('recording'))).toBe('Recording');

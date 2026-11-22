@@ -1663,6 +1663,63 @@ async def test_a_real_takeover_pauses_and_resume_finishes(sim: Sim) -> None:
     assert len(sim.recorded_titles(album)) == 5
 
 
+async def assert_cut_take_skipped(services: Services, run_id: int, album: str) -> None:
+    """The take a stop cut (Stop now or SIGTERM) is skipped `discarded`: counted under the run's
+    and the item's skipped_other, never failed, so History has nothing to retry and the Last run
+    card no issue."""
+    take = await services.store.fetchone(
+        "SELECT tr.result, tr.reason FROM track_results tr "
+        "JOIN run_items ri ON ri.id = tr.run_item_id WHERE ri.run_id = ? AND tr.planned = 1",
+        (run_id,),
+    )
+    assert (take["result"], take["reason"]) == ("skipped", "discarded")
+    run = await run_row(services, run_id)
+    assert (run["skipped_other"], run["failed"]) == (1, 0)
+    row = (await run_items(services, run_id))[album]
+    assert (row["skipped"], row["skipped_other"], row["failed"]) == (1, 1, 0)
+    detail = await services.history.run(run_id)
+    [item] = [i for i in detail.items if i.item_id == album]
+    assert (item.counts.skipped, item.counts.failed, item.can_retry) == (1, 0, False)
+    assert (await services.history.last_run()).issues == []
+
+
+@needs_item_engine
+async def test_a_real_stop_now_counts_the_cut_take_as_skipped(sim: Sim) -> None:
+    services = sim.services
+    use_history_rows(services)
+    album = await one_album(sim)
+    run_id = await start(services)
+    await until(sim, lambda: bool(sim.events_of("track.started")))
+    await sim.clock.advance(20)  # Passage (90 s) is recording
+    await services.runs.stop("now")
+    await until(sim, idle(services), within=600)
+    run = await run_row(services, run_id)
+    assert run["outcome"] == "stopped"
+    assert (await run_items(services, run_id))[album]["state"] == "stopped"
+    await assert_cut_take_skipped(services, run_id, album)
+    # The live counters said so before the run ended: Skipped 1, Failed 0.
+    counters = [e["counters"] for e in sim.events_of("run.state") if e["state"] == "stopping"]
+    assert counters[-1]["skipped_other"] == 1 and counters[-1]["failed"] == 0
+
+
+@needs_item_engine
+async def test_a_real_shutdown_counts_the_cut_take_as_skipped(sim: Sim) -> None:
+    services = sim.services
+    use_history_rows(services)
+    album = await one_album(sim)
+    run_id = await start(services)
+    await until(sim, lambda: bool(sim.events_of("track.started")))
+    await sim.clock.advance(20)  # Passage (90 s) is recording
+    stopping = asyncio.ensure_future(services.runs.shutdown())
+    assert await sim.advance_until(stopping.done, within=60) <= 40
+    await stopping
+    run = await run_row(services, run_id)
+    assert (run["outcome"], run["reason"]) == ("failed", "container_restarted")
+    row = (await run_items(services, run_id))[album]
+    assert (row["state"], row["interrupted_by"]) == ("interrupted", "shutdown")
+    await assert_cut_take_skipped(services, run_id, album)
+
+
 @needs_item_engine
 async def test_a_real_runs_time_left_counts_its_own_tracks_down(
     sim: Sim, client: httpx.AsyncClient

@@ -508,7 +508,9 @@ describe('runs', () => {
     await until(() => world.data.status.state === 'idle');
     const id = world.data.history[0]?.id;
     const tracks = (call(world, 'GET', `/api/runs/${id}/items/liked/tracks`).body as { tracks: { result: string; reason: string | null }[] }).tracks;
-    expect(tracks.map((t) => [t.result, t.reason])).toEqual([['skipped', 'duplicate'], ['failed', 'discarded']]);
+    // The take Stop now cut short is skipped `discarded`, not failed, as in the controller.
+    expect(tracks.map((t) => [t.result, t.reason])).toEqual([['skipped', 'duplicate'], ['skipped', 'discarded']]);
+    expect(world.data.history[0]?.counters).toMatchObject({ skipped_duplicate: 1, skipped_other: 1, failed: 0 });
     expect(call(world, 'GET', `/api/runs/${id}/items/nothere/tracks`).status).toBe(404);
     // A sample run's up-to-date item played nothing.
     expect(call(world, 'GET', `/api/runs/41/items/${ELSEWHERE}/tracks`).body).toEqual({ tracks: [] });

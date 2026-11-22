@@ -14,13 +14,19 @@ Owner: **engine-item**.
 | `track.finished`, counted | recorded |
 | `track.finished`, low_volume | failed `low_volume` |
 | `track.finished`, pause_fade | failed `interrupted` |
-| `track.finished`, partial | failed `discarded` |
-| `track.skipped incomplete`, planned | failed `interrupted` (a stall, takeover, shutdown) |
+| `track.finished`, partial | failed `discarded` (a partial take, saved with track.keep) |
+| `track.skipped incomplete`, planned, cut by a Stop now sent as {now: true} | skipped `discarded` |
+| `track.skipped incomplete`, planned, cut otherwise (stall, takeover) | failed `interrupted` |
 | `track.skipped`, otherwise | skipped, with Spytify's reason (a cut take not planned stays so) |
 | nothing by the end (a kill) | failed `recorder_error` after a file error, else as a cut take |
 
-A planned take Stop now cut (the user's, or the window's end) fails `discarded` instead; once the
-context moved on (autoplay), a cut take is the new context's, so it's only skipped `incomplete`.
+**A take Stop now or a shutdown cut isn't a failure:** the backup was stopped mid-track, and the
+next run records the track anyway, so it's skipped (counted under `skipped_other`). Only a stop
+sent as {now: true} cuts a take. The window's end stops after the take, so it cuts nothing; a
+Stop now on top of it does. While finishing, Stop now goes out as {now: false} and cuts nothing
+either: a take lost after it fails as it would with no stop. The first cut decides (engine/item.py
+`_cut_as`): a Stop now after a takeover leaves the takeover's take failed. Once the context moved
+on (autoplay), a cut take is the new context's, so it's only skipped `incomplete`.
 
 **Counts are distinct tracks, not events** (FINDINGS: one run counted 10 skips for a 5-track
 album). Two kinds of take aren't counted, and don't change the live table:
@@ -56,7 +62,9 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 type TakeResult = Literal["recorded", "skipped", "failed"]
-# How a planned take cut short fails; None: it isn't a failure (the context moved on).
+# How a planned take cut short ends: `interrupted` fails it (a stall, takeover or capture
+# problem), `discarded` skips it (a Stop now sent as {now: true}, the user's or a shutdown's).
+# None: the context moved on, so it's only skipped `incomplete`.
 type CutReason = Literal["interrupted", "discarded"]
 
 _SPOTIFY_ID = re.compile(r"^[0-9A-Za-z]{22}$")
@@ -356,9 +364,10 @@ class TakeBook:
             if take is None:
                 log.warning("track.skipped for an unknown take %s: ignored", event.id)
             return False
+        result: TakeResult
+        reason: str
         if event.reason == "incomplete" and take.planned and cut_reason is not None:
-            result: TakeResult = "failed"
-            reason: str = cut_reason
+            result, reason = _cut_result(cut_reason)
         elif event.reason in _SKIP_REASONS:
             result, reason = "skipped", event.reason
         else:
@@ -380,8 +389,8 @@ class TakeBook:
         return True
 
     async def close_unfinished(self, *, cut_reason: CutReason | None, file_error: bool) -> bool:
-        """Takes that never got a result (the recorder was killed, or a file was lost): failed
-        (planned) or skipped `incomplete` (not planned). Returns True when any changed."""
+        """Takes that never got a result (the recorder was killed, or a file was lost): as a
+        cut take (planned) or skipped `incomplete` (not planned). Returns True when any changed."""
         changed = False
         for take in self.takes.values():
             if take.result is not None:
@@ -389,7 +398,7 @@ class TakeBook:
             if file_error and not take.phantom:
                 await self._set_result(take, "failed", "recorder_error")
             elif take.planned and cut_reason is not None:
-                await self._set_result(take, "failed", cut_reason)
+                await self._set_result(take, *_cut_result(cut_reason))
             else:
                 await self._set_result(take, "skipped", "incomplete")
             changed = True
@@ -474,6 +483,14 @@ class TakeBook:
         self._row_of.setdefault(key, len(self._rows))
         if self._row_of[key] == len(self._rows):
             self._rows.append(row)
+
+
+def _cut_result(cut_reason: CutReason) -> tuple[TakeResult, str]:
+    """A planned take cut short: skipped `discarded` when Stop now or a shutdown cut it (not a
+    failure), else failed `interrupted`."""
+    if cut_reason == "discarded":
+        return "skipped", "discarded"
+    return "failed", "interrupted"
 
 
 def _position_key(position: int) -> str:

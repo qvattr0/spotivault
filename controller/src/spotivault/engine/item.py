@@ -70,9 +70,10 @@ Any other pause is a stall: outcome interrupted if the recorder's idle exit ends
 still paused.
 
 **Stops:** after this track is `session.stop {now: false}`. Stop now is `{now: true}` (the take is
-discarded), except while finishing: playback is over, and the take waiting for the idle exit
-(often the last track, played in full) would be rejected by a stop now, so it's `{now: false}`
-too and the recorder saves it at the idle exit (20–27 s after the pause, inside the 40 s bound).
+discarded: skipped, not failed), except while finishing: playback is over, and the take waiting
+for the idle exit (often the last track, played in full) would be rejected by a stop now, so it's
+`{now: false}` too and the recorder saves it at the idle exit (20–27 s after the pause, inside the
+40 s bound). That stop cuts nothing, so a take lost after it still fails as with no stop.
 
 **Late inputs:** Web API calls and database writes take time, so an input can be handled after
 the player moved on. Whether a take really played is read from Spytify's own `session.state`
@@ -83,8 +84,9 @@ once its title agrees, else by its title.
 
 **D13's clean full pass** (design.md step 1): a whole item without item access that ended
 `done`, whose context was heard to its end (Steering.wrapped), with no failed take and no take
-skipped for a reason a later pass could fix (seeked, low quality, silent, incomplete). Skips by
-Spytify's policy (too short, ad) don't spoil it; they aren't in observed_tracks either.
+skipped for a reason a later pass could fix (seeked, low quality, silent, incomplete, or
+discarded by a stop). Skips by Spytify's policy (too short, ad) don't spoil it; they aren't in
+observed_tracks either.
 
 Cautious choices (open points, reported): a whole item's time limit uses a stand-in length
 (planning.py); a context change ends a whole item partial and never counts as a clean full pass;
@@ -167,7 +169,8 @@ QUICK_FIRST_GRACE_S = 10.0  # Stop now when session.stop fails: SIGTERM → this
 QUICK_SECOND_GRACE_S = 5.0  # → this → SIGKILL (the shutdown must end within 40 s)
 TAKE_END_MARGIN_S = 30.0  # a stop after the take: its end + this, then signals (or the next)
 # Skips a later pass could fix: a whole pass that has one isn't a clean full pass (D13).
-_UNCLEAN_SKIPS = frozenset({"seeked", "low_quality", "silent", "incomplete"})
+# `discarded` is a take a Stop now cut, the user's or a shutdown's.
+_UNCLEAN_SKIPS = frozenset({"seeked", "low_quality", "silent", "incomplete", "discarded"})
 _TAKE_EVENTS = frozenset({sp.TRACK_STARTED, sp.TRACK_FINISHED, sp.TRACK_SKIPPED})
 
 type _Check = Literal["ok", "takeover", "context_changed"]
@@ -1025,19 +1028,21 @@ class ItemEngine:
         take waiting for the idle exit is kept."""
         previous, self._facts.stop = self._facts.stop, request
         if request.mode == "now":
-            shutdown = request.cause == "shutdown"
-            self._cut_as("interrupted" if shutdown else "discarded")
             if self._finishing:
-                await self._stop_session(now=False)
+                await self._stop_session(now=False)  # cuts nothing: the take waits for the exit
                 return
+            # Only a stop sent as {now: true} cuts the take: the user's or a shutdown's, skipped.
+            self._cut_as("discarded")
             await self._stop_session(now=True, quick=True)
             await self._begin_finishing()
         elif previous is None:
             await self._stop_session(now=False)
 
     def _cut_as(self, reason: CutReason) -> None:
-        """How a planned take cut from now on fails (not once the context moved on)."""
-        if not self._facts.context_moved:
+        """How a planned take cut from now on ends (item_takes.py). The first cut decides: once a
+        `session.stop {now}` went out (a takeover, a capture problem, Stop now), a later stop
+        doesn't change what the take it cut becomes. Nothing does once the context moved on."""
+        if not self._facts.context_moved and self._session_stop != "now":
             self._cut_reason = reason
 
     async def _on_deadlines(self) -> None:

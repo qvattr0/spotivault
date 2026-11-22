@@ -69,7 +69,8 @@ export const BADGE: Record<ItemBadge, { label: string; tone: PillTone }> = {
 /**
  * A failed track's reason, or a skipped one's, in words (web-ui.md § Run page: "low volume",
  * "recorder error", "track unavailable", "interrupted", "discarded by Stop now"; and Spytify's skip
- * reasons, shown as "Skipped (ad)"). Used after "Failed · " or inside "Skipped (…)".
+ * reasons, shown as "Skipped (ad)"). Used after "Failed · "; a skipped track's goes through
+ * skipReasonText, since `discarded` means something else there.
  */
 export function trackReasonText(reason: string | null): string | null {
   if (!reason) return null;
@@ -78,6 +79,9 @@ export function trackReasonText(reason: string | null): string | null {
     recorder_error: 'recorder error',
     unavailable: 'track unavailable',
     interrupted: 'interrupted',
+    // Failed `discarded` with no file: a take Stop now cut in an older run, from before such a
+    // take was skipped. It's every one stored so far, and the Library's and Albums' failed rows
+    // carry no file. One with a file is a partial take (trackResultText).
     discarded: 'discarded by Stop now',
     duplicate: 'duplicate',
     ad: 'ad',
@@ -90,12 +94,26 @@ export function trackReasonText(reason: string | null): string | null {
   return words[reason] ?? reason.replace(/_/g, ' ');
 }
 
+/**
+ * A skipped track's reason, inside "Skipped (…)": Spytify's skip reasons, and `discarded`, a take
+ * dropped because the backup was stopped mid-track (Stop now, or the container stopping). That's
+ * not a failure: the track is recorded next time (web-ui.md § Run page).
+ */
+export function skipReasonText(reason: string | null): string | null {
+  if (reason === 'discarded') return 'backup stopped mid-track';
+  return trackReasonText(reason);
+}
+
+/** A failed `discarded` take that has a file: Spytify saved it as "<title> (partial)". */
+export const PARTIAL_TAKE = 'partial take';
+
 /** A track's result in a run, as one line: "Recorded", "Skipped (duplicate)", "Failed · low volume". */
-export function trackResultText(track: Pick<TrackResult, 'result' | 'reason'>): string {
-  const reason = trackReasonText(track.reason);
-  if (track.result === 'skipped') return `Skipped (${reason ?? 'other'})`;
-  if (track.result === 'failed') return reason ? `Failed · ${reason}` : 'Failed';
-  return 'Recorded';
+export function trackResultText(track: Pick<TrackResult, 'result' | 'reason' | 'path'>): string {
+  if (track.result === 'skipped') return `Skipped (${skipReasonText(track.reason) ?? 'other'})`;
+  if (track.result === 'recorded') return 'Recorded';
+  // A failed `discarded` with a file is a partial take; with none, an older run's Stop now.
+  const reason = track.reason === 'discarded' && track.path ? PARTIAL_TAKE : trackReasonText(track.reason);
+  return reason ? `Failed · ${reason}` : 'Failed';
 }
 
 /**

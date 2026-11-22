@@ -569,7 +569,7 @@ class Counters(BaseModel):
     skipped_duplicate: Annotated[int, Field(ge=0)]
     skipped_other: Annotated[int, Field(ge=0)]
     """
-    Ads and Spytify's other skip reasons.
+    Ads, Spytify's other skip reasons, and a take dropped because the backup was stopped mid-track (Stop now, or the container stopping): not failures.
     """
     failed: Annotated[int, Field(ge=0)]
     bytes_added: Annotated[int, Field(ge=0)]
@@ -885,9 +885,11 @@ class TrackResult(BaseModel):
     reason: str | None
     """
     - `skipped`: Spytify's skip reason: `duplicate`, `ad`, `too_short`, `incomplete`, `seeked`,
-      `low_quality` or `silent`.
-    - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`
-      (Stop now).
+      `low_quality` or `silent`; or `discarded`: the backup was stopped mid-track (Stop now,
+      or the container stopping), so the take was dropped. It's recorded next time.
+    - `failed`: `low_volume`, `recorder_error`, `unavailable`, `interrupted` or `discarded`:
+      a partial take, which has a file; with no file, a take Stop now cut in an older run,
+      from before such a take was skipped.
 
     """
     size_bytes: Annotated[int | None, Field(ge=0)]

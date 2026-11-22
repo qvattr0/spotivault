@@ -133,7 +133,8 @@ class ItemControl:
       end the item; before the recorder started, end at once. Outcome: stopped (cause user),
       carried_over (window_end).
     - now: the current take is discarded (session.stop {now: true}; its track result is
-      `failed`, reason `discarded`). Outcome: stopped, carried_over, or interrupted (shutdown).
+      `skipped`, reason `discarded`: not a failure). Outcome: stopped, carried_over, or
+      interrupted (shutdown).
     """
 
     def __init__(self) -> None:

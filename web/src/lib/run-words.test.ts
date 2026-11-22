@@ -12,10 +12,16 @@ describe('run words', () => {
   });
 
   it('words track results and failure reasons', () => {
-    expect(trackResultText({ result: 'skipped', reason: 'duplicate' })).toBe('Skipped (duplicate)');
-    expect(trackResultText({ result: 'skipped', reason: 'ad' })).toBe('Skipped (ad)');
-    expect(trackResultText({ result: 'failed', reason: 'discarded' })).toBe('Failed · discarded by Stop now');
-    expect(trackResultText({ result: 'recorded', reason: null })).toBe('Recorded');
+    expect(trackResultText({ result: 'skipped', reason: 'duplicate', path: null })).toBe('Skipped (duplicate)');
+    expect(trackResultText({ result: 'skipped', reason: 'ad', path: null })).toBe('Skipped (ad)');
+    // A take Stop now (or the container stopping) cut short is skipped, not failed.
+    expect(trackResultText({ result: 'skipped', reason: 'discarded', path: null })).toBe('Skipped (backup stopped mid-track)');
+    // A failed `discarded` with a file is a partial take; with none, an older run's Stop now
+    // (openapi.yaml TrackResult.reason).
+    expect(trackResultText({ result: 'failed', reason: 'discarded', path: 'Mix/a (partial).m4a' })).toBe('Failed · partial take');
+    expect(trackResultText({ result: 'failed', reason: 'discarded', path: null })).toBe('Failed · discarded by Stop now');
+    expect(trackResultText({ result: 'failed', reason: 'low_volume', path: 'Mix/a.m4a' })).toBe('Failed · low volume');
+    expect(trackResultText({ result: 'recorded', reason: null, path: 'Mix/a.m4a' })).toBe('Recorded');
     expect(failureText('container_restarted')).toBe('container restarted');
     // The client restarted for a run, and its device never showed up (web-ui.md § Warnings).
     expect(failureText('device_missing')).toBe("the container's client isn't listed as a playback device");

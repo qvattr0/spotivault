@@ -60,8 +60,9 @@ export function RunHeader({ run }: { run: RunSummary }) {
             Recorded {formatCount(counters.recorded)}
           </span>
           {/* Only tracks the run skipped without recording them (an episode jumped over, a take
-              Spytify refused). Tracks already saved are skipped too, in under a second, but that's
-              the normal look of a run, not news: they aren't counted here. */}
+              Spytify refused, the track Stop now cut short). Tracks already saved are skipped too,
+              in under a second, but that's the normal look of a run, not news: they aren't
+              counted here. */}
           <span className={styles.counter} title={SKIPPED_HINT}>
             <Redo2 size={14} aria-hidden />
             Skipped {formatCount(counters.skipped_other)}
