@@ -18,8 +18,10 @@ and probe.py `cmd_record` (`steer`, `loaded_positions`, `handle`, the poll loop,
 2. `preflight`: our Connect device must be listed (else failed, RunFailure device_missing);
    another device playing → `device_busy` (D6: never take playback; the run engine pauses the
    run); /music must pass the storage check (else failed, RunFailure storage).
-3. `preparing`: pause our device, seek to 0, shuffle off, repeat off (Spytify bug 2: no track may
-   be "already playing" past 300 ms). "Player command failed" answers (403, 404) are harmless.
+3. `preparing`: pause our device if preflight's GET /me/player said something plays (with nothing
+   playing, Spotify answers a pause 403 "Restriction violated"), then seek to 0, shuffle off,
+   repeat off (Spytify bug 2: no track may be "already playing" past 300 ms). "Player command
+   failed" answers (403, 404) are harmless.
 4. `starting`: stale WAVs in `.spytify/` cleaned up (bug 4; the whole music folder after a
    recorder was killed, for bug 5's .part files), then spytifyd started with
    `settings.recorder_settings(mode)` (skip-forward off for missing_only, on for whole). A start
@@ -203,6 +205,7 @@ class ItemEngine:
         clock = services.clock
         self._scope = ApiScope("run", job.run_id)
         self._device_id = job.device_id
+        self._something_plays = True  # preflight's GET /me/player; until read, the cautious answer
         # Phases and timings.
         self._phase: ItemState = "planning"
         self._reported: set[ItemState] = set()
@@ -380,6 +383,7 @@ class ItemEngine:
             state = await webapi.player_state(scope=self._scope)
         except WebApiError as exc:
             return await self._webapi_failed_early(exc, "checking the devices")
+        self._something_plays = state is not None and state.is_playing  # None: 204, none active
         if (
             state is not None
             and state.is_playing
@@ -402,10 +406,15 @@ class ItemEngine:
         return None
 
     async def _prepare(self) -> ItemReport | None:
-        """Pause, seek to 0, shuffle and repeat off, on our device (design.md step 2)."""
+        """Pause, seek to 0, shuffle and repeat off, on our device (design.md step 2). The pause
+        only when preflight saw something playing: with nothing playing (204, or is_playing
+        false), Spotify answers it 403 "Restriction violated", and five 4xx answers in a row
+        raise the usage log's warning. Another device playing ended the item at preflight (D6)."""
         webapi = self.services.ports.webapi
         device, scope = self._device_id, self._scope
-        failure = await self._player_step("pause", webapi.pause(device_id=device, scope=scope))
+        failure: ItemReport | None = None
+        if self._something_plays:
+            failure = await self._player_step("pause", webapi.pause(device_id=device, scope=scope))
         if failure is None:
             failure = await self._player_step(
                 "seek to 0", webapi.seek(0, device_id=device, scope=scope)

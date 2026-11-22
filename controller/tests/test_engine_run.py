@@ -111,6 +111,7 @@ class ScriptedItem:
         self.control = control
         self.script = script
         self.phase: ItemState = "up_next"
+        self.reported: ItemState = "up_next"  # the last phase the run engine has taken in
 
     @property
     def recorder_pid(self) -> int | None:
@@ -128,6 +129,7 @@ class ScriptedItem:
     async def _enter(self, phase: ItemState, **extra: Any) -> None:
         self.phase = phase
         await self.host.item_phase(self.job, phase, **extra)
+        self.reported = phase
 
     def _report(self, outcome: ItemOutcome, counts: TrackCounts, **extra: Any) -> ItemReport:
         now = self.services.clock.now()
@@ -291,7 +293,11 @@ async def settle(sim: Sim) -> None:
 
 
 def idle(services: Services) -> Callable[[], bool]:
-    return lambda: services.runs.active() is None
+    """No run is going, and the last one's end is all out. `active()` is None a little early:
+    the engine then still publishes run.finished, after reading History's row on the store's
+    thread, while `until` moves the clock. Its idle flag is set only once that's done."""
+    runs = services.runs
+    return lambda: runs.active() is None and runs._idle.is_set()
 
 
 def state_is(services: Services, *states: str) -> Callable[[], bool]:
@@ -303,8 +309,12 @@ def state_is(services: Services, *states: str) -> Callable[[], bool]:
 
 
 def running_item(items: ScriptedItems, item_id: str, phase: str = "playing") -> Callable[[], bool]:
+    """The item is in `phase`, and the run engine has taken it in: its `item_phase` call
+    returned, so the run.state it may send for the phase is out or held, not still to come.
+    `until` moves the clock while that call waits on the store's thread."""
+
     def check() -> bool:
-        return any(e.job.item_id == item_id and e.phase == phase for e in items.engines[-1:])
+        return any(e.job.item_id == item_id and e.reported == phase for e in items.engines[-1:])
 
     return check
 
@@ -991,7 +1001,9 @@ async def test_stop_while_starting_ends_the_run_before_any_item(
     await until(sim, lambda: refreshing == ["run"])
     summary = await services.runs.stop("after_track")
     assert (summary.state, summary.stop_mode) == ("stopping", "after_track")
-    await until(sim, idle(services), within=5)  # the refresh was cancelled, not waited for
+    # The refresh was cancelled, not waited for: it never ends. The run ends with no time
+    # passing; the slack is for its store work, in real time, while `until` moves the clock.
+    await until(sim, idle(services), within=35)
     assert items.ran() == []
     run = await run_row(services, run_id)
     assert (run["outcome"], run["stop_mode"]) == ("stopped", "after_track")
@@ -1008,7 +1020,9 @@ async def test_sigterm_while_starting_ends_the_run_by_the_book(
     forced = []
     monkeypatch.setattr(services.runs, "_force_end", lambda run: forced.append(run))
     stopping = asyncio.ensure_future(services.runs.shutdown())
-    await until(sim, stopping.done, within=5)  # well inside the 40 s bound
+    # Inside the 40 s bound. The run ends with no time passing; the slack is for its store
+    # work, in real time, while `until` moves the clock.
+    await until(sim, stopping.done, within=35)
     await stopping
     assert forced == []  # ended by the driver, not repaired at the bound
     run = await run_row(services, run_id)
@@ -1209,6 +1223,32 @@ async def test_events_run_state_queue_item_state_finished(sim: Sim, items: Scrip
     assert sim.events_of("album.item") != []  # the album's progress
 
 
+async def test_idle_only_once_run_finished_is_out(
+    sim: Sim, items: ScriptedItems, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The engine is idle (what SIGTERM and `idle()` wait for) only once run.finished is out.
+    `active()` is None before that, while History's row is read for it."""
+    services = sim.services
+    await one_album(sim)
+    read = services.history.history_row
+    held = asyncio.Event()
+
+    async def history_row(run_id: int) -> HistoryRow:
+        await held.wait()  # a slow store
+        return await read(run_id)
+
+    monkeypatch.setattr(services.history, "history_row", history_row)
+    run_id = await start(services)
+    try:
+        await until(sim, lambda: services.runs.active() is None)
+        assert not idle(services)()
+        assert sim.events_of("run.finished") == []
+    finally:
+        held.set()  # else the run's end keeps the engine's lock, and teardown waits forever
+    await until(sim, idle(services))
+    assert [f["run"]["id"] for f in sim.events_of("run.finished")] == [run_id]
+
+
 async def test_counters_are_sent_at_most_once_a_second(sim: Sim, items: ScriptedItems) -> None:
     services = sim.services
     album = await one_album(sim)
@@ -1216,7 +1256,7 @@ async def test_counters_are_sent_at_most_once_a_second(sim: Sim, items: Scripted
     await start(services)
     await until(sim, running_item(items, album))
     engine = items.engines[0]
-    await sim.clock.advance(2)  # a second since the last run.state
+    await sim.clock.advance(2)  # a held run.state goes out, then a second passes
     before = len(sim.events_of("run.state"))
     for recorded in range(1, 6):
         await services.runs.item_counts(engine.job, TrackCounts(recorded=recorded))
@@ -1419,6 +1459,19 @@ def time_left_of(sim: Sim) -> dict[str, Any] | None:
 def seconds_left(sim: Sim) -> int | None:
     left = time_left_of(sim)
     return left["seconds"] if left is not None else None
+
+
+# How far what the UI shows may be from what's really left. A new time left goes out once its
+# whole seconds moved 5 s from the count-down (events.md), and rounding to whole seconds can
+# hide up to half a second more.
+SHOWN_WITHIN_S = run_module.TIME_LEFT_SLACK_S + 0.5
+
+
+def shown_now(sim: Sim) -> float:
+    """What the UI shows now: the last time left, counted down from its as_of."""
+    left = time_left_of(sim)
+    assert left is not None
+    return left["seconds"] - (sim.clock.now() - parse_iso(left["as_of"])).total_seconds()
 
 
 async def test_the_time_left_is_this_runs_queue_not_the_backlog(
@@ -1664,6 +1717,36 @@ async def test_a_real_takeover_pauses_and_resume_finishes(sim: Sim) -> None:
 
 
 @needs_item_engine
+async def test_a_real_d6_start_resumes_with_a_single_pause(sim: Sim) -> None:
+    """D6 as before: the phone playing at the start pauses the run, and nothing touches the
+    player. Resume pauses the phone; the item then finds nothing playing, so preparing doesn't
+    pause again (Spotify would answer 403), and the item records on our device."""
+    services = sim.services
+    use_history_rows(services)
+    album = sim.elsewhere()
+    await sim.refresh()
+    await sim.add_album(album)
+    await sim.track("liked", False)
+    sim.prerecord(album, [0, 1, 2, 3])
+    sim.world.player.play_elsewhere("Pixel 9")
+    run_id = await start(services)
+    await until(sim, state_is(services, "paused"))
+    active = services.runs.active()
+    assert active is not None and active.paused_reason == "device_busy"
+    assert [c for c in sim.webapi_calls() if c.startswith("PUT")] == []
+    await services.runs.resume()
+    await until(sim, idle(services), within=1800)
+    assert (await run_items(services, run_id))[album.album.id]["state"] == "done"
+    puts = [c for c in sim.webapi_calls() if c.startswith("PUT")]
+    assert puts[: puts.index("PUT /me/player/play")] == [
+        "PUT /me/player/pause",  # Resume's, to the phone
+        "PUT /me/player/seek",
+        "PUT /me/player/shuffle",
+        "PUT /me/player/repeat",
+    ]
+
+
+@needs_item_engine
 async def test_a_real_runs_time_left_counts_its_own_tracks_down(
     sim: Sim, client: httpx.AsyncClient
 ) -> None:
@@ -1680,17 +1763,22 @@ async def test_a_real_runs_time_left_counts_its_own_tracks_down(
     await until(sim, state_is(services, "running"))
     assert seconds_left(sim) == 271 + 35  # waiting: its stored tracks and 35 s
     await until(sim, lambda: bool(sim.events_of("track.started")))
-    assert seconds_left(sim) == 271  # the current item, planned: its own tracks
-    await sim.clock.advance(60)
-    # The UI counts the last figure down: within a few seconds of what's really left (the rest
-    # of Distant Peak, then the two others).
-    left = time_left_of(sim)
-    assert left is not None
-    shown = left["seconds"] - (sim.clock.now() - parse_iso(left["as_of"])).total_seconds()
     playing = (await services.runs.status()).track
     assert playing is not None and playing.title == "Distant Peak"
-    truth = 90 - (sim.clock.now() - playing.started_at).total_seconds() + 93 + 88
-    assert abs(shown - truth) < 5
+
+    def truth() -> float:  # the rest of Distant Peak, then the two others
+        return 271 - (sim.clock.now() - playing.started_at).total_seconds()
+
+    # The current item, planned: its own tracks, without the 35 s. The UI counts the last figure
+    # down, within a few seconds of what's really left. The figure itself isn't always 271:
+    # `until` moves the clock while the item engine waits on the store, so it can take the
+    # take's start in a second or two late, and then sends 270 or 269.
+    assert abs(shown_now(sim) - truth()) < SHOWN_WITHIN_S
+    await sim.clock.advance(60)
+    left = time_left_of(sim)
+    still = (await services.runs.status()).track
+    assert still is not None and still.take_id == playing.take_id
+    assert abs(shown_now(sim) - truth()) < SHOWN_WITHIN_S
     response = await client.get("/api/runs/current")
     assert response.json()["run"]["time_left"] == left
     await until(sim, state_is(services, "finishing"), within=1800)
@@ -1740,10 +1828,8 @@ async def test_a_real_runs_time_left_doesnt_count_again_what_it_recorded(sim: Si
             truth += sum(lengths_s[title] for title in later)
         else:
             continue
-        left = time_left_of(sim)
-        assert left is not None
-        shown = left["seconds"] - (sim.clock.now() - parse_iso(left["as_of"])).total_seconds()
-        assert abs(max(0.0, shown) - truth) < 5, (status.track, status.item.state, left)
+        shown = max(0.0, shown_now(sim))
+        assert abs(shown - truth) < SHOWN_WITHIN_S, (status.track, status.item.state, shown)
         checks += 1
     assert checks > 80  # Elsewhere's 460 s and its finishing, every 5 s
     await until(sim, idle(services), within=600)
@@ -1778,9 +1864,8 @@ async def test_a_real_whole_items_first_take_counts_from_its_start(sim: Sim) -> 
     assert playing is not None and playing.title == "A"
     left = time_left_of(sim)
     assert left is not None and left["unknown_items"] == 1  # the playlist plays whole
-    shown = left["seconds"] - (sim.clock.now() - parse_iso(left["as_of"])).total_seconds()
     truth = 150 - (sim.clock.now() - playing.started_at).total_seconds() + 460 + 35
-    assert abs(shown - truth) < 5
+    assert abs(shown_now(sim) - truth) < SHOWN_WITHIN_S
     await services.runs.stop("now")
     await until(sim, idle(services), within=600)
 
